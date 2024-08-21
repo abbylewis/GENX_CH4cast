@@ -34,7 +34,7 @@ ch4 %>%
   scale_color_viridis_d()
 ```
 
-Something is interesting about how temperature treatments affect variability of methane fluxes
+Something is interesting about how temperature treatments affect variability of methane fluxes. There is greater day-to-day variability in the ambient treatment compared to the warmed treatment, particularly when CH4 fluxes are high.
 
 ```{r}
 all_dates <- ch4 %>%
@@ -124,7 +124,8 @@ rolling %>%
   scale_color_viridis_d() 
 ```
 
-Is this true within a day?
+Is variability within a day also lower in high-temperature treatments?
+Yes, when calculated as mean ± SD. Not when calculated as median ± IQR.
 
 ```{r}
 daily <- ch4 %>% 
@@ -137,13 +138,7 @@ daily <- ch4 %>%
          n = sum(!is.na(CH4_slope_ppm_per_day))) %>%
   filter(n > 5)
 
-daily %>%
-  pivot_longer(cols = c("Daily_sd", "Daily_mean"), names_to = "Variable", values_to = "Value") %>%
-  ggplot(aes(x = as.Date(date_num), y = Value, color = zone_treatment, group = chamber_treatment)) +
-  geom_line()+
-  facet_grid(rows = vars(Temp_group), cols = vars(Variable)) +
-  scale_color_viridis_d()
-
+#Mean
 daily %>%
   ggplot(aes(x = Daily_mean, y = Daily_sd, color = zone_treatment)) +
   geom_point(alpha = 0.1) +
@@ -160,13 +155,7 @@ daily <- ch4 %>%
          n = sum(!is.na(CH4_slope_ppm_per_day))) %>%
   filter(n > 5)
 
-daily %>%
-  pivot_longer(cols = c("Daily_iqr", "Daily_median"), names_to = "Variable", values_to = "Value") %>%
-  ggplot(aes(x = as.Date(date_num), y = Value, color = zone_treatment, group = chamber_treatment)) +
-  geom_line()+
-  facet_grid(rows = vars(Temp_group), cols = vars(Variable)) +
-  scale_color_viridis_d()
-
+#Median
 daily %>%
   ggplot(aes(x = Daily_median, y = Daily_iqr, color = zone_treatment)) +
   geom_point(alpha = 0.1) +
@@ -177,14 +166,64 @@ daily %>%
 Is this true within a day?
 
 ```{r}
-ch4 %>% 
+for_plot <- ch4 %>% 
   filter(CH4_rsquared > 0.9) %>%
   mutate(date_num = as.numeric(as.Date(flux_timestamp)),
          hour = hour(flux_timestamp),
-         year = year(flux_timestamp)) %>%
-  ggplot(aes(x = hour, y = CH4_slope_umol_per_day, color = zone_treatment)) +
-  geom_line(aes(group = date_num), alpha = 0.2)+
-  facet_grid(rows = vars(zone_treatment), cols = vars(year)) +
+         year = year(flux_timestamp),
+         time = ifelse(hour < 17 & hour > 9, "day",
+                       ifelse(hour > 20 | hour < 4, "night", 
+                              "other"))) %>%
+  filter(!time == "other") %>%
+  group_by(zone_treatment, year, time, date_num) %>%
+  summarize(mean = mean(CH4_slope_umol_per_day, na.rm = T)) 
+
+#In 2021, all treatments were higher at night. In 2022, these differences are gone. No clear indication that treatment influences the magnitude of variability within a day
+for_plot %>%
+  ggplot(aes(x = time, y = mean)) +
+  geom_hline(yintercept = 0, color = "grey")+
+  geom_boxplot(aes(color = zone_treatment))+
+  facet_grid(cols = vars(zone_treatment), rows = vars(year), scales = "free") +
   scale_color_viridis_d()+
-  theme_bw()
+  theme_bw()+
+  coord_cartesian(ylim = c(-50, 100))+
+  theme(legend.position = "bottom")
+
+for_plot %>%
+  pivot_wider(names_from = time, values_from = mean) %>%
+  filter(!is.na(day), !is.na(night)) %>%
+  ggplot(aes(x = day, y = night)) +
+  geom_abline(intercept = 0, slope = 1, color = "grey") +
+  geom_smooth(aes(color = zone_treatment), method = "lm")+
+  facet_wrap(~year)+
+  scale_color_viridis_d()
 ```
+
+```{r}
+drivers <- read_csv("Raw_data/GENX_SD_Export_Waterlevel_2021-05-06_to_2022-12-30_derived_clean_btemps.csv", 
+                    show_col_types = F)
+
+p <- drivers %>%
+  filter(time2 > "2021-06-20", time2 < "2021-06-25") %>%
+  ggplot(aes(x = time2, y = corrected_depth))+
+  geom_line()
+
+library(rtide)
+library(scales)
+data <- rtide::tide_height(
+  "Annapolis (US Naval Academy), Severn River, Maryland",
+  from = as.Date("2021-07-01"), to = as.Date("2021-08-01"),
+  minutes = 10L, tz = "UTC"
+)
+
+data %>%
+  ggplot(aes(x = DateTime, y = TideHeight)) +
+  geom_line() +
+  scale_y_continuous(name = "Tide Height (m)") +
+  geom_line(data = drivers %>% filter(time2 > "2021-07-01", time2 < "2021-08-01"), aes(x = time2, y = corrected_depth/100), color = "red")
+p
+
+plotly::ggplotly(p)
+```
+
+
