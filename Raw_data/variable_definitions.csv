@@ -1,0 +1,106 @@
+column_name,units,definition,data source
+time2,YYYY-MM-DD HH:MM:SS,POSIX time stamp (UTC),derived
+chamber,NA,experiment chamber number,experimental design
+zone_treatment,NA,heating treatment in warming zone,experimental design
+zone_name,NA,specific zone name with zone number and transect and heating treatment,experimental design
+transect,NA,transect ID,experimental design
+zone,NA,zone number,experimental design
+plot_id,NA,zone and transect ID,experimental design
+distance,NA,distance along transect starting at ambient (1-10m),experimental design
+chamber_treatment,NA,chamber number and heating treatment,experimental design
+miu_valve,NA,assigned valve for flux measurements,experimental design
+chamber_name,NA,chamber name (character),SD card
+sl_id,NA,ID for Arduino logger,SD card
+co2,parts per million,carbon dioxide concentration,SD card
+co2ave1,parts per million,1 minute average of carbon dioxide concentration,SD card
+temp,degrees Celsius,air temperature,SD card
+pressure,millibars,atmospheric pressure,SD card
+humidity,%,relative humidity,SD card
+voc,kiloohms,concentration of volatile organic compounds measured as resistance,SD card
+therm10c,degrees Celsius,soil temperature at 10 cm depth in the chamber,SD card
+therm10pin,degrees Celsius,soil temperature at 10 cm depth outside the chamber near heating pins,SD card
+therm25c,degrees Celsius,soil temperature at 25 cm depth in the chamber,SD card
+therm90ext,degrees Celsius,soil temperature at 90 cm depth outside the chamber,SD card
+site_export,NA,"site name from ""Export"" table in LoggerNet",LoggerNet
+logger_export,NA,"logger name from ""Export"" table in LoggerNet",LoggerNet
+rowid,NA,unique row ID for LoggerNet data,LoggerNet
+timestamp,YYYY-MM-DD HH:MM:SS,timestamp,LoggerNet
+record,NA,record number,LoggerNet
+amb_b_avg,degrees Celsius,spatial average temperature in ambient plots,LoggerNet
+amb_r,degrees Celsius,running average temperature over 5 minutes in ambient plots,LoggerNet
+batt_check,volts,default CR1000 battery voltage measurement,LoggerNet
+therm10amb_avg,NA,spatial average of ambient chambers 15 cm depth pins,LoggerNet
+cs_code,NA,code for Campbell Scientific control of system,LoggerNet
+boxtemp1,degrees Celsius,temperature in LGR box,LoggerNet
+boxtemp2,degrees Celsius,temperature in LGR box,LoggerNet
+table,NA,LoggerNet table name,LoggerNet
+ard_duty_avg,NA,aboveground arduino duty cycle proportion (0-1000 milliseconds),LoggerNet
+b_duty_avg,NA,belowground arduino duty cycle proportion (0-1000 milliseconds),LoggerNet
+bmepressure_avg,millibars,atmospheric pressure,LoggerNet
+bmerh_avg,%,relative humidity,LoggerNet
+bmetemp_avg,degrees Celsius,air temperature,LoggerNet
+bmevoc_avg,kiloohms,concentration of volatile organic compounds measured as resistance,LoggerNet
+btemp_avg,degrees Celsius,average belowground pin and lag temperature,LoggerNet
+dif_10c_avg,degrees Celsius,difference between chamber temperature at 10 centimeter depth and amb_b,LoggerNet
+dif_10pin_avg,degrees Celsius,difference between 10pin and amb_b,LoggerNet
+dif_b_avg,degrees Celsius,heated soil treatment minus ambient temperature,LoggerNet
+dif_b_trt_avg,degrees Celsius,heated soil treatment minus ambient temperature averaged across treatments,LoggerNet
+dif_c2c_10c_avg,degrees Celsius,difference between chamber temperature at 10 centimeter depth and spatial average of ambients,LoggerNet
+dif_c2c_25c_avg,degrees Celsius,difference between chamber temperature at 25 centimeter depth and spatial average of ambients,LoggerNet
+pin_b_avg,degrees Celsius,spatial average temperature at warming pins,LoggerNet
+pin_bdev_avg,degrees Celsius,spatial standard deviation of temperature at warming pins,LoggerNet
+pin_r,degrees Celsius,running average temperature over 5 minutes at warming pin,LoggerNet
+powerpro_avg,NA,proportion of power used,LoggerNet
+soil_check_avg,degrees Celsius,DIF_B minus treatment target,LoggerNet
+stemp_avg,degrees Celsius,average incoming temperature from multiplexer screened for feedback loop temperature,LoggerNet
+stemp_raw_avg,degrees Celsius,average incoming temperature from multiplexer,LoggerNet
+stemp_raw_std,degrees Celsius,standard deviation of incoming temperature from multiplexer,LoggerNet
+therm10c_avg,degrees Celsius,soil temperature at 10 cm depth in the chamber,LoggerNet
+therm10pin_avg,degrees Celsius,soil temperature at 10 cm depth outside the chamber near heating pins,LoggerNet
+therm25c_avg,degrees Celsius,soil temperature at 25 cm depth in the chamber,LoggerNet
+therm90ext_avg,degrees Celsius,soil temperature at 90 cm depth outside the chamber,LoggerNet
+soil_eveness,NA,message regarding whether treatments are differentiating based on standard deviation of pin sensors,LoggerNet
+soil_message,NA,message about whether treatments are too high,LoggerNet
+site_waterlevel,NA,"site name from ""Waterlevel200"" table in LoggerNet",LoggerNet
+logger_waterlevel,NA,"logger name from ""Waterlevel200"" table in LoggerNet",LoggerNet
+offset,centimeters,depth offset to be subtracted from depth measurement in LoggerNet,LoggerNet
+depth,centimeters,depth of sensor,LoggerNet
+corrected_depth,centimeters,depth corrected using offset,LoggerNet
+genx_depth,centimeters,depth corrected to reflect level at GENX vs other sites,LoggerNet
+actual_conductivity,microsiemens,conductivity,LoggerNet
+specific_conductivity,microsiemens,specific conductivity,LoggerNet
+water_pressure,pounds per square inch,water pressure,LoggerNet
+resistivity,ohm centimeters,water resistivity,LoggerNet
+salinity,practical salinity units,salinity,LoggerNet
+tds,parts per thousand,total dissolved solids,LoggerNet
+water_temp,degrees Celsius,water temperature,LoggerNet
+water_density,grams per cubic centimeter,water density,LoggerNet
+yday,NA,Julian date,derived
+year,NA,year,derived
+month,NA,month,derived
+week,NA,week,derived
+date,YYYY-MM-DD,date,derived
+lat,decimal degrees,latitude,experimental design
+lon,decimal degrees,longitude,experimental design
+solarNoon,YYYY-MM-DD HH:MM:SS,time of solar noon,derived
+sunrise,YYYY-MM-DD HH:MM:SS,time of sunrise,derived
+sunset,YYYY-MM-DD HH:MM:SS,time of sunset,derived
+day,NA,is it day or night?,derived
+btemp_avg2,degrees Celsius,cleaned average belowground pin and lag temperature,derived
+amb_temp,degrees Celsius,average of air temperature at ambient chambers 1 and 2,derived
+amb_therm10c,degrees Celsius,average of 10 cm depth soil temperature at ambient chambers 1 and 2,derived
+amb_therm10pin,degrees Celsius,average of 10 cm depth soil temperature outside of ambient chambers 1 and 2,derived
+amb_therm25c,degrees Celsius,average of 25 cm depth soil temperature at ambient chambers 1 and 2,derived
+amb_therm90ext,degrees Celsius,average of 90 cm depth soil temperature outisde of ambient chambers 1 and 2,derived
+amb_btemp_z0,degrees Celsius,average belowground pin and lag temperature across zone 0 sensors,derived
+amb_btemp_z0_z1,degrees Celsius,average belowground pin and lag temperature across zone 0 and zone 1 sensors,derived
+btemp_zone_avg,degrees Celsius,average belowground pin and lag temperature across zones,derived
+delta_amb_temp,degrees Celsius,delta from ambient (amb_temp),derived
+delta_amb_therm10c,degrees Celsius,delta from ambient (amb_therm10c),derived
+delta_amb_therm10pin,degrees Celsius,delta from ambient (amb_therm10pin),derived
+delta_amb_therm25c,degrees Celsius,delta from ambient (amb_therm25c),derived
+delta_amb_therm90ext,degrees Celsius,delta from ambient (amb_therm90ext),derived
+delta_amb_btemp_therm10c,degrees Celsius,delta between plot therm10c and amb_btemp_z0,derived
+delta_amb_btemp_therm25c,degrees Celsius,delta between plot therm25c and amb_btemp_z0,derived
+delta_amb_btemp_z0,degrees Celsius,delta between individual plot btemp and amb_btemp_z0,derived
+delta_amb_btemp_z0_z1,degrees Celsius,delta between individual plot btemp and amb_btemp_z0_z1,derived
