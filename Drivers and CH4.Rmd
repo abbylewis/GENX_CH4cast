@@ -1,0 +1,73 @@
+---
+title: "Drivers and CH4"
+author: "Abby Lewis"
+date: "2024-08-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+
+ch4 <- read_csv("Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_derived.csv", show_col_types = FALSE) %>%
+  mutate(Temp = sub("e", "", zone_treatment),
+         Temp = ifelse(Temp == "amb", 0, Temp),
+         Temp = as.numeric(Temp))
+
+#Not loading driver data separately because it is already in the CH4 data file
+```
+
+Then, we used Mutual Information (I) to find the relative importance of each predictor variable and identify both synchronous and asynchronous interactions (Ruddell et al., 2013). Mutual Information (I) measures the amount of information shared by two variables, X and Y, or the reduction in uncertainty of one variable given the knowledge of the other variable (Fraser & Swinney, 1986). The degree of mutual information between X and Y is increased by adding a time lag (positive or negative) in series Y relative to X, thereby allowing the identification of both synchronous and asynchronous interactions. 
+
+Using the ProcessNetwork Software (v1.5, Ruddell et al., 2008) and the Wavelet Methods for Time Series Analysis (WMTSA) toolkit (Cornish et al., 2003), we decomposed gap-filled CH4 flux and explanatory variables in four general timescales of variation: hourly (1-2 hours), diel (4 hours – 1.3 days), multiday (2.7 – 21.3 days) and seasonal (42.7 – 341 days). These timescales of variation represented short-term perturbations such as wind gusts or overpassing clouds, day-night changes in meteorological variables and tidal fluctuations, neap-spring tidal cycles, and seasonal courses of solar movement and vegetation phenology, respectively. Wavelet decomposition was performed on gap-filled, half-hourly data using the maximal overlap discrete wavelet transform (MODWT), summing the detail over adjacent scales to yield the latter four time-scales of variation (details in (Sturtevant et al., 2016). Wavelet decomposed data were then used to compute the mutual information between CH4 fluxes and biophysical variables within each timescale over a range of time lags (from half a day at the diel scale to 60 days at the seasonal scale).Original gaps in the reconstructed time series were reintroduced before mutual information calculation for all except the seasonal analysis following (Knox et al., 2021). Results were interpreted using the relative mutual information (IR) metric, a normalized measure of the statistical dependence of CH4 flux on a range of predictor variables, with larger values indicating higher dependence. To determine the relative importance of each predictor variable, we ranked the normalized IR values across sites, and we did that within each timescale of interest. In this study, we followed the methods described by Knox et al. 2021 (i.e., 10 bins and 50 random reshufflings to calculate significance thresholds at each lag) and focused on results for the predictors of diel, multiday, and seasonal timescales.
+
+Wavelet
+
+```{r}
+library(wavethresh)
+
+plot_irreg_wavelets <- function(treatment) {
+  #Format data (dealing with irregularly spaced data)
+  test_data <- ch4 %>%
+    filter(CH4_rsquared > 0.9, !is.na(CH4_slope_umol_per_day)) %>%
+    filter(zone_treatment == treatment) %>%
+    dplyr::select(CH4_slope_umol_per_day, time2) %>%
+    mutate(range = as.numeric(difftime(max(time2), min(time2), units = "secs")),
+           x_stand = as.numeric(time2 - min(time2))/range)
+  grid <- makegrid(test_data$x_stand, test_data$CH4_slope_umol_per_day)
+  
+  #Run wavelet transformation
+  irreg_wavelet <- irregwd(grid, 
+                           filter.number=2, 
+                           family="DaubExPhase", 
+                           bc="periodic", 
+                           verbose=F)
+  #plot.irregwd(irreg_wavelet)
+  wavelet <- irreg_wavelet
+  class(wavelet) <- "wd"
+  #labels
+  ylab <- paste0(round(unique(test_data$range) / 
+                         (2^seq(irreg_wavelet$nlevels,1))/60/60 / 
+                         c(rep(1,3), c(rep(24,irreg_wavelet$nlevels-3))), 0),
+                 c(rep(" hours", 3), rep(" days", irreg_wavelet$nlevels-3)))
+  message(ylab)
+  message(irreg_wavelet$nlevels)
+  #plot
+  plot.wd(wavelet, main = paste("Wavelet for", treatment), 
+          xlabvals = c(0, 
+                       length(grid$gridt)/2, 
+                       length(grid$gridt))/2, 
+          xlabchars = c(as.Date(min(test_data$time2)), 
+                        as.Date(min(test_data$time2) + (max(test_data$time2) - min(test_data$time2))/2),
+                        as.Date(max(test_data$time2))),
+          ylabchars = ylab)
+  
+  #Get the actual coefficient values
+  accessD(wavelet,2)
+}
+
+map(unique(ch4$zone_treatment), plot_irreg_wavelets)
+```
+
+Quantile regressions were fitted for the 0.1, 0.5, and 0.9 quantiles of CH4 fluxes using the nlrq() function within the R package ‘quantreg’ (Koenker, 2023) due to the observed non-linear relationships between CH4 fluxes and the tested predictor variables. The slopes of the fitted conditional quantile regressions were used to estimate the predictor level required to decrease CH4 fluxes by half, based on an exponential decay relationship (i.e., X1/2 = ln(2)/slope). Subsequently, threshold values were estimated as 7 times X1/2, representing a 99% reduction of CH4 fluxes through interactions with increasing predictor levels. We calculated these thresholds for the 50th and 90th percentiles of the conditional distribution of CH4 fluxes, representing the predictor thresholds below which the 50% and 90% of the highest CH4 fluxes occur, respectively.
+

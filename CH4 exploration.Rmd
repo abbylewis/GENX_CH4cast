@@ -5,6 +5,12 @@ date: "2024-08-21"
 output: html_document
 ---
 
+QUESTIONS:
+- What is time2 vs. flux_timestamp?
+- Time2 is said to be UTC. What time zone are sunrise and sunset?
+- Any thoughts on funky methane data in ambient/0.75 in 2021?
+- Wind data?
+
 Load data and packages
 
 ```{r setup, include=FALSE}
@@ -15,10 +21,12 @@ library(lubridate)
 ch4 <- read_csv("Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_derived.csv", show_col_types = FALSE) %>%
   mutate(Temp = sub("e", "", zone_treatment),
          Temp = ifelse(Temp == "amb", 0, Temp),
-         Temp = as.numeric(Temp))
+         Temp = as.numeric(Temp),
+         time2 = with_tz(time2, tzone = "America/New_York"))
 ```
 
 Initial plots
+Note that temperature treatments appear to start the second year
 
 ```{r}
 ch4 %>%
@@ -32,24 +40,36 @@ ch4 %>%
   ggplot(aes(x = date, y = CH4_slope_ppm_per_day, color = zone_treatment)) +
   geom_smooth(se = F) +
   scale_color_viridis_d()
+
+ch4 %>%
+  filter(CH4_rsquared > 0.9) %>%
+  select(CH4_slope_ppm_per_day, therm10c, time2, Temp) %>%
+  pivot_longer(cols = c(CH4_slope_ppm_per_day, therm10c), names_to = "var", values_to = "value") %>%
+  ggplot(aes(x = time2, y = value, color = as.factor(Temp))) +
+  geom_line()+
+  facet_wrap(~var, scales = "free")
 ```
 
 Something is interesting about how temperature treatments affect variability of methane fluxes. There is greater day-to-day variability in the ambient treatment compared to the warmed treatment, particularly when CH4 fluxes are high.
 
+UPDATE: this is a bit questionable because the temperature treatment didn't start until the second year
+
 ```{r}
 all_dates <- ch4 %>%
-  mutate(date_num = as.numeric(as.Date(flux_timestamp)),
-         Year = year(flux_timestamp)) %>%
-  group_by(plot_id, chamber_treatment, zone_treatment, Year) %>%
+  mutate(date_num = as.numeric(as.Date(time2)),
+         year = year(time2)) %>%
+  group_by(plot_id, chamber_treatment, zone_treatment, year) %>%
   expand(date_num = seq(min(date_num), max(date_num))) %>%
   mutate(Temp = sub("e", "", zone_treatment),
          Temp = ifelse(Temp == "amb", "0", Temp),
-         Temp = as.numeric(Temp))
+         Temp = as.numeric(Temp),
+         year = year(as.Date(date_num)))
 
 rolling <- ch4 %>% 
   filter(CH4_rsquared > 0.9) %>%
-  mutate(date_num = as.numeric(as.Date(flux_timestamp))) %>%
-  group_by(plot_id, chamber_treatment, zone_treatment) %>% #, date_num) %>%
+  mutate(date_num = as.numeric(as.Date(time2)),
+         year = year(as.Date(date_num))) %>%
+  group_by(plot_id, chamber_treatment, zone_treatment, year) %>% #, date_num) %>%
   #summarize(CH4_slope_ppm_per_day = mean(CH4_slope_ppm_per_day, na.rm = T)) %>%
   full_join(all_dates) %>%
   arrange(date_num) %>%
@@ -76,62 +96,21 @@ rolling %>%
   ggplot(aes(x = Rolling_mean, y = Rolling_sd, color = zone_treatment)) +
   geom_point(alpha = 0.1) +
   geom_smooth(method = "lm") +
-  scale_color_viridis_d()
+  scale_color_viridis_d() +
+  facet_wrap(~year)
 ```
 
-What if we use medians instead?
-
-```{r}
-all_dates <- ch4 %>%
-  mutate(date_num = as.numeric(as.Date(flux_timestamp)),
-         Year = year(flux_timestamp)) %>%
-  group_by(plot_id, chamber_treatment, zone_treatment, Year) %>%
-  expand(date_num = seq(min(date_num), max(date_num))) %>%
-  mutate(Temp = sub("e", "", zone_treatment),
-         Temp = ifelse(Temp == "amb", "0", Temp),
-         Temp = as.numeric(Temp))
-
-rolling <- ch4 %>% 
-  filter(CH4_rsquared > 0.9) %>%
-  mutate(date_num = as.numeric(as.Date(flux_timestamp))) %>%
-  group_by(plot_id, chamber_treatment, zone_treatment) %>% #, date_num) %>%
-  #summarize(CH4_slope_ppm_per_day = mean(CH4_slope_ppm_per_day, na.rm = T)) %>%
-  full_join(all_dates) %>%
-  arrange(date_num) %>%
-  mutate(Rolling_iqr = slider::slide_index_dbl(.x = CH4_slope_ppm_per_day, 
-                                                  .i = date_num, 
-                                                  .f = IQR, 
-                                                  na.rm = T,
-                                                  .before = 30),
-         Rolling_median = slider::slide_index_dbl(.x = CH4_slope_ppm_per_day, 
-                                                  .i = date_num, 
-                                                  .f = median, 
-                                                  na.rm = T,
-                                                  .before = 30),
-         Temp_group = ifelse(Temp >= 3, "High", "Low")) 
-
-rolling %>%
-  pivot_longer(cols = c("Rolling_iqr", "Rolling_median"), names_to = "Variable", values_to = "Value") %>%
-  ggplot(aes(x = as.Date(date_num), y = Value, color = zone_treatment, group = chamber_treatment)) +
-  geom_line()+
-  facet_grid(rows = vars(Temp_group), cols = vars(Variable)) +
-  scale_color_viridis_d()
-
-rolling %>%
-  ggplot(aes(x = Rolling_median, y = Rolling_iqr, color = zone_treatment)) +
-  geom_point(alpha = 0.1) +
-  geom_smooth(method = "lm") +
-  scale_color_viridis_d() 
-```
+[note: also tried median/IQR with same general result]
 
 Is variability within a day also lower in high-temperature treatments?
-Yes, when calculated as mean ± SD. Not when calculated as median ± IQR.
+No- the main difference is between years rather than between treatments
 
 ```{r}
 daily <- ch4 %>% 
   filter(CH4_rsquared > 0.9) %>%
-  mutate(date_num = as.numeric(as.Date(flux_timestamp))) %>%
-  group_by(plot_id, chamber_treatment, zone_treatment, date_num) %>%
+  mutate(date_num = as.numeric(as.Date(time2)),
+         year = year(as.Date(date_num))) %>%
+  group_by(plot_id, chamber_treatment, zone_treatment, date_num, year) %>%
   mutate(Daily_sd = sd(CH4_slope_ppm_per_day, na.rm = T),
          Daily_mean = mean(CH4_slope_ppm_per_day, na.rm = T),
          Temp_group = ifelse(Temp >= 3, "High", "Low"),
@@ -143,16 +122,18 @@ daily %>%
   ggplot(aes(x = Daily_mean, y = Daily_sd, color = zone_treatment)) +
   geom_point(alpha = 0.1) +
   geom_smooth(method = "lm") +
-  scale_color_viridis_d()
+  scale_color_viridis_d() +
+  facet_wrap(~year)
 
 daily <- ch4 %>% 
   filter(CH4_rsquared > 0.9) %>%
-  mutate(date_num = as.numeric(as.Date(flux_timestamp))) %>%
+  mutate(date_num = as.numeric(as.Date(time2))) %>%
   group_by(plot_id, chamber_treatment, zone_treatment, date_num) %>%
   mutate(Daily_iqr = IQR(CH4_slope_ppm_per_day, na.rm = T),
          Daily_median = median(CH4_slope_ppm_per_day, na.rm = T),
          Temp_group = ifelse(Temp >= 3, "High", "Low"),
-         n = sum(!is.na(CH4_slope_ppm_per_day))) %>%
+         n = sum(!is.na(CH4_slope_ppm_per_day)),
+         year = year(as.Date(date_num))) %>%
   filter(n > 5)
 
 #Median
@@ -160,17 +141,18 @@ daily %>%
   ggplot(aes(x = Daily_median, y = Daily_iqr, color = zone_treatment)) +
   geom_point(alpha = 0.1) +
   geom_smooth(method = "lm") +
-  scale_color_viridis_d()
+  scale_color_viridis_d() +
+  facet_wrap(~year)
 ```
 
-Is this true within a day?
+A few more plots reinforcing that the main difference is between years rather than between treatments
 
 ```{r}
 for_plot <- ch4 %>% 
   filter(CH4_rsquared > 0.9) %>%
-  mutate(date_num = as.numeric(as.Date(flux_timestamp)),
-         hour = hour(flux_timestamp),
-         year = year(flux_timestamp),
+  mutate(date_num = as.numeric(as.Date(time2)),
+         hour = hour(time2),
+         year = year(time2),
          time = ifelse(hour < 17 & hour > 9, "day",
                        ifelse(hour > 20 | hour < 4, "night", 
                               "other"))) %>%
@@ -199,31 +181,61 @@ for_plot %>%
   scale_color_viridis_d()
 ```
 
+Tides
+
 ```{r}
-drivers <- read_csv("Raw_data/GENX_SD_Export_Waterlevel_2021-05-06_to_2022-12-30_derived_clean_btemps.csv", 
-                    show_col_types = F)
+library(VulnToolkit)
+tides <- noaa(begindate = format(as.Date(min(ch4$time2)), "%Y%m%d"), 
+                  enddate = format(as.Date(max(ch4$time2)), "%Y%m%d"), 
+  station = "8461490", interval = "HL", 
+  units = "meters", datum = "MHW", time = "GMT") %>%
+  mutate(time_GMT = with_tz(time_GMT, tzone = "America/New_York"))
 
-p <- drivers %>%
-  filter(time2 > "2021-06-20", time2 < "2021-06-25") %>%
-  ggplot(aes(x = time2, y = corrected_depth))+
-  geom_line()
+#Want to make a plot with hours since low tide on x axis and CH4 on y axis
+ch4$recent_low <- NA
+for(i in 1:nrow(ch4)){
+  time <- ch4$time2[i]
+  previous_lows <- tides$time_GMT[tides$time_GMT <= time & grepl("L", tides$tide)]
+  recent_low = previous_lows[which.max(previous_lows)]
+  ch4$recent_low[i] <- recent_low
+}
 
-library(rtide)
-library(scales)
-data <- rtide::tide_height(
-  "Annapolis (US Naval Academy), Severn River, Maryland",
-  from = as.Date("2021-07-01"), to = as.Date("2021-08-01"),
-  minutes = 10L, tz = "UTC"
-)
+ch4 %>%
+  filter(CH4_rsquared > 0.9) %>%
+  mutate(time_since_low = as.numeric(difftime(time2, recent_low, units = "hours")),
+         year = year(time2)) %>%
+  ggplot(aes(x = time_since_low, y = CH4_slope_umol_per_day, color = as.factor(year))) +
+  geom_smooth() +
+  facet_wrap(~Temp)
 
-data %>%
-  ggplot(aes(x = DateTime, y = TideHeight)) +
-  geom_line() +
-  scale_y_continuous(name = "Tide Height (m)") +
-  geom_line(data = drivers %>% filter(time2 > "2021-07-01", time2 < "2021-08-01"), aes(x = time2, y = corrected_depth/100), color = "red")
-p
+ch4 %>%
+  filter(CH4_rsquared > 0.9) %>%
+  mutate(time_since_low = as.numeric(difftime(time2, recent_low, units = "hours")),
+         year = year(time2),
+         hour = hour(time2),
+         time = ifelse(hour < 17 & hour > 9, "day",
+                       ifelse(hour > 20 | hour < 4, "night", 
+                              "other"))) %>%
+  filter(!time == "other",
+         time_since_low <=12) %>%
+  ggplot(aes(x = time_since_low, y = CH4_slope_umol_per_day, color = as.factor(zone_treatment), lty = time)) +
+  geom_smooth() +
+  #geom_point(alpha = 0.1) +
+  facet_grid(cols = vars(time), rows = vars(year))+
+  scale_color_viridis_d()
 
-plotly::ggplotly(p)
+ch4 %>%
+  filter(CH4_rsquared > 0.9) %>%
+  mutate(time_since_low = as.numeric(difftime(time2, recent_low, units = "hours")),
+         year = year(time2),
+         hour = hour(time2),
+         time = ifelse(hour < 17 & hour > 9, "day",
+                       ifelse(hour > 20 | hour < 4, "night", 
+                              "other"))) %>%
+  filter(!time == "other",
+         time_since_low <=12) %>%
+  ggplot(aes(x = time_since_low)) +
+  geom_histogram() +
+  facet_wrap(~time)
 ```
-
 

@@ -16,6 +16,7 @@ library(rtide)
 
 drivers <- read_csv("Raw_data/GENX_SD_Export_Waterlevel_2021-05-06_to_2022-12-30_derived_clean_btemps.csv", 
                     show_col_types = F)
+colnames(drivers)
 ```
 
 How do we releate sensor height to tide height?
@@ -32,6 +33,18 @@ data %>%
   geom_line() +
   scale_y_continuous(name = "Tide Height (m)") +
   geom_line(data = drivers %>% filter(time2 > "2021-08-01", time2 < "2021-09-01"), aes(x = time2, y = corrected_depth/100), color = "red")
+
+data <- rtide::tide_height(
+  "Annapolis (US Naval Academy), Severn River, Maryland",
+  from = as.Date(min(drivers$time2)), to = as.Date(max(drivers$time2)),
+  minutes = 60, tz = "UTC"
+)
+
+data %>%
+  ggplot(aes(x = DateTime, y = TideHeight)) +
+  geom_line() +
+  scale_y_continuous(name = "Tide Height (m)") +
+  geom_line(data = drivers, aes(x = time2, y = corrected_depth/100), color = "red")
 ```
 
 How do we relate soil temp to air temp?
@@ -43,7 +56,6 @@ drivers %>%
   geom_line(aes(y = temp), color = "red") +
   geom_line(aes(y = therm10c)) +
   geom_line(aes(y = therm25c), color = "blue") +
-  #xlim(as.POSIXct("2021-07-01"), as.POSIXct("2021-07-15"))+
   facet_wrap(~chamber_treatment)
 
 drivers %>%
