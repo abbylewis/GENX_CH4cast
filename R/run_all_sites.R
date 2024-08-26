@@ -7,20 +7,17 @@ run_all_sites = function(var,
                         target,
                         horiz,
                         step,
-                        forecast_date,
-                        target_depths) {
+                        forecast_date) {
   
   message(paste0("Running variable: ", var))
   forecast <- map_dfr(.x = sites,
                       .f = forecast_model,
-                      forecast_model = forecast_model,
+                      var = var,
                       noaa_past_mean = noaa_past_mean,
                       noaa_future_daily = noaa_future_daily,
-                      var = var,
                       target = target,
                       horiz = horiz,
                       step = step,
-                      forecast_date = forecast_date,
-                      target_depths = target_depths)
+                      forecast_date = forecast_date)
   
 }

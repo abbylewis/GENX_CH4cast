@@ -24,7 +24,6 @@ sites = "all" #Sites to forecast
 target_depths = "target" #Depths to forecast
 noaa = F #Whether the model requires NOAA data
 
-
 #### Step 2: Define the forecast model
 forecast_model <- function(site,
                            var,

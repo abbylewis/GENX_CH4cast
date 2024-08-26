@@ -9,13 +9,16 @@ generate_tg_forecast <- function(forecast_date,
                                  sites = sites, #Sites to forecast
                                  noaa = T,
                                  target_depths = target_depths,
-                                 first_submission = FALSE) {
+                                 save = T,
+                                 plot = F) {
   
   ### Step 1: Set forecast specifications
   if(sites == "all"){
     sites <- c("a0_amb", "c1_amb", "b2_e0.75", "a3_e1.5", "b4_e2.25", "c4_e2.25",
                "a5_e3.0", "b6_e3.75", "c6_e3.75", "a7_e4.5", "c8_e5.25", "b9_e6.0")
   }
+  horiz = 35
+  step = 1
   
   ### Step 2: Get NOAA driver data (if needed)
   if(noaa){ #Some forecasts do not use any noaa driver data --> in that case skip download
@@ -48,27 +51,6 @@ generate_tg_forecast <- function(forecast_date,
   target <- generate_target()
   
   ### Step 4: forecast!
-  
-  ## Test with a single site/variable/depth first!
-  #forecast <- map_dfr(.x = model_variables[1],
-  #                    .f = run_all_sites,
-  #                    sites = sites[1],
-  #                    forecast_model = forecast_model,
-  #                    noaa_past_mean = noaa_past_mean,
-  #                    noaa_future_daily = noaa_future_daily,
-  #                    target = target,
-  #                    horiz = horiz,
-  #                    step = step,
-  #                    theme = theme,
-  #                    forecast_date = forecast_date,
-  #                    target_depths = target_depths[1])
-  
-  #Visualize the ensemble predictions -- what do you think?
-  #forecast |> 
-  #  ggplot(aes(x = datetime, y = prediction, color = parameter)) +
-  #  geom_line(alpha=0.3) +
-  #  facet_wrap(~variable, scales = "free")
-  
   # Run all variables
   if(all_sites == F) {
     # Run all sites and depths individually for each variable
@@ -81,8 +63,7 @@ generate_tg_forecast <- function(forecast_date,
                         target = target,
                         horiz = horiz,
                         step = step,
-                        forecast_date = forecast_date,
-                        target_depths = target_depths)
+                        forecast_date = forecast_date)
   } else {
     # Fit model across all sites together for each variable
     forecast <- map_dfr(.x = model_variables,
@@ -93,8 +74,7 @@ generate_tg_forecast <- function(forecast_date,
                         target = target,
                         horiz = horiz,
                         step = step,
-                        forecast_date = forecast_date,
-                        target_depths = target_depths)
+                        forecast_date = forecast_date)
   }
   
   forecast$model_id <- model_id
@@ -102,21 +82,18 @@ generate_tg_forecast <- function(forecast_date,
   ### Step 5: Format and submit
   
   # Write forecast to disk
-  forecast_file <- paste0("daily-", forecast_date, "-", model_id, ".csv.gz")
-  write_csv(forecast_comb, forecast_file)
+  if(save){
+    forecast_file <- paste0("outputs/daily-", forecast_date, "-", model_id, ".csv.gz")
+    write_csv(forecast, forecast_file)
+  }
   
-  #Visualize
-  #forecast %>%
-  #  pivot_wider(names_from = "parameter", values_from = "prediction") %>%
-  #  mutate(site_depth = paste0(site_id, "_", depth_m)) %>%
-  #  ggplot(aes(x = datetime)) +
-  #  geom_line(aes(y = mu)) +
-  #  geom_ribbon(aes(ymin = mu - sigma, ymax = mu + sigma), alpha = 0.3) +
-  #  facet_grid(rows = vars(variable), cols = vars(site_id), scales = "free_y")
-  #
-  #forecast |> 
-  #  mutate(site_depth = paste0(site_id, "_", depth_m)) %>%
-  #  ggplot(aes(x = datetime, y = prediction, color = parameter)) +
-  #  geom_line(alpha=0.3) +
-  #  facet_grid(rows = vars(variable), cols = vars(site_depth), scales = "free_y")
+  if(plot) {
+    p1 <- forecast %>%
+      pivot_wider(names_from = "parameter", values_from = "prediction") %>%
+      ggplot(aes(x = datetime)) +
+      geom_line(aes(y = mu)) +
+      geom_ribbon(aes(ymin = mu - sigma, ymax = mu + sigma), alpha = 0.3) +
+      facet_grid(cols = vars(variable), rows = vars(site_id), scales = "free_y")
+    print(p1)
+  }
 }
