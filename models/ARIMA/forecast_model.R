@@ -5,17 +5,11 @@
 #### Step 0: load packages
 
 library(tidyverse)
-#remotes::install_github("LTREB-reservoirs/vera4castHelpers")
-#library(vera4castHelpers)
-#remotes::install_github("eco4cast/read4cast")
-#library(read4cast)
-#source("./R/download_target.R")
+source("./R/generate_target.R")
 library(forecast)
 
 #### Step 1: Set model specifications
 model_id <- "auto.arima"
-# Currently only set up for daily variables
-# ARIMA does not work for binary variables
 all_forecast_vars <- read_csv("forecast_variables.csv", show_col_types = FALSE)
 model_variables <- all_forecast_vars$`"official" targets name`
 # Global parameters used in generate_tg_forecast()
