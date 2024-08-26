@@ -25,7 +25,7 @@ generate_tg_forecast <- function(forecast_date,
     forecast_date <- as.Date(forecast_date)
     
     #This function loads meteorology and harmonizes past/future predictions
-    map(sites, load_met, forecast_date = forecast_date) 
+    load_met(forecast_date = forecast_date) 
     
     #Identify available files
     saved_met <- list.files(paste0("./met_downloads/"))
@@ -88,12 +88,19 @@ generate_tg_forecast <- function(forecast_date,
   }
   
   if(plot) {
-    p1 <- forecast %>%
-      pivot_wider(names_from = "parameter", values_from = "prediction") %>%
-      ggplot(aes(x = datetime)) +
-      geom_line(aes(y = mu)) +
-      geom_ribbon(aes(ymin = mu - sigma, ymax = mu + sigma), alpha = 0.3) +
-      facet_grid(cols = vars(variable), rows = vars(site_id), scales = "free_y")
+    if(unique(forecast$family) == "ensemble"){
+      p1 <- forecast %>%
+        ggplot(aes(x = datetime, y = prediction, group = parameter)) +
+        geom_line() +
+        facet_grid(cols = vars(variable), rows = vars(site_id), scales = "free_y")
+    } else {
+      p1 <- forecast %>%
+        pivot_wider(names_from = "parameter", values_from = "prediction") %>%
+        ggplot(aes(x = datetime)) +
+        geom_line(aes(y = mu)) +
+        geom_ribbon(aes(ymin = mu - sigma, ymax = mu + sigma), alpha = 0.3) +
+        facet_grid(cols = vars(variable), rows = vars(site_id), scales = "free_y")
+    }
     print(p1)
   }
 }
