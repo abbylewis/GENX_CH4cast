@@ -1,0 +1,150 @@
+---
+title: "Met comparison"
+format:
+  html:
+    code-fold: true
+    code-summary: "Show the code"
+    embed-resources: true
+execute:
+  warning: false
+editor: visual
+---
+
+## Load packages
+```{r packages}
+source("../R/download_target.R")
+remotes::install_github('FLARE-forecast/RopenMeteo') # R interface with API OpenMeteo - weather forecasts
+library(RopenMeteo)
+library(tidyverse)
+library(ggpmisc)
+```
+
+## Load and format data
+```{r data}
+#Sites
+site_list <- read_csv("https://raw.githubusercontent.com/LTREB-reservoirs/vera4cast/main/vera4cast_field_site_metadata.csv", show_col_types = FALSE)
+
+#Met station
+target_raw <- download_target("met")
+
+#Forecast
+lat <- site_list$latitude[site_list$site_id == "fcre"]
+long <-  site_list$longitude[site_list$site_id == "fcre"]
+
+#Recent weather observations
+weather_dat <- RopenMeteo::get_ensemble_forecast(
+  latitude = lat,
+  longitude = long,
+  forecast_days = 0, # days into the future
+  past_days = 92, # past days that can be used for model fitting
+  model = "gfs_seamless", # this is the NOAA gefs ensemble model
+  variables = c("relativehumidity_2m", "precipitation", "windspeed_10m", 
+                "temperature_2m")) |> 
+  # function to convert to EFI standard
+  RopenMeteo::convert_to_efi_standard() |>
+  # rename variables to match met station
+  convert_to_vera_met_P1D() %>%
+  mutate(site_id = "fcre")
+
+weather_hist <- RopenMeteo::get_historical_weather(
+  latitude = lat,
+  longitude = long,
+  start_date = as.Date("2010-01-01"),
+  end_date = as.Date(Sys.Date()),
+  variables = c("relativehumidity_2m", "precipitation", "windspeed_10m", 
+                "temperature_2m")) |> 
+  # function to convert to EFI standard
+  RopenMeteo::convert_to_efi_standard() |>
+  # rename variables to match met station
+  convert_to_vera_met_P1D() %>%
+  mutate(site_id = "fcre")
+```
+
+## Compare recent weather with observations
+```{r weather}
+#Join
+comparison <- weather_dat  %>%
+  filter(!is.na(prediction)) %>%
+  left_join(target_raw) %>%
+  filter(!is.na(observation)) 
+
+#Summarize across ensemble members and plot
+comparison %>%
+  mutate(datetime = as.Date(datetime)) %>%
+  group_by(datetime, variable) %>%
+  summarize(prediction_sd = sd(prediction),
+            prediction = mean(prediction),
+            observation = unique(observation)) %>%
+  #Plot
+  ggplot(aes(x = observation, y = prediction)) +
+  geom_point(aes(color = datetime)) +
+  geom_errorbar(aes(ymin = prediction - prediction_sd, 
+                    ymax = prediction + prediction_sd,
+                    color = datetime)) +
+  geom_abline(slope = 1) +
+  geom_smooth(method = "lm", se = FALSE, color = "black", lty = "11") +
+  facet_wrap(~variable, scales = "free") +
+  ylab("GFS ensemble forecast (mean ± SD)") +
+  xlab("Met station observation") +
+  scale_color_viridis_c(transform = "date", name = "Date") +
+  stat_poly_eq(use_label(c("eq", "R2")))
+```
+
+## Compare historical weather with observations
+```{r hist}
+#Join
+comparison_hist <- weather_hist %>%
+  filter(!is.na(prediction)) %>%
+  left_join(target_raw) %>%
+  filter(!is.na(observation)) 
+
+#Summarize across ensemble members and plot
+comparison_hist %>%
+  mutate(datetime = as.Date(datetime)) %>%
+  ggplot(aes(x = observation, y = prediction)) +
+  geom_point(aes(color = datetime)) +
+  geom_abline(slope = 1) +
+  geom_smooth(method = "lm", se = FALSE, color = "black", lty = "11") +
+  facet_wrap(~variable, scales = "free") +
+  ylab("Modeled historical met") +
+  xlab("Met station observation") +
+  scale_color_viridis_c(transform = "date", name = "Date") +
+  stat_poly_eq(use_label(c("eq", "R2")))
+```
+
+## Compare recent and historical weather
+```{r models}
+#Join
+comparison_mod <- weather_hist %>%
+  mutate(datetime = as.Date(datetime)) %>%
+  group_by(datetime, variable) %>%
+  summarise(sum_pred = sum(prediction),
+            mean_pred = mean(prediction)) %>%
+  mutate(hist_pred = ifelse(variable == "Rain_mm_sum", sum_pred, mean_pred)) %>%
+  select(-sum_pred, -mean_pred) %>%
+  filter(!is.na(hist_pred)) %>%
+  left_join(weather_dat) %>%
+  filter(!is.na(prediction)) 
+
+#Summarize across ensemble members and plot
+comparison_mod %>%
+  mutate(datetime = as.Date(datetime)) %>%
+  group_by(datetime, variable) %>%
+  summarize(prediction_sd = sd(prediction),
+            prediction = mean(prediction),
+            observation = unique(hist_pred)) %>%
+  #Plot
+  ggplot(aes(x = observation, y = prediction)) +
+  geom_point(aes(color = datetime)) +
+  geom_errorbar(aes(ymin = prediction - prediction_sd, 
+                    ymax = prediction + prediction_sd,
+                    color = datetime)) +
+  geom_abline(slope = 1) +
+  geom_smooth(method = "lm", se = FALSE, color = "black", lty = "11") +
+  facet_wrap(~variable, scales = "free") +
+  ylab("GFS ensemble forecast (mean ± SD)") +
+  xlab("Historical met model") +
+  scale_color_viridis_c(transform = "date", name = "Date") +
+  stat_poly_eq(use_label(c("eq", "R2")))
+```
+
