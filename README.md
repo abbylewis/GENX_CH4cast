@@ -6,10 +6,8 @@ Forecasts of CH4 emission from GENX experiment at GCReW.
 
 -   auto.arima
 -   ets
--   tbats
--   temp.lm
--   met.lm
 -   met.lm.step
+-   prophet
 
 ## TO DO:
 
