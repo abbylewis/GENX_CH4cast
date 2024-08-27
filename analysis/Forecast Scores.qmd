@@ -31,92 +31,130 @@ comb <- forecasts %>%
   select(-observation)
 
 scores <- score4cast::score(comb, observations)
+write.csv(scores, "scores.csv")
+
+scores_format <- scores %>%
+  filter(horizon > 0) %>%
+  mutate(horizon = horizon/60/60/24) %>%
+  mutate(temp = sub(".+_e*", "", site_id),
+         temp = ifelse(temp == "amb", 0, temp),
+         temp = as.numeric(temp),
+         year = year(datetime))
 ```
 
 ## Generate plots
 
+### By horizon and site
+
 ```{r}
-scores %>%
-  filter(crps < 100, 
-         horizon > 0) %>%
-  mutate(horizon = horizon/60/60/24) %>%
+scores_format %>%
+  filter(crps < 100) %>%
   ggplot(aes(x = horizon, 
              y = crps,
-             color = site_id)) +
+             color = temp,
+             group = site_id)) +
   geom_smooth() +
-  facet_wrap(~model_id) +
-  xlab("Forecast horizon (days)")
+  facet_grid(rows = vars(model_id), cols = vars(year)) +
+  xlab("Forecast horizon (days)") +
+  scale_color_viridis_c()
 
-scores %>%
-  filter(horizon > 0) %>%
-  mutate(horizon = horizon/60/60/24) %>%
-  group_by(horizon, site_id, model_id) %>%
+scores_format %>%
+  group_by(horizon, site_id, model_id, temp, year) %>%
   summarize(rmse = Metrics::rmse(observation, mean)) %>%
   ggplot(aes(x = horizon, 
              y = rmse,
-             color = site_id)) +
+             color = temp,
+             group = site_id)) +
   geom_line() +
-  facet_wrap(~model_id)+
-  xlab("Forecast horizon (days)")
+  facet_grid(rows = vars(model_id), cols = vars(year))+
+  xlab("Forecast horizon (days)")+
+  scale_color_viridis_c()
 
-scores %>%
-  filter(horizon > 0) %>%
-  mutate(horizon = horizon/60/60/24,
-         bias = mean - observation) %>%
+scores_format %>%
+  mutate(bias = mean - observation) %>%
   ggplot(aes(x = horizon, 
              y = bias,
-             color = site_id)) +
+             color = temp,
+             group = site_id)) +
   geom_smooth() +
-  facet_wrap(~model_id)+
-  xlab("Forecast horizon (days)")
+  xlab("Forecast horizon (days)")+
+  facet_grid(rows = vars(model_id), cols = vars(year))+
+  scale_color_viridis_c()
 
-scores %>%
-  filter(horizon > 0) %>%
-  mutate(horizon = horizon/60/60/24) %>%
-  group_by(horizon, site_id, model_id) %>%
+```
+
+### Over time
+
+```{r}
+scores_format %>%
+  mutate(season = ifelse(month(datetime) %in% c(6, 7, 8), "Summer",
+                         ifelse(month(datetime) %in% c(12, 1, 2), "Winter",
+                                ifelse(month(datetime) %in% c(3, 4, 5), "Spring",
+                                             ifelse(month(datetime) %in% c(9, 10, 11),
+                                                    "Autumn", NA))))) %>%
+  group_by(horizon, site_id, model_id, year, season) %>%
   summarize(rmse = Metrics::rmse(observation, mean)) %>%
   ggplot(aes(x = horizon, 
              y = rmse,
              color = model_id)) +
   geom_smooth() +
-  xlab("Forecast horizon (days)")
+  xlab("Forecast horizon (days)") +
+  facet_grid(rows = vars(year), cols = vars(season))
 
-scores %>%
-  mutate(horizon = horizon/60/60/24) %>%
+scores_format %>%
   filter(crps < 100,
          horizon == 7) %>%
   ggplot(aes(x = reference_datetime, 
              y = crps,
-             color = site_id)) +
+             color = temp,
+             group = site_id)) +
   geom_line() +
   facet_wrap(~model_id) +
   ylab("CRPS of 7-day forecast") +
-  xlab("Forecast date")
+  xlab("Forecast date")+
+  scale_color_viridis_c()
 
-scores %>%
-  mutate(horizon = horizon/60/60/24,
-         bias = mean - observation) %>%
+scores_format %>%
+  mutate(bias = mean - observation) %>%
   filter(horizon == 7) %>%
   ggplot(aes(x = datetime, 
              y = bias,
-             color = site_id)) +
+             color = temp,
+             group = site_id)) +
   geom_line() +
   facet_wrap(~model_id) +
   ylab("Bias of 7-day forecast") +
-  xlab("Forecast date")
+  xlab("Forecast date")+
+  scale_color_viridis_c()
 
-jpeg("../figures/7-day forecasts.png", res = 300, width = 5, height = 8, units = "in")
-scores %>%
-  mutate(horizon = horizon/60/60/24) %>%
+```
+
+### Raw forecast output
+
+```{r}
+jpeg("../figures/7-day forecasts.png", res = 300, width = 8, height = 5, units = "in")
+scores_format %>%
   filter(horizon == 7) %>%
   ggplot(aes(x = datetime, 
              y = mean)) +
   geom_point(aes(x = datetime, y = observation), data = observations, color = "black")+
   geom_ribbon(aes(ymin = quantile90, ymax = quantile10, fill = model_id), alpha = 0.4) +
   geom_line(aes(color = model_id)) +
-  facet_grid(rows = vars(site_id), scales = "free") +
-  xlab("Forecast date")
+  facet_wrap(~site_id) +
+  xlab("Forecast date")+
+  coord_cartesian(ylim=c(min(observations$observation), max(observations$observation)))
 dev.off()
 
-observations
+jpeg("../figures/30-day forecasts.png", res = 300, width = 8, height = 5, units = "in")
+scores_format %>%
+  filter(horizon == 30) %>%
+  ggplot(aes(x = datetime, 
+             y = mean)) +
+  geom_point(aes(x = datetime, y = observation), data = observations, color = "black")+
+  geom_ribbon(aes(ymin = quantile90, ymax = quantile10, fill = model_id), alpha = 0.4) +
+  geom_line(aes(color = model_id)) +
+  facet_wrap(~site_id) +
+  xlab("Forecast date")+
+  coord_cartesian(ylim=c(min(observations$observation), max(observations$observation)))
+dev.off()
 ```

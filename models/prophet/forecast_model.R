@@ -1,0 +1,87 @@
+# prophet model
+# written by ASL
+
+
+#### Step 0: load packages
+
+library(tidyverse)
+source("./R/generate_target.R")
+library(forecast)
+#remotes::install_github('facebook/prophet@*release', subdir = 'R')
+library(prophet)
+
+#### Step 1: Set model specifications
+model_id <- "prophet"
+all_forecast_vars <- read_csv("forecast_variables.csv", show_col_types = FALSE)
+model_variables <- all_forecast_vars$`"official" targets name`
+# Global parameters used in generate_tg_forecast()
+all_sites = F #Whether the model is /trained/ across all sites
+sites = "all" #Sites to forecast
+target_depths = "target" #Depths to forecast
+noaa = F #Whether the model requires NOAA data
+
+#### Step 2: Define the forecast model
+forecast_model <- function(site,
+                           var,
+                           noaa_past_mean = NULL,
+                           noaa_future_daily = NULL,
+                           target,
+                           horiz,
+                           step,
+                           forecast_date) {
+  
+  message(paste0("Running site: ", site))
+  
+  # Format site data
+  site_target_raw <- target |>
+    dplyr::mutate(datetime = as.Date(datetime)) |>
+    dplyr::select(datetime, site_id, variable, observation) |>
+    dplyr::filter(variable == var, 
+                  site_id == site,
+                  datetime < forecast_date) 
+  
+  # Format
+  site_target_raw <- site_target_raw |>
+    tidyr::pivot_wider(names_from = "variable", values_from = "observation")
+  
+  if(!var %in% names(site_target_raw) || sum(!is.na(site_target_raw[var])) == 0){
+    message(paste0("No target observations at site ", site, 
+                   ". Skipping forecasts at this site."))
+    return()
+  }
+
+  site_target = site_target_raw |>
+    complete(datetime = full_seq(datetime, 1), site_id)
+
+  h = as.numeric(forecast_date - max(site_target$datetime)+horiz)
+
+  # Fit prophet model
+  df <- site_target %>%
+    select(ds = datetime, y = !!sym(var))
+  fit <- prophet(df, interval.width = 0.68)
+  future <- make_future_dataframe(fit, periods = h, include_history = F)
+  
+  # use the model to forecast target variable
+  forecast_raw <- predict(fit, future) %>%
+    mutate(sd_upper = yhat_upper - yhat,
+           sd_lower = yhat - yhat_lower,
+           sigma = (sd_upper + sd_lower)/2)
+  
+  forecast = data.frame(project_id = "gcrew",
+                        model_id = model_id,
+                        datetime = (1:h)*step+max(site_target$datetime),
+                        reference_datetime = forecast_date,
+                        duration = "P1D",
+                        site_id = site,
+                        family = "normal",
+                        variable = var,
+                        mu = as.numeric(forecast_raw$yhat),
+                        sigma = as.numeric(forecast_raw$sigma)
+                        ) %>%
+    pivot_longer(cols = c(mu,sigma), names_to = "parameter",values_to = "prediction")%>%
+    select(project_id, model_id, datetime, reference_datetime, duration,
+           site_id, family, parameter, variable, prediction)
+  
+  return(forecast)
+}
+
