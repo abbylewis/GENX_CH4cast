@@ -1,6 +1,6 @@
 # GCReW CH4 forecasting
 
-Forecasts of CH4 emission from GENX experiment at GCReW.
+Forecasts of CH4 flux from GENX experiment at GCReW.
 
 ## Models currently set up:
 
