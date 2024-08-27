@@ -10,7 +10,7 @@ library(forecast)
 #### Step 1: Set model specifications
 model_id <- "ets"
 all_forecast_vars <- read_csv("forecast_variables.csv", show_col_types = FALSE)
-model_variables <- priority_daily$`"official" targets name`
+model_variables <- all_forecast_vars$`"official" targets name`
 # Global parameters used in generate_tg_forecast()
 all_sites = F #Whether the model is /trained/ across all sites
 sites = "all" #Sites to forecast

@@ -14,12 +14,11 @@ library(lubridate)
 library(rtide)
 #scales?
 
-drivers <- read_csv("Raw_data/GENX_SD_Export_Waterlevel_2021-05-06_to_2022-12-30_derived_clean_btemps.csv", 
+drivers <- read_csv("../Raw_data/GENX_SD_Export_Waterlevel_2021-05-06_to_2022-12-30_derived_clean_btemps.csv", 
                     show_col_types = F)
-colnames(drivers)
 ```
 
-How do we releate sensor height to tide height?
+How do we relate sensor height to tide height?
 
 ```{r}
 data <- rtide::tide_height(
@@ -60,8 +59,8 @@ drivers %>%
 
 drivers %>%
   filter(!is.na(time2), !is.na(chamber_treatment),
-         time2>as.POSIXct("2021-07-01"),
-         time2<as.POSIXct("2021-07-15")) %>%
+         time2>as.POSIXct("2022-07-01"),
+         time2<as.POSIXct("2022-07-15")) %>%
   ggplot(aes(x = time2, group = chamber_treatment)) +
   geom_line(aes(y = temp), color = "red") +
   geom_line(aes(y = therm10c)) +

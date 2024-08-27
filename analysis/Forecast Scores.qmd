@@ -1,0 +1,122 @@
+---
+title: "Forecast scores"
+format: html
+editor: visual
+---
+
+## Load data
+
+```{r}
+#devtools::install_github("eco4cast/score4cast")
+library(score4cast)
+library(tidyverse)
+#Metrics
+
+#Forecasts
+outputs <- list.files("../outputs", full.names = T)
+outputs <- outputs[file.info(outputs)$size > 29] #Filter out empty files
+forecasts <- read_csv(outputs, show_col_types = F)
+
+#L1
+observations <- read_csv("../L1.csv", show_col_types = F)
+```
+
+## Score forecasts
+
+```{r}
+#To speed up scoring, cut out forecasts that don't have an associated observation
+comb <- forecasts %>%
+  left_join(observations) %>%
+  filter(!is.na(observation)) %>%
+  select(-observation)
+
+scores <- score4cast::score(comb, observations)
+```
+
+## Generate plots
+
+```{r}
+scores %>%
+  filter(crps < 100, 
+         horizon > 0) %>%
+  mutate(horizon = horizon/60/60/24) %>%
+  ggplot(aes(x = horizon, 
+             y = crps,
+             color = site_id)) +
+  geom_smooth() +
+  facet_wrap(~model_id) +
+  xlab("Forecast horizon (days)")
+
+scores %>%
+  filter(horizon > 0) %>%
+  mutate(horizon = horizon/60/60/24) %>%
+  group_by(horizon, site_id, model_id) %>%
+  summarize(rmse = Metrics::rmse(observation, mean)) %>%
+  ggplot(aes(x = horizon, 
+             y = rmse,
+             color = site_id)) +
+  geom_line() +
+  facet_wrap(~model_id)+
+  xlab("Forecast horizon (days)")
+
+scores %>%
+  filter(horizon > 0) %>%
+  mutate(horizon = horizon/60/60/24,
+         bias = mean - observation) %>%
+  ggplot(aes(x = horizon, 
+             y = bias,
+             color = site_id)) +
+  geom_smooth() +
+  facet_wrap(~model_id)+
+  xlab("Forecast horizon (days)")
+
+scores %>%
+  filter(horizon > 0) %>%
+  mutate(horizon = horizon/60/60/24) %>%
+  group_by(horizon, site_id, model_id) %>%
+  summarize(rmse = Metrics::rmse(observation, mean)) %>%
+  ggplot(aes(x = horizon, 
+             y = rmse,
+             color = model_id)) +
+  geom_smooth() +
+  xlab("Forecast horizon (days)")
+
+scores %>%
+  mutate(horizon = horizon/60/60/24) %>%
+  filter(crps < 100,
+         horizon == 7) %>%
+  ggplot(aes(x = reference_datetime, 
+             y = crps,
+             color = site_id)) +
+  geom_line() +
+  facet_wrap(~model_id) +
+  ylab("CRPS of 7-day forecast") +
+  xlab("Forecast date")
+
+scores %>%
+  mutate(horizon = horizon/60/60/24,
+         bias = mean - observation) %>%
+  filter(horizon == 7) %>%
+  ggplot(aes(x = datetime, 
+             y = bias,
+             color = site_id)) +
+  geom_line() +
+  facet_wrap(~model_id) +
+  ylab("Bias of 7-day forecast") +
+  xlab("Forecast date")
+
+jpeg("../figures/7-day forecasts.png", res = 300, width = 5, height = 8, units = "in")
+scores %>%
+  mutate(horizon = horizon/60/60/24) %>%
+  filter(horizon == 7) %>%
+  ggplot(aes(x = datetime, 
+             y = mean)) +
+  geom_point(aes(x = datetime, y = observation), data = observations, color = "black")+
+  geom_ribbon(aes(ymin = quantile90, ymax = quantile10, fill = model_id), alpha = 0.4) +
+  geom_line(aes(color = model_id)) +
+  facet_grid(rows = vars(site_id), scales = "free") +
+  xlab("Forecast date")
+dev.off()
+
+observations
+```

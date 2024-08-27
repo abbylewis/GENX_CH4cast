@@ -11,25 +11,32 @@ editor: visual
 ---
 
 ## Load packages
+
 ```{r packages}
-source("../R/download_target.R")
-remotes::install_github('FLARE-forecast/RopenMeteo') # R interface with API OpenMeteo - weather forecasts
+#remotes::install_github('FLARE-forecast/RopenMeteo') # R interface with API OpenMeteo - weather forecasts
 library(RopenMeteo)
 library(tidyverse)
 library(ggpmisc)
+source("../R/convert_to_vera_met_P1D.R")
 ```
 
 ## Load and format data
-```{r data}
-#Sites
-site_list <- read_csv("https://raw.githubusercontent.com/LTREB-reservoirs/vera4cast/main/vera4cast_field_site_metadata.csv", show_col_types = FALSE)
 
-#Met station
-target_raw <- download_target("met")
+```{r data}
+#Met data
+obs_raw <- read_csv("../Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_derived.csv", show_col_types = FALSE) %>%
+  mutate(time2 = with_tz(time2, tzone = "America/New_York")) %>%
+  select(time2, temp) %>%
+  rename(datetime = time2,
+         AirTemp_C_mean = temp) %>%
+  pivot_longer(cols = AirTemp_C_mean, names_to = "variable", values_to = "observation") %>%
+  mutate(datetime = as.Date(datetime)) %>%
+  group_by(datetime, variable) %>%
+  summarize(observation = mean(observation, na.rm = T))
 
 #Forecast
-lat <- site_list$latitude[site_list$site_id == "fcre"]
-long <-  site_list$longitude[site_list$site_id == "fcre"]
+lat <- 38.87477
+long <-  -76.54977
 
 #Recent weather observations
 weather_dat <- RopenMeteo::get_ensemble_forecast(
@@ -43,8 +50,7 @@ weather_dat <- RopenMeteo::get_ensemble_forecast(
   # function to convert to EFI standard
   RopenMeteo::convert_to_efi_standard() |>
   # rename variables to match met station
-  convert_to_vera_met_P1D() %>%
-  mutate(site_id = "fcre")
+  convert_to_vera_met_P1D() 
 
 weather_hist <- RopenMeteo::get_historical_weather(
   latitude = lat,
@@ -56,16 +62,16 @@ weather_hist <- RopenMeteo::get_historical_weather(
   # function to convert to EFI standard
   RopenMeteo::convert_to_efi_standard() |>
   # rename variables to match met station
-  convert_to_vera_met_P1D() %>%
-  mutate(site_id = "fcre")
+  convert_to_vera_met_P1D() 
 ```
 
 ## Compare recent weather with observations
+
 ```{r weather}
 #Join
 comparison <- weather_dat  %>%
   filter(!is.na(prediction)) %>%
-  left_join(target_raw) %>%
+  left_join(obs_raw) %>%
   filter(!is.na(observation)) 
 
 #Summarize across ensemble members and plot
@@ -91,11 +97,12 @@ comparison %>%
 ```
 
 ## Compare historical weather with observations
+
 ```{r hist}
 #Join
 comparison_hist <- weather_hist %>%
   filter(!is.na(prediction)) %>%
-  left_join(target_raw) %>%
+  left_join(obs_raw) %>%
   filter(!is.na(observation)) 
 
 #Summarize across ensemble members and plot
@@ -113,6 +120,7 @@ comparison_hist %>%
 ```
 
 ## Compare recent and historical weather
+
 ```{r models}
 #Join
 comparison_mod <- weather_hist %>%
@@ -147,4 +155,3 @@ comparison_mod %>%
   scale_color_viridis_c(transform = "date", name = "Date") +
   stat_poly_eq(use_label(c("eq", "R2")))
 ```
-

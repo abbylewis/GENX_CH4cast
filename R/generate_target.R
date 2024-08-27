@@ -7,11 +7,13 @@ generate_target <- function(){
            project_id = "gcrew",
            duration = "P1D",
            time2 = as.Date(time2)) %>%
+    filter(CH4_rsquared > 0.9) %>%
     rename(site_id = zone_name,
            datetime = time2) %>%
     select(project_id, site_id, datetime, duration, CH4_slope_ppm_per_day) %>%
     pivot_longer(cols = CH4_slope_ppm_per_day, 
                  names_to = "variable", values_to = "observation") %>%
+    mutate(datetime = as.Date(datetime)) %>%
     group_by(project_id, site_id, datetime, duration, variable) %>%
     summarise(observation = mean(observation, na.rm = TRUE), .groups = "drop")
   

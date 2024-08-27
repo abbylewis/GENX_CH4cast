@@ -6,27 +6,32 @@ output: html_document
 ---
 
 QUESTIONS:
-- What is time2 vs. flux_timestamp?
-- Time2 is said to be UTC. What time zone are sunrise and sunset?
-- Any thoughts on funky methane data in ambient/0.75 in 2021?
-- Wind data?
 
-Load data and packages
+-   What is time2 vs. flux_timestamp?
+
+-   Time2 is said to be UTC. What time zone are sunrise and sunset?
+
+-   Any thoughts on funky methane data in ambient/0.75 in 2021?
+
+-   Wind data?
+
+## Load data and packages
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(lubridate)
 
-ch4 <- read_csv("Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_derived.csv", show_col_types = FALSE) %>%
+ch4 <- read_csv("../Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_derived.csv", show_col_types = FALSE) %>%
   mutate(Temp = sub("e", "", zone_treatment),
          Temp = ifelse(Temp == "amb", 0, Temp),
          Temp = as.numeric(Temp),
          time2 = with_tz(time2, tzone = "America/New_York"))
 ```
 
-Initial plots
-Note that temperature treatments appear to start the second year
+## Initial plots 
+
+Note that temperature treatments start the second year
 
 ```{r}
 ch4 %>%
@@ -102,8 +107,7 @@ rolling %>%
 
 [note: also tried median/IQR with same general result]
 
-Is variability within a day also lower in high-temperature treatments?
-No- the main difference is between years rather than between treatments
+Is variability within a day also lower in high-temperature treatments? No- the main difference is between years rather than between treatments
 
 ```{r}
 daily <- ch4 %>% 
@@ -181,7 +185,7 @@ for_plot %>%
   scale_color_viridis_d()
 ```
 
-Tides
+## Tides
 
 ```{r}
 library(VulnToolkit)
@@ -238,4 +242,3 @@ ch4 %>%
   geom_histogram() +
   facet_wrap(~time)
 ```
-
