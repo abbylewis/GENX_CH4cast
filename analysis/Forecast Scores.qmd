@@ -10,6 +10,7 @@ editor: visual
 #devtools::install_github("eco4cast/score4cast")
 library(score4cast)
 library(tidyverse)
+source("../R/score_all_forecasts.R")
 #Metrics
 
 #Forecasts
@@ -23,15 +24,24 @@ observations <- read_csv("../L1.csv", show_col_types = F)
 
 ## Score forecasts
 
-```{r}
 #To speed up scoring, cut out forecasts that don't have an associated observation
-comb <- forecasts %>%
-  left_join(observations) %>%
-  filter(!is.na(observation)) %>%
-  select(-observation)
 
-scores <- score4cast::score(comb, observations)
+comb \<- forecasts %\>%
+
+left_join(observations) %\>%
+
+filter(!is.na(observation)) %\>%
+
+select(-observation)
+
+scores \<- score4cast::score(comb, observations)
+
 write.csv(scores, "scores.csv")
+
+```{r}
+#Re-score if needed, otherwise load saved scores
+#scores <- score_all_forecasts(forecasts, observations)
+scores <- read_csv("scores.csv", show_col_types = F)
 
 scores_format <- scores %>%
   filter(horizon > 0) %>%
@@ -99,7 +109,8 @@ scores_format %>%
              color = model_id)) +
   geom_smooth() +
   xlab("Forecast horizon (days)") +
-  facet_grid(rows = vars(year), cols = vars(season))
+  facet_grid(rows = vars(year), cols = vars(season))+
+  scale_color_viridis_d()
 
 scores_format %>%
   filter(crps < 100,
@@ -133,7 +144,7 @@ scores_format %>%
 
 ```{r}
 jpeg("../figures/7-day forecasts.png", res = 300, width = 8, height = 5, units = "in")
-scores_format %>%
+seven <- scores_format %>%
   filter(horizon == 7) %>%
   ggplot(aes(x = datetime, 
              y = mean)) +
@@ -143,10 +154,11 @@ scores_format %>%
   facet_wrap(~site_id) +
   xlab("Forecast date")+
   coord_cartesian(ylim=c(min(observations$observation), max(observations$observation)))
+seven
 dev.off()
 
 jpeg("../figures/30-day forecasts.png", res = 300, width = 8, height = 5, units = "in")
-scores_format %>%
+thirty <- scores_format %>%
   filter(horizon == 30) %>%
   ggplot(aes(x = datetime, 
              y = mean)) +
@@ -156,5 +168,9 @@ scores_format %>%
   facet_wrap(~site_id) +
   xlab("Forecast date")+
   coord_cartesian(ylim=c(min(observations$observation), max(observations$observation)))
+thirty
 dev.off()
+
+seven
+thirty
 ```

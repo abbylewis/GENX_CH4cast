@@ -19,6 +19,9 @@ drivers <- read_csv("../Raw_data/GENX_SD_Export_Waterlevel_2021-05-06_to_2022-12
 ```
 
 How do we relate sensor height to tide height?
+- About an hour
+- High surge is from water blown from Chessapeake 
+
 
 ```{r}
 data <- rtide::tide_height(
@@ -26,6 +29,7 @@ data <- rtide::tide_height(
   from = as.Date("2021-08-01"), to = as.Date("2021-09-01"),
   minutes = 10L, tz = "UTC"
 )
+library(rtide)
 
 data %>%
   ggplot(aes(x = DateTime, y = TideHeight)) +

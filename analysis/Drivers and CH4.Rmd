@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 
-ch4 <- read_csv("Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_derived.csv", show_col_types = FALSE) %>%
+ch4 <- read_csv("../Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_derived.csv", show_col_types = FALSE) %>%
   mutate(Temp = sub("e", "", zone_treatment),
          Temp = ifelse(Temp == "amb", 0, Temp),
          Temp = as.numeric(Temp))

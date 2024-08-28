@@ -5,17 +5,9 @@ date: "2024-08-21"
 output: html_document
 ---
 
-QUESTIONS:
-
--   What is time2 vs. flux_timestamp?
-
--   Time2 is said to be UTC. What time zone are sunrise and sunset?
-
--   Any thoughts on funky methane data in ambient/0.75 in 2021?
-
--   Wind data?
-
 ## Load data and packages
+
+QAQC
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -29,25 +21,25 @@ ch4 <- read_csv("../Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_der
          time2 = with_tz(time2, tzone = "America/New_York"))
 ```
 
-## Initial plots 
+## Initial plots
 
 Note that temperature treatments start the second year
 
 ```{r}
 ch4 %>%
-  filter(CH4_rsquared > 0.9) %>%
+  filter(CH4_rsquared > 0.75) %>%
   ggplot(aes(x = date, y = CH4_slope_ppm_per_day)) +
   geom_line(aes(group = plot_id))+
-  facet_wrap(~zone_treatment)
+  facet_wrap(~chamber)
 
 ch4 %>%
-  filter(CH4_rsquared > 0.9) %>%
+  filter(CH4_rsquared > 0.75) %>%
   ggplot(aes(x = date, y = CH4_slope_ppm_per_day, color = zone_treatment)) +
   geom_smooth(se = F) +
   scale_color_viridis_d()
 
 ch4 %>%
-  filter(CH4_rsquared > 0.9) %>%
+  filter(CH4_rsquared > 0.75) %>%
   select(CH4_slope_ppm_per_day, therm10c, time2, Temp) %>%
   pivot_longer(cols = c(CH4_slope_ppm_per_day, therm10c), names_to = "var", values_to = "value") %>%
   ggplot(aes(x = time2, y = value, color = as.factor(Temp))) +

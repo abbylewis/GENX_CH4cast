@@ -8,19 +8,20 @@ generate_tg_forecast <- function(forecast_date,
                                  all_sites = all_sites, #Whether the model is /trained/ across all sites
                                  sites = sites, #Sites to forecast
                                  noaa = T,
-                                 target_depths = target_depths,
                                  save = T,
                                  plot = F) {
   
-  ### Step 1: Set forecast specifications
+  ### Step 1: Download latest target data
+  target <- generate_target()
+  
+  ### Step 2: Set forecast specifications
   if(sites == "all"){
-    sites <- c("a0_amb", "c1_amb", "b2_e0.75", "a3_e1.5", "b4_e2.25", "c4_e2.25",
-               "a5_e3.0", "b6_e3.75", "c6_e3.75", "a7_e4.5", "c8_e5.25", "b9_e6.0")
+    sites <- unique(target$site_id)
   }
   horiz = 35
   step = 1
   
-  ### Step 2: Get NOAA driver data (if needed)
+  ### Step 3: Get NOAA driver data (if needed)
   if(noaa){ #Some forecasts do not use any noaa driver data --> in that case skip download
     forecast_date <- as.Date(forecast_date)
     
@@ -46,9 +47,6 @@ generate_tg_forecast <- function(forecast_date,
     noaa_future_daily <- NULL
     noaa_past_mean <- NULL
   }
-  
-  ### Step 3: Download latest target data
-  target <- generate_target()
   
   ### Step 4: forecast!
   # Run all variables

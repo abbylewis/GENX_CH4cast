@@ -3,4 +3,6 @@
 .RData
 .Ruserdata
 Raw_data/GENX_SD_Export_Waterlevel_2021-05-06_to_2022-12-30_derived_clean_btemps.csv
+Raw_data/GENX_SD_Export_Waterlevel_2023-01-01_to_2023-12-31_derived_clean_btemps.csv
 figures
+analysis/scores.csv
