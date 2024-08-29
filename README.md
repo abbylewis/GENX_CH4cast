@@ -2,17 +2,6 @@
 
 Forecasts of CH4 flux from GENX experiment at GCReW.
 
-## Models currently set up:
-
--   auto.arima
--   ets
--   met.lm.step
--   prophet
-
-## TO DO:
-
-1.  Figure out other models to add
-
 ## To add new models
 
 1.  Copy an existing model folder (I suggest `ARIMA` for a time series model or `temp_lm` for a model with meteorology)
