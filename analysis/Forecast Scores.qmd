@@ -14,17 +14,20 @@ source("../R/score_all_forecasts.R")
 #Metrics
 
 #Forecasts
-outputs <- list.files("../outputs", full.names = T)
+outputs_all <- list.files("../outputs", full.names = T)
+outputs <- outputs_all[!grepl("persistence", outputs_all)]
 outputs <- outputs[file.info(outputs)$size > 29] #Filter out empty files
 forecasts <- read_csv(outputs, show_col_types = F)
-
+#RW are in a different format...
+rw <- outputs_all[grepl("persistence", outputs_all)]
+rw_forecasts <- read_csv(rw, show_col_types = F)
+forecasts <- rbind(forecasts, rw_forecasts)
+  
 #L1
 observations <- read_csv("../L1.csv", show_col_types = F)
 ```
 
 ## Score forecasts
-
-#To speed up scoring, cut out forecasts that don't have an associated observation
 
 ```{r}
 #Re-score if needed, otherwise load saved scores

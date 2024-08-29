@@ -78,7 +78,7 @@ forecast_model <- function(site,
     full_join(forecast_dates_df, by = 'doy') %>%
     arrange(site_id, datetime)
   
-  if(sum(!is.na(forecast$mu)) == 0 | sum(!is.na(forecast$sigma)) == 0){
+  if(sum(!is.na(forecast$clim_mean)) == 0 | sum(!is.na(forecast$clim_sd)) == 0){
     message(paste0("Insufficient historical observations at site ", site, 
                    ". Skipping forecasts at this site."))
     return()

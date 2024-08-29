@@ -1,5 +1,6 @@
 source("./R/run_all_sites.R")
 source("./R/load_met.R")
+source("./R/generate_target.R")
 
 generate_tg_forecast <- function(forecast_date,
                                  forecast_model,
@@ -75,7 +76,13 @@ generate_tg_forecast <- function(forecast_date,
                         forecast_date = forecast_date)
   }
   
-  forecast$model_id <- model_id
+  if(nrow(forecast) == 0){
+    stop("No forecast generated")
+  }
+  
+  forecast <- forecast %>%
+    mutate(model_id = model_id) %>%
+    filter(datetime >= forecast_date)
   
   ### Step 5: Format and submit
   

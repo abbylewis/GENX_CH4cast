@@ -34,7 +34,19 @@ ch4 %>%
 
 ch4 %>%
   filter(CH4_rsquared > 0.75) %>%
+  ggplot(aes(x = date, y = CH4_slope_umol_per_day)) +
+  geom_line(aes(group = plot_id))+
+  facet_wrap(~chamber)
+
+ch4 %>%
+  filter(CH4_rsquared > 0.75) %>%
   ggplot(aes(x = date, y = CH4_slope_ppm_per_day, color = zone_treatment)) +
+  geom_smooth(se = F) +
+  scale_color_viridis_d()
+
+ch4 %>%
+  filter(CH4_rsquared > 0.75) %>%
+  ggplot(aes(x = date, y = CH4_slope_umol_per_day, color = zone_treatment)) +
   geom_smooth(se = F) +
   scale_color_viridis_d()
 

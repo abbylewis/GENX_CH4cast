@@ -1,2 +1,2 @@
 Variable name,"""official"" targets name",Description,duration
-Methane flux,CH4_slope_ppm_per_day,,
+Methane flux,CH4_slope_umol_per_day,,
