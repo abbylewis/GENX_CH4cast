@@ -6,17 +6,19 @@ rerun_forecasts <- function(forecast_model = forecast_model,
                             sites = sites,
                             target_depths = target_depths,
                             noaa = noaa,
-                            END) {
+                            END, 
+                            start_date = '2021-01-01',
+                            end_date = "2023-12-31"
+                            ) {
   ### Some code to fill in missing forecasts
   # Dates of forecasts 
   # end_date <- paste(Sys.Date() - days(2), '00:00:00') #Yesterday's forecasts might not have been processed. Wait to redo
-  end_date <- "2022-12-31"
   
   # Get all the submissions 
   submissions <- list.files("outputs", full.names = TRUE)
   
   # for each date, check if we have a forecast
-  required_forecasts <- data.frame(date = as.character(paste0(seq.Date(as_date('2021-01-01'), 
+  required_forecasts <- data.frame(date = as.character(paste0(seq.Date(as_date(start_date), 
                                                                        to = as_date(end_date), 
                                                                        by = 'day'), ' 00:00:00'))
   )
