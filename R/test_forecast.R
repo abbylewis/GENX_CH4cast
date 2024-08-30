@@ -1,6 +1,6 @@
 
 #Change file path here to try a different model
-source("./models/climate_window/forecast_model.R")
+source("./models/persistence/forecast_model.R")
 
 #Run remaining code and visualize forecasts
 source("./R/generate_tg_forecast.R")

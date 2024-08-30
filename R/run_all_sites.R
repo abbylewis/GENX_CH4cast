@@ -10,14 +10,15 @@ run_all_sites = function(var,
                         forecast_date) {
   
   message(paste0("Running variable: ", var))
-  forecast <- map_dfr(.x = sites,
-                      .f = forecast_model,
-                      var = var,
-                      noaa_past_mean = noaa_past_mean,
-                      noaa_future_daily = noaa_future_daily,
-                      target = target,
-                      horiz = horiz,
-                      step = step,
-                      forecast_date = forecast_date)
+  forecast <- purrr::pmap(.l = list(sites),
+                          .f = forecast_model,
+                          var = var,
+                          noaa_past_mean = noaa_past_mean,
+                          noaa_future_daily = noaa_future_daily,
+                          target = target,
+                          horiz = horiz,
+                          step = step,
+                          forecast_date = forecast_date) %>%
+    bind_rows()
   
 }

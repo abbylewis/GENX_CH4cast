@@ -31,7 +31,7 @@ observations <- read_csv("../L1.csv", show_col_types = F)
 
 ```{r}
 #Re-score if needed, otherwise load saved scores
-scores <- score_all_forecasts(forecasts, observations)
+#scores <- score_all_forecasts(forecasts, observations)
 scores <- read_csv("scores.csv", show_col_types = F)
 
 scores_format <- scores %>%
@@ -84,6 +84,28 @@ scores_format %>%
 
 ```
 
+### Horizon only
+
+```{r}
+scores_format %>%
+  group_by(horizon, model_id, year) %>%
+  summarize(rmse = Metrics::rmse(observation, mean)) %>%
+  ggplot(aes(x = horizon, 
+             y = rmse, color = model_id)) +
+  geom_line() +
+  xlab("Forecast horizon (days)")+
+  scale_color_viridis_d()+
+  facet_wrap(~year)
+
+scores_format %>%
+  ggplot(aes(x = horizon, 
+             y = crps, color = model_id)) +
+  geom_smooth(se = F) +
+  xlab("Forecast horizon (days)")+
+  scale_color_viridis_d()+
+  facet_wrap(~year)
+```
+
 ### Over time
 
 ```{r}
@@ -101,6 +123,23 @@ scores_format %>%
   geom_smooth() +
   xlab("Forecast horizon (days)") +
   facet_grid(rows = vars(year), cols = vars(season))+
+  scale_color_viridis_d()
+
+scores_format %>%
+  filter(year == 2023) %>%
+  mutate(season = ifelse(month(datetime) %in% c(6, 7, 8), "Summer",
+                         ifelse(month(datetime) %in% c(12, 1, 2), "Winter",
+                                ifelse(month(datetime) %in% c(3, 4, 5), "Spring",
+                                             ifelse(month(datetime) %in% c(9, 10, 11),
+                                                    "Autumn", NA))))) %>%
+  group_by(horizon, site_id, model_id, year, season) %>%
+  summarize(rmse = Metrics::rmse(observation, mean)) %>%
+  ggplot(aes(x = horizon, 
+             y = rmse,
+             color = model_id)) +
+  geom_smooth() +
+  xlab("Forecast horizon (days)") +
+  facet_grid(~season, scales = "free")+
   scale_color_viridis_d()
 
 scores_format %>%

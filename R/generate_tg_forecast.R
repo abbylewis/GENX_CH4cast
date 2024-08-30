@@ -53,27 +53,29 @@ generate_tg_forecast <- function(forecast_date,
   # Run all variables
   if(all_sites == F) {
     # Run all sites and depths individually for each variable
-    forecast <- map_dfr(.x = model_variables,
-                        .f = run_all_sites,
-                        sites = sites,
-                        forecast_model = forecast_model,
-                        noaa_past_mean = noaa_past_mean,
-                        noaa_future_daily = noaa_future_daily,
-                        target = target,
-                        horiz = horiz,
-                        step = step,
-                        forecast_date = forecast_date)
+    forecast <- purrr::pmap(.l = list(model_variables),
+                            .f = run_all_sites,
+                            sites = sites,
+                            forecast_model = forecast_model,
+                            noaa_past_mean = noaa_past_mean,
+                            noaa_future_daily = noaa_future_daily,
+                            target = target,
+                            horiz = horiz,
+                            step = step,
+                            forecast_date = forecast_date) %>%
+      bind_rows()
   } else {
     # Fit model across all sites together for each variable
-    forecast <- map_dfr(.x = model_variables,
-                        .f = forecast_model,
-                        sites = sites,
-                        noaa_past_mean = noaa_past_mean,
-                        noaa_future_daily = noaa_future_daily,
-                        target = target,
-                        horiz = horiz,
-                        step = step,
-                        forecast_date = forecast_date)
+    forecast <- purrr::pmap(.l = list(model_variables),
+                            .f = forecast_model,
+                            sites = sites,
+                            noaa_past_mean = noaa_past_mean,
+                            noaa_future_daily = noaa_future_daily,
+                            target = target,
+                            horiz = horiz,
+                            step = step,
+                            forecast_date = forecast_date) %>%
+      bind_rows()
   }
   
   if(nrow(forecast) == 0){

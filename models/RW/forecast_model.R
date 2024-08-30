@@ -1,4 +1,4 @@
-# persistence model
+# RW model
 # written by ASL
 
 
@@ -9,7 +9,7 @@ source("./R/generate_target.R")
 library(forecast)
 
 #### Step 1: Set model specifications
-model_id <- "persistence"
+model_id <- "RW"
 all_forecast_vars <- read_csv("forecast_variables.csv", show_col_types = FALSE)
 model_variables <- all_forecast_vars$`"official" targets name`
 # Global parameters used in generate_tg_forecast()
@@ -17,7 +17,7 @@ all_sites = F #Whether the model is /trained/ across all sites
 sites = "all" #Sites to forecast
 noaa = F #Whether the model requires NOAA data
 boot_number = 100 #Number of bootstraps to run
-bootstrap = T
+bootstrap = F
 
 #### Step 2: Define the forecast model
 forecast_model <- function(site,
@@ -85,7 +85,7 @@ forecast_model <- function(site,
       forecast <- RW_model %>% fabletools::forecast(h = h)
       
       # extract parameters
-      parameters <- distributional::parameters(forecast$observation)
+      parameters <- distributional::parameters(forecast$var_unnamed)
       
       # make right format
       forecast <- bind_cols(forecast, parameters) |>
@@ -98,8 +98,9 @@ forecast_model <- function(site,
                variable = var,
                project_id = "gcrew",
                duration = "P1D") |>
-        select(any_of(c("model_id", "datetime", "reference_datetime","site_id", "variable", "family",
-                        "parameter", "prediction", "project_id", "duration"))) |>
+        select(any_of(c("project_id", "model_id", "datetime", "reference_datetime",
+                        "duration", "site_id", "family", "parameter", 
+                        "variable", "prediction"))) |>
         select(-any_of('.model')) |>
         filter(datetime > reference_datetime) |>
         ungroup() |>
