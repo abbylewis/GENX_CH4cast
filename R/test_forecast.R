@@ -1,10 +1,10 @@
 
 #Change file path here to try a different model
-source("./models/persistence/forecast_model.R")
+source("./models/climate_window/forecast_model.R")
 
 #Run remaining code and visualize forecasts
 source("./R/generate_tg_forecast.R")
-generate_tg_forecast(forecast_date = as.Date("2023-07-31"),
+generate_tg_forecast(forecast_date = as.Date("2023-05-31"),
                      forecast_model = forecast_model,
                      model_variables = model_variables,
                      model_id = model_id,

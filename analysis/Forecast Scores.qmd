@@ -26,7 +26,7 @@ observations <- read_csv("../L1.csv", show_col_types = F)
 
 ```{r}
 #Re-score if needed, otherwise load saved scores
-#scores <- score_all_forecasts(forecasts, observations)
+scores <- score_all_forecasts(forecasts, observations)
 scores <- read_csv("scores.csv", show_col_types = F)
 
 scores_format <- scores %>%
