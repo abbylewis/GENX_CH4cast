@@ -8,6 +8,7 @@ tryCatch({
                        model_id = model_id,
                        all_sites = all_sites,
                        sites = sites,
+                       target_depths = target_depths,
                        noaa = noaa)
 }, error=function(e){cat("ERROR with forecast generation:\n",conditionMessage(e), "\n")})
 

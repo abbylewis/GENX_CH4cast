@@ -98,15 +98,29 @@ generate_tg_forecast <- function(forecast_date,
     if(unique(forecast$family) == "ensemble"){
       p1 <- forecast %>%
         ggplot(aes(x = datetime, y = prediction, group = parameter)) +
+        geom_vline(xintercept = forecast_date) +
         geom_line() +
-        facet_grid(cols = vars(variable), rows = vars(site_id), scales = "free_y")
+        geom_point(data = target %>%
+                     filter(datetime >= forecast_date - 5 * step,
+                            datetime <= forecast_date + horiz * step), 
+                   aes(x = datetime, y = observation, alpha = datetime >= forecast_date)) +
+        scale_alpha_manual(values = c(1, .5)) +
+        facet_grid(cols = vars(variable), rows = vars(site_id), scales = "free_y") +
+        theme(legend.position = "none")
     } else {
       p1 <- forecast %>%
         pivot_wider(names_from = "parameter", values_from = "prediction") %>%
         ggplot(aes(x = datetime)) +
+        geom_vline(xintercept = forecast_date) +
         geom_line(aes(y = mu)) +
         geom_ribbon(aes(ymin = mu - sigma, ymax = mu + sigma), alpha = 0.3) +
-        facet_grid(cols = vars(variable), rows = vars(site_id), scales = "free_y")
+        geom_point(data = target %>%
+                     filter(datetime >= forecast_date - 5 * step,
+                            datetime <= forecast_date + horiz * step), 
+                   aes(x = datetime, y = observation, alpha = datetime >= forecast_date)) +
+        scale_alpha_manual(values = c(1, .5)) +
+        facet_grid(cols = vars(variable), rows = vars(site_id), scales = "free_y") +
+        theme(legend.position = "none")
     }
     print(p1)
   }

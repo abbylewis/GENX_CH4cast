@@ -246,3 +246,18 @@ ch4 %>%
   geom_histogram() +
   facet_wrap(~time)
 ```
+
+```{r}
+targets <- read_csv("../L1.csv")
+
+jpeg("../figures/data.jpg", width = 8, height = 6, units = "in", res = 300)
+targets %>%
+  filter(datetime > "2022-12-01", datetime < "2023-01-31",
+         !is.na(datetime)) %>%
+  ggplot(aes(x = datetime, y = observation)) +
+  geom_point() +
+  facet_wrap(~site_id)
+dev.off()
+
+hist(ch4$corrected_depth)
+```
