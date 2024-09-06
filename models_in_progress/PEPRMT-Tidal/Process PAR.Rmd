@@ -1,0 +1,32 @@
+---
+title: "Process PAR"
+author: "Abby Lewis"
+date: "2024-09-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+data_2021 <- read_csv("https://www.dropbox.com/scl/fi/qqgtyn9rbgw2qikcq940k/gcrewmet_gcrewmet15min_2021.csv?rlkey=lpbdtknt2zzhdxnm4q9sitnim&st=h4pxvo0w&dl=1")
+data_2022 <- read_csv("https://www.dropbox.com/scl/fi/pi3fbv1zv9fi5mjn57foo/gcrewmet_gcrewmet15min_2022.csv?rlkey=57fu5pvwj66xgtecfyhwc7855&st=gzj56gcd&dl=1")
+data_2023 <- read_csv("https://www.dropbox.com/scl/fi/kz083irzqpvny1b3azlcc/gcrewmet_gcrewmet15min_2023.csv?rlkey=8txix6edvh594zasxu9hnlw90&st=nv3q1gug&dl=1")
+data_2024 <- read_csv("https://www.dropbox.com/scl/fi/ix9j9473mj4wbsw2odb50/gcrewmet_gcrewmet15min_2024.csv?rlkey=aa2xt1o7127kon0abwsxttl55&st=6dyxrczs&dl=1")
+
+data_all <- bind_rows(data_2021, data_2022, data_2023, data_2024)
+
+PAR_output <- data_all %>%
+  mutate(time2 = with_tz(time2, tzone = "America/New_York"),
+         Date = as.Date(time2)) %>%
+  group_by(Date) %>%
+  summarize(PAR = mean(par_den_c_avg, na.rm = TRUE))
+
+data_all %>%
+  ggplot(aes(x = par_den_c_avg, y = par_tot_c_tot)) +
+  geom_point()
+
+write.csv(PAR_output, "../../processed_data/PAR_output.csv", row.names = FALSE)
+```
+

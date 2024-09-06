@@ -44,7 +44,8 @@ scores_format <- scores %>%
 
 ```{r}
 scores_format %>%
-  filter(crps < 100) %>%
+  filter(!model_id == "RW",#RW is quite bad
+         !year == 2021) %>% 
   ggplot(aes(x = horizon, 
              y = crps,
              color = temp,
@@ -66,6 +67,20 @@ scores_format %>%
   xlab("Forecast horizon (days)")+
   scale_color_viridis_c()
 
+p <- scores_format %>%
+  filter(!year == 2021,
+         !model_id == "RW") %>% #same as persistence for RMSE
+  group_by(horizon, site_id, model_id, temp, year) %>%
+  summarize(rmse = Metrics::rmse(observation, mean)) %>%
+  ggplot(aes(x = horizon, 
+             y = rmse,
+             color = model_id)) +
+  geom_line() +
+  facet_grid(cols = vars(site_id), rows = vars(year))+
+  xlab("Forecast horizon (days)")+
+  scale_color_viridis_d()
+plotly::ggplotly(p)
+
 scores_format %>%
   mutate(bias = mean - observation) %>%
   ggplot(aes(x = horizon, 
@@ -82,7 +97,7 @@ scores_format %>%
 ### Horizon only
 
 ```{r}
-scores_format %>%
+p <- scores_format %>%
   group_by(horizon, model_id, year) %>%
   summarize(rmse = Metrics::rmse(observation, mean)) %>%
   ggplot(aes(x = horizon, 
@@ -91,6 +106,7 @@ scores_format %>%
   xlab("Forecast horizon (days)")+
   scale_color_viridis_d()+
   facet_wrap(~year)
+plotly::ggplotly(p)
 
 scores_format %>%
   ggplot(aes(x = horizon, 
@@ -99,6 +115,50 @@ scores_format %>%
   xlab("Forecast horizon (days)")+
   scale_color_viridis_d()+
   facet_wrap(~year)
+```
+
+Freya's rank plot
+
+```{r}
+scores_format %>%
+  filter(year == 2023,
+         !model_id == "RW") %>% #same as persistence for RMSE
+  mutate(error = abs(observation - mean)) %>%
+  group_by(horizon, site_id, reference_datetime) %>%
+  arrange(error) %>%
+  mutate(rank = which(model_id == model_id)) %>%
+  group_by(horizon, site_id, model_id) %>%
+  mutate(n = n()) %>%
+  group_by(horizon, site_id, model_id, rank) %>%
+  summarize(pct = n()/unique(n)) %>%
+  ggplot(aes(x = horizon, 
+             y = pct,
+             fill = as.factor(rank))) +
+  geom_area() +
+  facet_grid(cols = vars(site_id), rows = vars(model_id))+
+  xlab("Forecast horizon (days)")+
+  scale_fill_brewer(palette = "RdBu")
+
+site_cols = c(RColorBrewer::brewer.pal(n = 11, name = 'RdBu'), "black")
+scores_format %>%
+  filter(year == 2023,
+         horizon == 35,
+         !model_id == "RW") %>% #same as persistence for RMSE
+  mutate(error = abs(observation - mean)) %>%
+  group_by(model_id, reference_datetime) %>%
+  arrange(error) %>%
+  mutate(rank = which(site_id == site_id)) %>%
+  group_by(site_id, model_id) %>%
+  mutate(n = n()) %>%
+  group_by(site_id, model_id, rank) %>%
+  summarize(pct = n()/unique(n)) %>%
+  ggplot(aes(y = model_id, 
+             x = pct,
+             fill = as.factor(rank))) +
+  geom_col() +
+  facet_grid(cols = vars(site_id))+
+  xlab("Forecast horizon (days)")+
+  scale_fill_manual(values = site_cols)
 ```
 
 ### Over time

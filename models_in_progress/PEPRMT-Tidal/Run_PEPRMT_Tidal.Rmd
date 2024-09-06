@@ -1,0 +1,170 @@
+---
+title: "Run PEPRMT-Tidal"
+output: html_document
+date: "2023-10-19"
+author: Patty Oikawa
+email: patty.oikawa@gmail.com
+---
+
+Load packages
+
+```{r setup, echo=FALSE, message=FALSE}
+library(pacman)
+p_load(R.matlab, here, tidyverse, FME, Metrics, lubridate, gridExtra)
+```
+
+Load data
+
+```{r}
+source("../../R/qaqc.R")
+raw <- read_csv("../../Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_derived.csv", show_col_types = FALSE)
+raw2 <- read_csv("../../Raw_data/GENX_Flux_SD_Loggernet_2023-01-01_to_2023-11-15_derived.csv", show_col_types = FALSE)
+comb <- bind_rows(raw, raw2)
+
+#Load PAR
+par <- read_csv("../../processed_data/PAR_output.csv", show_col_types = FALSE)
+
+#Need EVI/LUE/SOM that we don't currently have
+All_sites_master <- read.csv("All_sites_master.csv", header=TRUE) %>% 
+ dplyr::select(1:24) 
+example_data <- All_sites_master %>%
+  filter(site_char == "US_STJ") %>%
+  group_by(DOY_disc) %>%
+  summarize(EVI = mean(EVI, na.rm = TRUE),
+            LUE = mean(LUE, na.rm = TRUE),
+            SOM_MEM_gC_m3 = 
+              mean(All_sites_master$SOM_MEM_gC_m3[All_sites_master$SOM_MEM_gC_m3 > 0], na.rm = TRUE))
+
+target <- comb %>%
+  mutate(time2 = with_tz(time2, tzone = "America/New_York"),
+         time2 = as.Date(time2)) %>%
+  qaqc() %>%
+  rename(site_id = chamber_treatment) %>%
+  mutate(site = as.numeric(as.factor(site_id)),
+         Date = as.Date(time2),
+         DOY_disc = yday(Date)) %>%
+  group_by(site_id) %>%
+  mutate(DOY = yday(first(Date)) + 
+           as.numeric(difftime(Date, first(Date), units = "days")),
+         Year = year(Date),
+         TA_C = temp,
+         WTD_cm = -corrected_depth,
+         Wetland_age_years = 4000,
+         Salinity_daily_ave_ppt = salinity,
+         NO3_mg_L = 0,
+         LAI = NA_real_,
+         FPAR = 0) %>%
+  group_by(Date, site) %>%
+  summarize(across(is.numeric, mean, na.rm = TRUE)) %>%
+  left_join(par, by = "Date") %>%
+  rename(PAR_umol_m2_day = PAR) %>%
+  left_join(example_data, by = "DOY_disc") %>%
+  ungroup() %>%
+  select(DOY, DOY_disc, Year, TA_C, WTD_cm, PAR_umol_m2_day, LAI, EVI, FPAR, LUE,
+         Wetland_age_years, Salinity_daily_ave_ppt, NO3_mg_L, SOM_MEM_gC_m3,
+         site) %>%
+  filter(!is.na(TA_C),
+         !is.na(WTD_cm),
+         !is.na(PAR_umol_m2_day),
+         !is.na(EVI)) %>%
+  as.data.frame()
+
+#Create CH4 validation dataset
+ch4_validation <- comb %>%
+  mutate(time2 = with_tz(time2, tzone = "America/New_York"),
+         time2 = as.Date(time2)) %>%
+  qaqc() %>%
+  rename(site_id = chamber_treatment) %>%
+  mutate(site = as.numeric(as.factor(site_id)),
+         Date = as.Date(time2),
+         DOY_disc = yday(Date)) %>%
+  group_by(site_id) %>%
+  mutate(DOY = yday(first(Date)) + 
+           as.numeric(difftime(Date, first(Date), units = "days")),
+         Year = year(Date)) %>%
+  group_by(Date, site) %>%
+  summarize(across(is.numeric, mean, na.rm = TRUE)) %>%
+  select(DOY, DOY_disc, Year, site, CH4_slope_umol_per_day) %>%
+  as.data.frame() %>%
+  mutate(CH4_slope_mgC_m2_d = CH4_slope_umol_per_day * 12.011 / 1000 / 0.196)
+         
+#Column descriptions are in PEPRMT_GPP_FINAL.R
+```
+
+Run all modules
+
+```{r}
+#First run GPP Module
+source('PEPRMT_GPP_FINAL.R')
+
+GPP_theta <- c(0.7479271, 1.0497113, 149.4681710, 94.4532674 )
+GPP_mod_target <- PEPRMT_GPP_final(GPP_theta,
+                            data = target)
+
+#Create a new dataset that included model results
+target_results<-target %>%
+  left_join(GPP_mod_target %>%
+              rename(DOY = Time_2,
+                     GPP_mod = GPP))
+
+#Second run Reco Module
+#Add modeled GPP into data before running Reco module (16th column)
+target[,16]<-target_results$GPP_mod
+
+source('PEPRMT_Reco_FINAL.R')
+
+Reco_theta <- c(18.41329, 1487.65701, 11.65972, 61.29611 )
+Reco_mod_target <- PEPRMT_Reco_FINAL(Reco_theta,
+                              data = target,
+                              wetland_type=2)
+
+#Create a new dataset that included model results
+target_results<-target_results %>%
+  left_join(Reco_mod_target %>%
+              rename(DOY = Time_2,
+                     Reco_mod = Reco_full))
+
+#Last, run CH4 module
+#Add modeled S1, S2 into data before running CH4 module (17th & 18th columns)
+target[,17]<-target_results$S1
+target[,18]<-target_results$S2
+
+source('PEPRMT_CH4_FINAL.R')
+
+CH4_theta<- c( 14.9025078, 0.4644174, 16.7845002, 0.4359649, 15.8857612,0.5120464, 486.4106939, 0.1020278 )
+CH4_mod_target <- PEPRMT_CH4_FINAL(CH4_theta,
+                            data = target,
+                            wetland_type=2)
+
+#Create a new dataset that included model results
+target_results<-target_results %>%
+  left_join(CH4_mod_target %>%
+              rename(DOY = Time_2,
+                     CH4_mod = pulse_emission_total))
+```
+
+Plot
+```{r}
+#make plots for each site
+for(site_x in 1:length(unique(target$site))){
+  site1 <- subset(target_results, site == site_x)
+  plot <- site1 %>%
+    complete(DOY = first(DOY):max(DOY)) %>%
+    ggplot(aes(DOY)) +
+    geom_line(aes(x = DOY, y = CH4_slope_mgC_m2_d), color = "red", 
+              data = ch4_validation %>% filter(site == site_x) %>%
+                complete(DOY = first(DOY):max(DOY)))+
+    geom_line(aes(x = DOY, y = CH4_mod*1000))+
+    labs(x = "", y=bquote('CH4 '~ (mgC ~ m^-2 ~ d^-1))) +
+    ## To make the plot look prettier
+    theme_bw(base_size = 12) +
+    theme(axis.line = element_line(colour = "black"),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_rect(colour = "black"),
+          panel.background = element_blank(),
+          legend.position = "center")
+  print(plot)
+}
+```
+

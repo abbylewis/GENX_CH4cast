@@ -1,0 +1,165 @@
+---
+title: "Drivers and CH4"
+author: "Abby Lewis"
+date: "2024-08-22"
+output: html_document
+---
+
+Methods from Ari's paper and this one https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2015JG003054
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+source("../R/qaqc.R")
+
+raw <- read_csv("../Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_derived.csv", show_col_types = FALSE)
+raw2 <- read_csv("../Raw_data/GENX_Flux_SD_Loggernet_2023-01-01_to_2023-11-15_derived.csv", show_col_types = FALSE)
+ch4 <- bind_rows(raw, raw2) %>%
+  qaqc() %>%
+  mutate(time2 = as.Date(time2)) %>%
+  group_by(time2, chamber_treatment) %>%
+  summarise(CH4_slope_umol_per_day = mean(CH4_slope_umol_per_day, na.rm = TRUE),
+            temp = mean(temp, na.rm = T),
+            therm10c = mean(therm10c, na.rm = T), 
+            corrected_depth = mean(corrected_depth, na.rm = T), 
+            salinity = mean(salinity, na.rm = T),
+            CO2_slope_mmol_per_day = mean(CO2_slope_mmol_per_day, na.rm = T))
+
+#Not loading driver data separately because it is already in the CH4 data file
+```
+
+Then, we used Mutual Information (I) to find the relative importance of each predictor variable and identify both synchronous and asynchronous interactions (Ruddell et al., 2013). Mutual Information (I) measures the amount of information shared by two variables, X and Y, or the reduction in uncertainty of one variable given the knowledge of the other variable (Fraser & Swinney, 1986). The degree of mutual information between X and Y is increased by adding a time lag (positive or negative) in series Y relative to X, thereby allowing the identification of both synchronous and asynchronous interactions. 
+
+Using the ProcessNetwork Software (v1.5, Ruddell et al., 2008) and the Wavelet Methods for Time Series Analysis (WMTSA) toolkit (Cornish et al., 2003), we decomposed gap-filled CH4 flux and explanatory variables in four general timescales of variation: hourly (1-2 hours), diel (4 hours – 1.3 days), multiday (2.7 – 21.3 days) and seasonal (42.7 – 341 days). These timescales of variation represented short-term perturbations such as wind gusts or overpassing clouds, day-night changes in meteorological variables and tidal fluctuations, neap-spring tidal cycles, and seasonal courses of solar movement and vegetation phenology, respectively. Wavelet decomposition was performed on gap-filled, half-hourly data using the maximal overlap discrete wavelet transform (MODWT), summing the detail over adjacent scales to yield the latter four time-scales of variation (details in (Sturtevant et al., 2016). Wavelet decomposed data were then used to compute the mutual information between CH4 fluxes and biophysical variables within each timescale over a range of time lags (from half a day at the diel scale to 60 days at the seasonal scale). Original gaps in the reconstructed time series were reintroduced before mutual information calculation for all except the seasonal analysis following (Knox et al., 2021). Results were interpreted using the relative mutual information (IR) metric, a normalized measure of the statistical dependence of CH4 flux on a range of predictor variables, with larger values indicating higher dependence. To determine the relative importance of each predictor variable, we ranked the normalized IR values across sites, and we did that within each timescale of interest. In this study, we followed the methods described by Knox et al. 2021 (i.e., 10 bins and 50 random reshufflings to calculate significance thresholds at each lag) and focused on results for the predictors of diel, multiday, and seasonal timescales.
+
+Wavelet
+
+```{r}
+library(waveslim)
+
+analyze_wavelets <- function(treatment) {
+  #Format data (dealing with irregularly spaced data)
+  test_data <- ch4 %>%
+    filter(chamber_treatment == treatment) %>%
+    mutate(CH4_slope_umol_per_day = zoo::na.approx(CH4_slope_umol_per_day))
+  
+  #Run wavelet transformation
+  data <- test_data$CH4_slope_umol_per_day
+  wavelet <- waveslim::modwt(data, "la8", n.levels = 9)
+  
+  meshed <- data.frame(time2 = test_data$time2,
+                       data,
+                       d_1 = wavelet[[1]],
+                       d_2 = wavelet[[2]],
+                       d_4 = wavelet[[3]],
+                       d_8 = wavelet[[4]],
+                       d_16 = wavelet[[5]],
+                       d_32 = wavelet[[6]],
+                       d_64 = wavelet[[7]],
+                       d_128 = wavelet[[8]],
+                       d_256 = wavelet[[9]]) %>%
+    pivot_longer(cols = -c(data, time2)) %>%
+    mutate(name = as.numeric(sub("d_", "", name)),
+           name = paste0(name, " days"),
+           name = factor(name, levels = c("1 days",
+                                          "2 days",
+                                          "4 days",
+                                          "8 days",
+                                          "16 days",
+                                          "32 days",
+                                          "64 days",
+                                          "128 days",
+                                          "256 days")))
+  
+  df <- meshed %>% 
+    mutate(chamber_treatment = treatment)
+  
+  return(df)
+}
+
+dfs <- map(unique(ch4$chamber_treatment), analyze_wavelets) %>%
+  bind_rows()
+
+dfs %>%
+  group_by(name, chamber_treatment) %>%
+  summarize(var = var(value)) %>%
+  group_by(chamber_treatment) %>%
+  mutate(tot_var = sum(var))%>%
+  mutate(chamber_treatment = factor(chamber_treatment,
+                                    levels = c("c_1_amb",
+                                               "c_2_amb",
+                                               "c_3_e0.75",
+                                               "c_4_e1.5",
+                                               "c_5_e2.25",
+                                               "c_6_e2.25",
+                                               "c_7_e3.0",
+                                               "c_8_e3.75",
+                                               "c_9_e3.75",
+                                               "c_10_e4.5",
+                                               "c_11_e5.25",
+                                               "c_12_e6.0"))) %>%
+  ggplot(aes(x = name, y = var/tot_var * 100, color = chamber_treatment)) +
+  geom_point() +
+  labs(x = "Scale",
+       y = "Percentage of total variance") +
+  scale_color_viridis_d(name = "Site") +
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Mutual Information
+
+```{r}
+library(DescTools)
+
+entropy <- function(target) {
+  freq <- table(target)/length(target)
+  # vectorize
+  vec <- as.data.frame(freq)[,2]
+  #drop 0 to avoid NaN resulting from log2
+  vec<-vec[vec>0]
+  #compute entropy
+  -sum(vec * log2(vec))
+}
+
+bin <- function(x, n_breaks) {
+  highest <- quantile(x, 0.99)
+  lowest <- quantile(x, 0.01)
+  findInterval(x, seq(lowest, highest, length.out = n_breaks))
+}
+
+mut_infs <- dfs %>%
+  mutate(grouped_scale = ifelse(name %in% c("1 days", 
+                                            "2 days"), 
+                                "Diel",
+                                ifelse(name %in% c("4 days",
+                                                   "8 days", 
+                                                   "16 days", 
+                                                   "32 days"), 
+                                       "Multiday",
+                                       ifelse(name %in% c("64 days", 
+                                                          "128 days", 
+                                                          "256 days"), 
+                                              "Seasonal", NA)))) %>%
+  group_by(grouped_scale, chamber_treatment, time2) %>%
+  summarize(value = sum(value)) %>%
+  left_join(ch4 %>%
+              dplyr::select(-CH4_slope_umol_per_day) %>%
+              pivot_longer(cols = -c(time2, chamber_treatment),
+                           names_to = "exp_var",
+                           values_to = "exp_var_value")) %>%
+  filter(!is.na(exp_var_value)) %>%
+  group_by(chamber_treatment, grouped_scale, exp_var) %>%
+  summarize(entropy_y = entropy(bin(value, 9)),
+            mut_inf = MutInf(bin(exp_var_value, 9), bin(value, 9))/entropy_y)
+
+mut_infs %>%
+  ggplot(aes(x = mut_inf, y = exp_var)) +
+  geom_col() + 
+  facet_grid(rows = vars(grouped_scale), cols = vars(chamber_treatment)) +
+  ylab("Explanatory variable") +
+  xlab("Relative mutual information")
+```
+
+Ari:
+Quantile regressions were fitted for the 0.1, 0.5, and 0.9 quantiles of CH4 fluxes using the nlrq() function within the R package ‘quantreg’ (Koenker, 2023) due to the observed non-linear relationships between CH4 fluxes and the tested predictor variables. The slopes of the fitted conditional quantile regressions were used to estimate the predictor level required to decrease CH4 fluxes by half, based on an exponential decay relationship (i.e., X1/2 = ln(2)/slope). Subsequently, threshold values were estimated as 7 times X1/2, representing a 99% reduction of CH4 fluxes through interactions with increasing predictor levels. We calculated these thresholds for the 50th and 90th percentiles of the conditional distribution of CH4 fluxes, representing the predictor thresholds below which the 50% and 90% of the highest CH4 fluxes occur, respectively.

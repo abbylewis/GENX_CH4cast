@@ -64,66 +64,67 @@ PEPRMT_GPP_final <-  function(theta,data) {
     Sal <- d[,12] #Salinity (ppt)
     NO3 <- d[,13] #Dissolved NO3 (mg/L)
     #Season_drop_2 <- d[,13] #not used in PEPRMT-Tidal (was used in original PEPRMT model in peatlands) 
-                      #Season variable that is set to 1 in winter (DOY 1-88, 336-365), 2 pre-spring (DOY 89-175), 3 spring (DOY 176-205), 4 summer (DOY 206-265), 5 fall (DOY 266-335)
+    #Season variable that is set to 1 in winter (DOY 1-88, 336-365), 2 pre-spring (DOY 89-175), 3 spring (DOY 176-205), 4 summer (DOY 206-265), 5 fall (DOY 266-335)
     SOM_2 <-d[,14] #Decomposed Organic matter : all the decomposed soil organic matter in top meter of soil informed buy MEM inclusive of current year
     site_2 <-d[,15] #Site: if running more than 1 site, have 1s in this column for first site, 2s for 2nd site and so on
+    
+    
+    ##########COMPUTE GPP################################
+    #PARAMETERS
+    Ha <- theta[3]+30 #default=30;#activation energy for general crop plant (KJ mol-1)
+    Hd <- theta[4]+100 #default=100;(KJ mol-1)
+    #CONSTANTS
+    vcopt <- 1.0
+    R_t <- 0.00831 #KJ mol-1 K-1
+    T_opt <- 25 + 274.15 #(K); our Temp opt for Ps is 25C
+    
+    #EQUATIONS
+    #Decide how to compute fPAR
+    #If Fpar = 1 then calculate FPAR using LAI if FPAR =0 then calculate using GI 
+    if (sum(FPAR)>0) {
+      k <- 0.8 #ranges between 0-1
+      fPAR_2 <- 0.95*(1-exp(-k*LAI_2)) #for an LAI=4.9, fpar=0.87--Yuan 2007
+      fPAR_2 <- (fPAR_2/2)*10^4
+    } else {
+      fPAR_2 <- theta[1]+theta[2]*GI_2
+    }
+    
+    
+    APAR_2 <- fPAR_2*PAR_2 #umol m-2 daily average
+    
+    AirT_K <- TA_2 + 274.15 #C to Kelvin
+    
+    
+    vct <- vector("numeric",length(Time_2))
+    NPP_FPAR_T <- vector("numeric",length(Time_2))
+    
+    for (t in 1:length(Time_2)) { 
+      exponent1 <- (Ha*(AirT_K[t]-T_opt))/(AirT_K[t]*R_t*T_opt)
+      exponent2 <- (Hd*(AirT_K[t]-T_opt))/(AirT_K[t]*R_t*T_opt)
+      top <- Hd*exp(exponent1)  
+      bottom <- Hd-(Ha*(1-exp(exponent2)))
+      vct[t] = vcopt*(top/bottom)
+      
+      NPP_FPAR_T[t] <- vct[t]*APAR_2[t]*LUE[t] #umol m-2 d-1* gC/umol == g C m-2 d-1
+      
+      
+    }
+    
+    GPP <- unlist(NPP_FPAR_T)*-1 #stay as g C m-2 d-1 where negative values= uptake
+    site <- rep(i,length(GPP))
+    
+    w <- cbind(GPP,APAR_2,Time_2, site) %>%
+      as.data.frame(.)
+    # store d in a vector  
+    outcome_lst[[i]] <- (w) 
+    
+  }
   
-
-##########COMPUTE GPP################################
-#PARAMETERS
-Ha <- theta[3]+30 #default=30;#activation energy for general crop plant (KJ mol-1)
-Hd <- theta[4]+100 #default=100;(KJ mol-1)
-#CONSTANTS
-vcopt <- 1.0
-R_t <- 0.00831 #KJ mol-1 K-1
-T_opt <- 25 + 274.15 #(K); our Temp opt for Ps is 25C
-  
-#EQUATIONS
-#Decide how to compute fPAR
-#If Fpar = 1 then calculate FPAR using LAI if FPAR =0 then calculate using GI 
-if (sum(FPAR)>0) {
-  k <- 0.8 #ranges between 0-1
-  fPAR_2 <- 0.95*(1-exp(-k*LAI_2)) #for an LAI=4.9, fpar=0.87--Yuan 2007
-  fPAR_2 <- (fPAR_2/2)*10^4
-} else {
-  fPAR_2 <- theta[1]+theta[2]*GI_2
-}
-
-
-APAR_2 <- fPAR_2*PAR_2 #umol m-2 daily average
-  
-AirT_K <- TA_2 + 274.15 #C to Kelvin
-
-
-vct <- vector("numeric",length(Time_2))
-NPP_FPAR_T <- vector("numeric",length(Time_2))
-
-for (t in 1:length(Time_2)) { 
-  exponent1 <- (Ha*(AirT_K[t]-T_opt))/(AirT_K[t]*R_t*T_opt)
-  exponent2 <- (Hd*(AirT_K[t]-T_opt))/(AirT_K[t]*R_t*T_opt)
-  top <- Hd*exp(exponent1)  
-  bottom <- Hd-(Ha*(1-exp(exponent2)))
-  vct[t] = vcopt*(top/bottom)
-
-  NPP_FPAR_T[t] <- ((vct[t]*(APAR_2[t]*LUE[t]))) #umol m-2 d-1* gC/umol == g C m-2 d-1
-
-
-}
-
-GPP <- (NPP_FPAR_T)*-1 #stay as g C m-2 d-1 where negative values= uptake
-
-  w <- cbind(GPP,APAR_2,Time_2) %>%
+  # combine iterations of loop and return all results
+  GPP_output <- do.call('rbind', outcome_lst) %>% 
     as.data.frame(.)
-  # store d in a vector  
-  outcome_lst[[i]] <- (w) 
   
-}
-
-# combine iterations of loop and return all results
-GPP_output <- do.call('rbind', outcome_lst) %>% 
-  as.data.frame(.)
-
-return(GPP_output)
+  return(GPP_output)
 }
 
 

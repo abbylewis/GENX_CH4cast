@@ -53,7 +53,7 @@ PEPRMT_Reco_FINAL <- function(theta,
   alpha1 <- 3e3 #g C m-2 d-1;--SET AS CONSTANT; 
   ea1 <- theta[1]*1000 #J mol-1
   km1 <- theta[2] # g C m-3
-
+  
   #LABILE
   alpha2 <- 3e3 #g C m-2 d-1 --SET AS CONSTANT
   ea2 <- theta[3]*1000 #J mol-1
@@ -67,7 +67,7 @@ PEPRMT_Reco_FINAL <- function(theta,
   a2 <- 0.0014
   a3 <- 0.75
   
-
+  
   
   #---CREATE A SPACE TO COLLECT ITERATIVE RESULTS---#
   q <- unique(as.integer(data$site))
@@ -109,124 +109,125 @@ PEPRMT_Reco_FINAL <- function(theta,
     Vmax2 <- alpha2* exp(-ea2/RT) #g C m-2 d-1 labile
     
     
-  #preallocating space
-  S1sol <- vector("numeric",length(Time_2))
-  S2sol <- vector("numeric",length(Time_2))
-  R1 <- vector("numeric",length(Time_2))
-  R2 <- vector("numeric",length(Time_2))
-  S1 <- vector("numeric",length(Time_2))
-  S2 <- vector("numeric",length(Time_2))
-  percent_reduction <- vector("numeric",length(Time_2))
-  percent_enhancement <- vector("numeric",length(Time_2))
-  Reco_1 <- vector("numeric",length(Time_2))
-  Reco_full <- vector("numeric",length(Time_2))
-  Ps <- vector("numeric",length(Time_2))
-  C2in <- vector("numeric",length(Time_2))
-  C1_init <- vector("numeric",length(Time_2))
-  percent_available <- vector("numeric",length(Time_2))
-  
-  for (t in 1:length(Time_2)) { 
-    #C allocation
-    #only 50% of GPP is available 
-    C2in[t] <- NPPsum_avail_2[t]*0.5 # gC m-2 d-1
-
-    C1_init[t] <- SOM_2[t]#"decomposed" Organic matter all the soil organic matter in top meter from MEM inclusive of current year
+    #preallocating space
+    S1sol <- vector("numeric",length(Time_2))
+    S2sol <- vector("numeric",length(Time_2))
+    R1 <- vector("numeric",length(Time_2))
+    R2 <- vector("numeric",length(Time_2))
+    S1 <- vector("numeric",length(Time_2))
+    S2 <- vector("numeric",length(Time_2))
+    percent_reduction <- vector("numeric",length(Time_2))
+    percent_enhancement <- vector("numeric",length(Time_2))
+    Reco_1 <- vector("numeric",length(Time_2))
+    Reco_full <- vector("numeric",length(Time_2))
+    Ps <- vector("numeric",length(Time_2))
+    C2in <- vector("numeric",length(Time_2))
+    C1_init <- vector("numeric",length(Time_2))
+    percent_available <- vector("numeric",length(Time_2))
     
-    #if (t == 1 | site_change[t]>0 #if beginning of model or switch sites, start C1 pool over
-    if (t == 1) {
-      S1[t] <- C1_init[t] #substrate avail NOT affected by water avail-- SOM pool
-      S2[t] <- C2_init + C2in[t]  # Ps C pool-- some initial Ps C lingering in soil + day 1 GPPavail
-    } else {
-      S1[t] <- S1sol[t-1]+C1_init[t]
-      S2[t] <- S2sol[t-1]+ C2in[t] #substrate availability based on Ps on time step previous
-    }
-    
-    #Empirical factor for increased availability of SOC during the first 3 yrs following restoration
-    if (wetland_age_2[t]<1) {
-      percent_available[t] <- 0.6
-    } else {
-      percent_available[t] <- 1 #for peatlands was 20% now 100% is available 
-    }
-    
-    S1[t] = S1[t]*percent_available[t]  #SOM pool
-    
-    
-    #following Davidson and using multiple eq for diff substrate pools
-    R1[t] <- Vmax1[t] * S1[t]/(km1 + S1[t]) #g C m2 d-1 Reaction velocity
-    R2[t] <- Vmax2[t] * S2[t] /(km2 + S2[t]) #g C m2 d-1   
-    if (R1[t]<0) {R1[t]=0}
-    
-    if (R2[t]<0) {R2[t]=0}
-    
-    
-    #Reco is reduced by 25% when WT is at or above soil surface
-    #--McNicol Silver 2015
-    #   a1 <- 0.00033
-    #   a2 <- 0.0014
-    #   a3 <- 0.75
-    #   WT_ex <- c(-30, -20, -10, 0)
-    #   percent_red_ex <- c(1, 0.85, 0.77, 0.75)
-    
-    #   plot(percent_red_ex ~ WT_ex)
-    
-    # insert logic tree here for freshwater peatland or tidal wetland switch
-    #Reduce Reco when WTD is high--not applied to Tidal sites
-    if(wetland_type == "1"){
-      percent_reduction[t] <- (a1*WT_2[t]^2) - (a2*WT_2[t]) + a3
-      if (WT_2[t]>5) {percent_reduction[t] <- 0.75}
-      if (percent_reduction[t]>1.25) {percent_reduction[t] <- 1.25}
-      if (percent_reduction[t]<0.75) {percent_reduction[t] <- 0.75}
+    for (t in 1:length(Time_2)) { 
+      #C allocation
+      #only 50% of GPP is available 
+      C2in[t] <- NPPsum_avail_2[t]*0.5 # gC m-2 d-1
       
-      R1[t] <- R1[t]*percent_reduction[t] #g C m2 d-1  Reaction velocity
-      R2[t] <- R2[t]*percent_reduction[t] #g C m2 d-1 
-    } else {}
-    
-    #Empirical factor for elevated Reco during the first 3 yrs following restoration
-    if (wetland_age_2[t]<4) {
-      percent_enhancement[t] <- 1.2
-    } else {
-      percent_enhancement[t] <- 1
+      C1_init[t] <- SOM_2[t]#"decomposed" Organic matter all the soil organic matter in top meter from MEM inclusive of current year
+      
+      #if (t == 1 | site_change[t]>0 #if beginning of model or switch sites, start C1 pool over
+      if (t == 1) {
+        S1[t] <- C1_init[t] #substrate avail NOT affected by water avail-- SOM pool
+        S2[t] <- C2_init + C2in[t]  # Ps C pool-- some initial Ps C lingering in soil + day 1 GPPavail
+      } else {
+        S1[t] <- S1sol[t-1]+C1_init[t]
+        S2[t] <- S2sol[t-1]+ C2in[t] #substrate availability based on Ps on time step previous
+      }
+      
+      #Empirical factor for increased availability of SOC during the first 3 yrs following restoration
+      if (wetland_age_2[t]<1) {
+        percent_available[t] <- 0.6
+      } else {
+        percent_available[t] <- 1 #for peatlands was 20% now 100% is available 
+      }
+      
+      S1[t] = S1[t]*percent_available[t]  #SOM pool
+      
+      
+      #following Davidson and using multiple eq for diff substrate pools
+      R1[t] <- Vmax1[t] * S1[t]/(km1 + S1[t]) #g C m2 d-1 Reaction velocity
+      R2[t] <- Vmax2[t] * S2[t] /(km2 + S2[t]) #g C m2 d-1   
+      if (R1[t]<0) {R1[t]=0}
+      
+      if (R2[t]<0) {R2[t]=0}
+      
+      
+      #Reco is reduced by 25% when WT is at or above soil surface
+      #--McNicol Silver 2015
+      #   a1 <- 0.00033
+      #   a2 <- 0.0014
+      #   a3 <- 0.75
+      #   WT_ex <- c(-30, -20, -10, 0)
+      #   percent_red_ex <- c(1, 0.85, 0.77, 0.75)
+      
+      #   plot(percent_red_ex ~ WT_ex)
+      
+      # insert logic tree here for freshwater peatland or tidal wetland switch
+      #Reduce Reco when WTD is high--not applied to Tidal sites
+      if(wetland_type == "1"){
+        percent_reduction[t] <- (a1*WT_2[t]^2) - (a2*WT_2[t]) + a3
+        if (WT_2[t]>5) {percent_reduction[t] <- 0.75}
+        if (percent_reduction[t]>1.25) {percent_reduction[t] <- 1.25}
+        if (percent_reduction[t]<0.75) {percent_reduction[t] <- 0.75}
+        
+        R1[t] <- R1[t]*percent_reduction[t] #g C m2 d-1  Reaction velocity
+        R2[t] <- R2[t]*percent_reduction[t] #g C m2 d-1 
+      } else {}
+      
+      #Empirical factor for elevated Reco during the first 3 yrs following restoration
+      if (wetland_age_2[t]<4) {
+        percent_enhancement[t] <- 1.2
+      } else {
+        percent_enhancement[t] <- 1
+      }
+      
+      R1[t] = R1[t]*percent_enhancement[t] #umol m2 sec Reaction velocity
+      R2[t] = R2[t]*percent_enhancement[t] #umol m2 sec
+      
+      if (t==1) {
+        S1sol[t] = C1_init[t] - (R1[t]) #accounts for depletion of C sources in soil due to Reco and methane production
+        S2sol[t] = (C2_init+C2in[t]) - (R2[t])
+      } else {
+        S1sol[t] = S1[t] - R1[t]
+        S2sol[t] = S2[t] - R2[t]
+      }
+      
+      if (S1sol[t]<0) {S1sol[t] <- 0}
+      if (S2sol[t]<0) {S2sol[t] <- 0}
+      
+      ###########EDITED OUT IN CURRENT VERSION############
+      #in autumn time or season 6, labile PS C pool empties into SOM
+      # if (Season_drop_2[t]>5) {
+      #   S1sol[t] = S1sol[t]+(0.2*S2sol[t]) #move part of labile C into SOM pool--mimicing plant matter dying
+      #   S2sol[t] = S2sol[t]-(0.2*S2sol[t])
+      # }
+      # 
+      # #in winter time or season 1, labile PS C pool empties into SOM
+      # if (Season_drop_2[t]<2) {
+      #   S1sol[t] = S1sol[t]+(S2sol[t]) #move entire labile C into SOM pool--mimicing plant matter dying
+      #   S2sol[t] = 0
+      # }
+      ########################################
+      
+      Reco_1[t] <- R1[t] + R2[t] 
+      Reco_full[t] <- (R1[t]) + (R2[t]) #umol m2 d-1
     }
     
-    R1[t] = R1[t]*percent_enhancement[t] #umol m2 sec Reaction velocity
-    R2[t] = R2[t]*percent_enhancement[t] #umol m2 sec
+    NEE_mod <- GPP_2 + Reco_1 #umol m-2 d-1
+    site <- rep(i, length(NEE_mod))
     
-    if (t==1) {
-      S1sol[t] = C1_init[t] - (R1[t]) #accounts for depletion of C sources in soil due to Reco and methane production
-      S2sol[t] = (C2_init+C2in[t]) - (R2[t])
-    } else {
-      S1sol[t] = S1[t] - R1[t]
-      S2sol[t] = S2[t] - R2[t]
-    }
+    w <- cbind(Reco_full, NEE_mod, S1, S2, site, Time_2) %>%
+      as.data.frame(.)
+    # store d in a vector  
+    outcome_lst[[i]] <- (w) 
     
-    if (S1sol[t]<0) {S1sol[t] <- 0}
-    if (S2sol[t]<0) {S2sol[t] <- 0}
-    
-    ###########EDITED OUT IN CURRENT VERSION############
-    #in autumn time or season 6, labile PS C pool empties into SOM
-    # if (Season_drop_2[t]>5) {
-    #   S1sol[t] = S1sol[t]+(0.2*S2sol[t]) #move part of labile C into SOM pool--mimicing plant matter dying
-    #   S2sol[t] = S2sol[t]-(0.2*S2sol[t])
-    # }
-    # 
-    # #in winter time or season 1, labile PS C pool empties into SOM
-    # if (Season_drop_2[t]<2) {
-    #   S1sol[t] = S1sol[t]+(S2sol[t]) #move entire labile C into SOM pool--mimicing plant matter dying
-    #   S2sol[t] = 0
-    # }
-    ########################################
-    
-    Reco_1[t] <- R1[t] + R2[t] 
-    Reco_full[t] <- (R1[t]) + (R2[t]) #umol m2 d-1
-  }
-  
-  NEE_mod <- GPP_2 + Reco_1 #umol m-2 d-1
-  
-  w <- cbind(Reco_full, NEE_mod, S1, S2) %>%
-    as.data.frame(.)
-  # store d in a vector  
-  outcome_lst[[i]] <- (w) 
-
   }
   
   # combine iterations of loop and return all results
@@ -235,5 +236,5 @@ PEPRMT_Reco_FINAL <- function(theta,
   
   return(Reco_output)
 }
- 
+
 
