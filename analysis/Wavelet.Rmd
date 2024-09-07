@@ -214,7 +214,6 @@ discrete_scales_exp <- discrete_scales %>%
   rename(grouped_scale_exp = grouped_scale)
 
 fill_lags <- function(all_lags, lag) {
-  scale = unique(all_lags$grouped_scale_exp)
   if(lag == 0 | nrow(all_lags) == 0) {
     return(all_lags %>% filter(is.na(chamber_treatment))) #empty
   }
@@ -224,7 +223,7 @@ fill_lags <- function(all_lags, lag) {
       mutate(lag = lag)
   }
   if(lag > 0){
-    filled_lags <- all_lags 
+    filled_lags <- all_lags %>%
       mutate(exp_var_value_lag = lead(exp_var_value, lag)) %>%
       mutate(lag = lag)
   }
@@ -242,26 +241,35 @@ output <- pmap(list(-100:100),
   bind_rows()
 
 #Calculate mutual information
-output_join <- output %>%
-  mutate(limit = ifelse(grouped_scale_exp == "Diel", 0.5, 
-                        ifelse(grouped_scale_exp == "Multiday", 1.5, 
-                               ifelse(grouped_scale_exp == "Seasonal", 2.5, NA)))) %>%
-  filter(abs(lag) <= limit) %>%
-  dplyr::select(-limit) 
-
-mut_infs <- discrete_scales %>%
+lagged_mut_infs <- discrete_scales %>%
   dplyr::select(c(grouped_scale, chamber_treatment, time2, CH4_slope_umol_per_day)) %>%
-  left_join(output_join, by = c("chamber_treatment", "time2")) %>%
-  filter(!is.na(exp_var_value)) %>%
+  left_join(output, by = c("chamber_treatment", "time2")) %>%
+  filter(!is.na(exp_var_value_lag)) %>%
   group_by(chamber_treatment, grouped_scale, exp_var, grouped_scale_exp, lag) %>%
   summarize(entropy_y = entropy(bin(CH4_slope_umol_per_day, 9)),
-            mut_inf = MutInf(bin(exp_var_value, 9), bin(CH4_slope_umol_per_day, 9))/entropy_y) %>%
+            mut_inf = MutInf(bin(exp_var_value, 9), bin(CH4_slope_umol_per_day, 9))/entropy_y) 
+
+best_lagged_mut_infs <- lagged_mut_infs %>%
   group_by(chamber_treatment, grouped_scale, exp_var, grouped_scale_exp) %>%
-  filter(lag = max(mut_inf, na.rm = T))
+  filter(mut_inf == max(mut_inf, na.rm = T))
 
 #Plot
-mut_infs %>%
-  mutate(chamber_treatment = factor(chamber_treatment,
+for(site in unique(discrete_scales$chamber_treatment)){
+  plot <- best_lagged_mut_infs %>%
+    filter(chamber_treatment == site) %>%
+    ggplot(aes(x = mut_inf, y = exp_var, fill = lag)) +
+    geom_col() + 
+    geom_col(data = mut_infs %>% filter(chamber_treatment == site), fill = "black")+
+    facet_grid(cols = vars(grouped_scale), rows = vars(grouped_scale_exp)) +
+    ylab("Explanatory variable") +
+    xlab("Relative mutual information") +
+    scale_fill_distiller(palette = "RdYlBu", direction = -1)
+  print(plot)
+}
+
+for(scale in unique(discrete_scales$grouped_scale)){
+  plot <- lagged_mut_infs %>%
+    mutate(chamber_treatment = factor(chamber_treatment,
                                     levels = c("c_1_amb",
                                                "c_2_amb",
                                                "c_3_e0.75",
@@ -275,12 +283,14 @@ mut_infs %>%
                                                "c_11_e5.25",
                                                "c_12_e6.0")),
          grouped_scale = paste0(grouped_scale, " (CH4)")) %>%
-  ggplot(aes(x = mut_inf, y = exp_var, color = chamber_treatment)) +
-  geom_point() + 
-  facet_grid(cols = vars(grouped_scale), rows = vars(grouped_scale_exp)) +
-  ylab("Explanatory variable") +
-  xlab("Relative mutual information") +
-  scale_color_viridis_d()
+    filter(grouped_scale_exp == scale) %>%
+    ggplot(aes(x = lag, y = mut_inf, color = chamber_treatment))+
+    geom_line()+
+    scale_color_viridis_d()+
+    facet_grid(rows = vars(exp_var), cols = vars(grouped_scale))+
+    ggtitle(scale)
+  print(plot)
+}
 ```
 
 Ari:
