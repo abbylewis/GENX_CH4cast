@@ -19,7 +19,7 @@ met <- read_csv("../processed_data/met_output.csv")
 ch4 <- bind_rows(raw, raw2) %>%
   qaqc() %>%
   mutate(time2 = as.Date(time2)) %>%
-  group_by(time2, chamber_treatment) %>%
+  group_by(time2, chamber_treatment)  %>%
   summarise(CH4_slope_umol_per_day = mean(CH4_slope_umol_per_day, na.rm = TRUE),
             temp = mean(temp, na.rm = T),
             therm10c = mean(therm10c, na.rm = T), 
@@ -29,7 +29,22 @@ ch4 <- bind_rows(raw, raw2) %>%
   mutate(CH4_slope_umol_per_day = ifelse(time2 > "2023-03-02" & time2 < "2023-06-27",
                                          NA,
                                          CH4_slope_umol_per_day)) %>%
-  left_join(met %>% rename(time2 = Date))
+  left_join(met %>% rename(time2 = Date)) %>%
+  filter(!is.na(time2))
+
+mean_of_all <- ch4 %>%
+  group_by(time2) %>%
+  summarise(across(where(is.numeric), mean, na.rm = TRUE)) %>%
+  mutate(chamber_treatment = "mean")
+
+median_of_all <- ch4 %>%
+  group_by(time2) %>%
+  summarise(across(where(is.numeric), median, na.rm = TRUE)) %>%
+  mutate(chamber_treatment = "median")
+
+ch4 <- ch4 %>%
+  full_join(mean_of_all) %>%
+  full_join(median_of_all)
 
 #Not loading driver data separately because it is already in the CH4 data file
 ch4 %>%
@@ -38,6 +53,10 @@ ch4 %>%
   #geom_line()+
   geom_point(size = 0.2) +
   facet_wrap(~chamber_treatment)
+
+chamber_levels = c("c_1_amb", "c_2_amb", "c_3_e0.75", "c_4_e1.5", "c_5_e2.25",
+                   "c_6_e2.25", "c_7_e3.0", "c_8_e3.75", "c_9_e3.75", "c_10_e4.5",
+                   "c_11_e5.25", "c_12_e6.0", "mean", "median")
 ```
 
 Then, we used Mutual Information (I) to find the relative importance of each predictor variable and identify both synchronous and asynchronous interactions (Ruddell et al., 2013). Mutual Information (I) measures the amount of information shared by two variables, X and Y, or the reduction in uncertainty of one variable given the knowledge of the other variable (Fraser & Swinney, 1986). The degree of mutual information between X and Y is increased by adding a time lag (positive or negative) in series Y relative to X, thereby allowing the identification of both synchronous and asynchronous interactions. 
@@ -109,20 +128,10 @@ dfs %>%
   group_by(chamber_treatment, var_name) %>%
   mutate(tot_var = sum(var))%>%
   mutate(chamber_treatment = factor(chamber_treatment,
-                                    levels = c("c_1_amb",
-                                               "c_2_amb",
-                                               "c_3_e0.75",
-                                               "c_4_e1.5",
-                                               "c_5_e2.25",
-                                               "c_6_e2.25",
-                                               "c_7_e3.0",
-                                               "c_8_e3.75",
-                                               "c_9_e3.75",
-                                               "c_10_e4.5",
-                                               "c_11_e5.25",
-                                               "c_12_e6.0"))) %>%
+                                    levels = chamber_levels)) %>%
   ggplot(aes(x = name, y = var/tot_var * 100, color = chamber_treatment)) +
-  geom_point() +
+  geom_point(data = . %>% filter(!chamber_treatment %in% c("mean", "median"))) +
+  geom_line(aes(x = as.numeric(name)), data = . %>% filter(chamber_treatment %in% c("mean", "median"))) +
   labs(x = "Scale",
        y = "Percentage of total variance") +
   scale_color_viridis_d(name = "Site") +
@@ -190,18 +199,7 @@ mut_infs <- discrete_scales %>%
 #Plot
 mut_infs %>%
   mutate(chamber_treatment = factor(chamber_treatment,
-                                    levels = c("c_1_amb",
-                                               "c_2_amb",
-                                               "c_3_e0.75",
-                                               "c_4_e1.5",
-                                               "c_5_e2.25",
-                                               "c_6_e2.25",
-                                               "c_7_e3.0",
-                                               "c_8_e3.75",
-                                               "c_9_e3.75",
-                                               "c_10_e4.5",
-                                               "c_11_e5.25",
-                                               "c_12_e6.0")),
+                                    levels = chamber_levels),
          grouped_scale = paste0(grouped_scale, " (CH4)")) %>%
   ggplot(aes(x = mut_inf, y = exp_var, color = chamber_treatment)) +
   geom_point() + 
@@ -228,6 +226,32 @@ for(scale in unique(discrete_scales$grouped_scale)) {
     theme(strip.text.y = element_text(angle = 0),
           strip.text.x = element_text(angle = 90))
   jpeg(paste0("../figures/correlations - ",scale,".jpg"), res = 300, width = 15, height = 10, units = "in")
+  print(plot)
+  dev.off()
+}
+
+for(scale in unique(discrete_scales$grouped_scale)) {
+  plot <- discrete_scales %>%
+    dplyr::select(c(grouped_scale, chamber_treatment, time2, CH4_slope_umol_per_day)) %>%
+    full_join(discrete_scales %>%
+                dplyr::select(c(grouped_scale, chamber_treatment, time2, CH4_slope_umol_per_day)) %>%
+                rename(chamber_treatment2 = chamber_treatment,
+                       CH4_slope_umol_per_day2 = CH4_slope_umol_per_day)) %>%
+    filter(!is.na(CH4_slope_umol_per_day),
+           !is.na(CH4_slope_umol_per_day2),
+           grouped_scale == scale) %>%
+    group_by(chamber_treatment, chamber_treatment2) %>%
+    mutate(cor = cor(CH4_slope_umol_per_day, CH4_slope_umol_per_day2, method = "spearman"),
+           chamber_treatment = factor(chamber_treatment, levels = chamber_levels),
+           chamber_treatment2 = factor(chamber_treatment2, levels = chamber_levels)) %>%
+    ggplot(aes(y = CH4_slope_umol_per_day, x = CH4_slope_umol_per_day2, color = abs(cor))) +
+    geom_point() +
+    ggh4x::facet_grid2(rows = vars(chamber_treatment2), cols = vars(chamber_treatment), 
+                       scales = "free", independent = "all") +
+    scale_color_viridis_c() +
+    theme(strip.text.y = element_text(angle = 0),
+          strip.text.x = element_text(angle = 90))
+  jpeg(paste0("../figures/CH4_correlations - ",scale,".jpg"), res = 300, width = 15, height = 10, units = "in")
   print(plot)
   dev.off()
 }
@@ -295,7 +319,8 @@ output <- pmap(list(-200:0),
 lagged_mut_infs <- discrete_scales %>%
   dplyr::select(c(grouped_scale, chamber_treatment, time2, CH4_slope_umol_per_day)) %>%
   left_join(output, by = c("chamber_treatment", "time2")) %>%
-  filter(!is.na(exp_var_value_lag)) %>%
+  filter(!is.na(exp_var_value_lag),
+         !is.na(CH4_slope_umol_per_day)) %>%
   group_by(chamber_treatment, grouped_scale, exp_var, grouped_scale_exp, lag) %>%
   summarize(entropy_y = entropy(bin(CH4_slope_umol_per_day, 9)),
             mut_inf = MutInf(bin(exp_var_value, 9), bin(CH4_slope_umol_per_day, 9))/entropy_y) 
@@ -323,18 +348,7 @@ for(scale in unique(discrete_scales$grouped_scale)){
   plot <- lagged_mut_infs %>%
     filter(lag <= 0, lag >=-100) %>%
     mutate(chamber_treatment = factor(chamber_treatment,
-                                    levels = c("c_1_amb",
-                                               "c_2_amb",
-                                               "c_3_e0.75",
-                                               "c_4_e1.5",
-                                               "c_5_e2.25",
-                                               "c_6_e2.25",
-                                               "c_7_e3.0",
-                                               "c_8_e3.75",
-                                               "c_9_e3.75",
-                                               "c_10_e4.5",
-                                               "c_11_e5.25",
-                                               "c_12_e6.0")),
+                                    levels = chamber_levels),
          grouped_scale = paste0(grouped_scale, " (CH4)")) %>%
     filter(grouped_scale_exp == scale) %>%
     ggplot(aes(x = lag, y = mut_inf, color = chamber_treatment))+
