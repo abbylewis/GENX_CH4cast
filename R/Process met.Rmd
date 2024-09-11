@@ -17,16 +17,31 @@ data_2024 <- read_csv("https://www.dropbox.com/scl/fi/ix9j9473mj4wbsw2odb50/gcre
 
 data_all <- bind_rows(data_2021, data_2022, data_2023, data_2024)
 
-PAR_output <- data_all %>%
+met_output <- data_all %>%
   mutate(time2 = with_tz(time2, tzone = "America/New_York"),
          Date = as.Date(time2)) %>%
   group_by(Date) %>%
-  summarize(PAR = mean(par_den_c_avg, na.rm = TRUE))
+  select(Date, par_den_c_avg, rain_cm_tot, barometric_pressure_pb110b, rh, ws_ms_rm_avg, slrw_avg) %>%
+  mutate(rain_cm_tot = sum(rain_cm_tot, na.rm = TRUE)) %>% #Daily sums for rain
+  summarize(across(is.numeric, mean, na.rm = TRUE))
 
 data_all %>%
   ggplot(aes(x = par_den_c_avg, y = par_tot_c_tot)) +
   geom_point()
 
-write.csv(PAR_output, "../../processed_data/PAR_output.csv", row.names = FALSE)
+data_all %>%
+  ggplot(aes(x = ws_ms_rm_avg, y = ws_ms_ws_avg)) +
+  geom_point()
+
+data_all %>%
+  ggplot(aes(x = slrw_avg, y = par_den_c_avg, color = time2)) +
+  geom_point()
+
+write.csv(met_output %>% rename(PAR = par_den_c_avg) %>% select(Date, PAR), 
+          "../processed_data/PAR_output.csv", row.names = FALSE)
+
+write.csv(met_output,
+          "../processed_data/met_output.csv", row.names = FALSE)
+colnames(data_all)
 ```
 
