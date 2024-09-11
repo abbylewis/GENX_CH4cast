@@ -8,10 +8,11 @@ qaqc <- function(target){
       #If CO2 is good, we should believe CH4
       keep = ifelse(CH4_slope_umol_per_day > 0 & CO2_rsquared > 0.9, T, keep)) %>%
     dplyr::filter(keep) %>%
-    mutate(CH4_slope_umol_per_day = ifelse(time2 > "2023-03-02" & time2 < "2023-06-27",
-                                           NA,
-                                           CH4_slope_umol_per_day)) %>%
+    dplyr::mutate(CH4_slope_umol_per_day = dplyr::if_else((time2 > as.Date("2023-03-02") & 
+                                                             time2 < as.Date("2023-06-27")),
+                                                          NA,
+                                                          CH4_slope_umol_per_day)) %>%
     dplyr::select(-keep)
   
-  return(target)
+  return(cleaned)
 }

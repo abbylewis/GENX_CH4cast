@@ -1,6 +1,5 @@
-#From greenbrown, which is not available for this version of R
+#Code adapted by ASL from greenbrown, which is not available for this version of R
 
-library(plyr)
 library(zoo)
 
 FitDoubleLogBeck <- structure(function(
@@ -9,26 +8,19 @@ FitDoubleLogBeck <- structure(function(
   ##description<<
   ## This function fits a double logistic curve to observed values using the function as described in Beck et al. (2006) (equation 3).
   
-  x,
-  ### vector or time series to fit
+  x, ### vector or time series to fit
   
-  t = 1:length(x),
-  ### time steps
+  t = 1:length(x), ### time steps
   
-  tout = t,
-  ### time steps of output (can be used for interpolation)
+  tout = t, ### time steps of output (can be used for interpolation)
   
-  weighting = TRUE,
-  ### apply the weighting scheme to the observed values as described in Beck et al. 2006? This is useful for NDVI observations because higher values will get an higher weight in the estimation of the double logisitic function than lower values.	
+  weighting = TRUE, ### apply the weighting scheme to the observed values as described in Beck et al. 2006? This is useful for NDVI observations because higher values will get an higher weight in the estimation of the double logisitic function than lower values.	
   
-  hessian = FALSE,
-  ### compute standard errors of parameters based on the Hessian?
+  hessian = FALSE, ### compute standard errors of parameters based on the Hessian?
   
-  plot = FALSE,
-  ### plot iterations for logistic fit?
+  plot = FALSE, ### plot iterations for logistic fit?
   
-  ninit = 30,
-  ### number of inital parameter sets from which to start optimization
+  ninit = 30, ### number of inital parameter sets from which to start optimization
   
   ...
   ### further arguments (currently not used)
@@ -89,9 +81,9 @@ FitDoubleLogBeck <- structure(function(
     }
     opt.l <- apply(prior, 1, optim, .error, x = x, weights = weights, 
                    method = "BFGS", control = list(maxit = 1000), hessian = FALSE)
-    opt.df <- cbind(cost = unlist(llply(opt.l, function(opt) opt$value)), 
-                    convergence = unlist(llply(opt.l, function(opt) opt$convergence)), 
-                    ldply(opt.l, function(opt) opt$par))
+    opt.df <- cbind(cost = unlist(plyr::llply(opt.l, function(opt) opt$value)), 
+                    convergence = unlist(plyr::llply(opt.l, function(opt) opt$convergence)), 
+                    plyr::ldply(opt.l, function(opt) opt$par))
     best <- which.min(opt.df$cost)
     if (opt.df$convergence[best] == 1) {
       opt <- opt.l[[best]]
@@ -166,7 +158,7 @@ FitDoubleLogBeck <- structure(function(
   #    }
   xpred.out <- zoo(xpred, order.by = tout)
   if (plot) {
-    llply(opt.l, function(opt) {
+    plyr::llply(opt.l, function(opt) {
       xpred <- .doubleLog(opt$par, t)
       lines(t, xpred, col = "cyan")
     })

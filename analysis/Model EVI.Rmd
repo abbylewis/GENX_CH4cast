@@ -5,46 +5,96 @@ date: "2024-09-09"
 output: html_document
 ---
 
+Load data and packages
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(plyr)
-library(dplyr)
+#Load packages
 library(tidyverse)
-```
+library(furrr) #For parallel processing
+source("FitDoubleLogBeck.R")
+source("FitDoubleLogElmore.R")
 
-```{r}
+#Load EVI data
 evi <- read_csv("../Raw_data/EVI/smithsonianenvironmentalresearchcenter_evi_series.csv")
 
-source("FitDoubleLogBeck.R")
+options(future.rng.onMisuse = "ignore")
+```
 
-calc_curve <- function(df){
-  x <- df %>%
-    ungroup() %>%
-    complete(img_doy = 1:365)
-  
-  fit <- FitDoubleLogBeck(x$evi
-                          #, hessian = T, ninit = 10
-                          )
-  
-  out <- data.frame(param_name = names(fit$params),
-                    param_value = fit$params
-                    #,
-                    #stdError = fit$stdError
-                    )
-  
-  return(out)
-}
+Plot
 
+```{r}
+evi %>%
+  group_by(latitude, longitude) %>%
+  summarize(n = n()) %>%
+  ggplot(aes(x = longitude, y = latitude, color = n))+
+  geom_point()+
+  scale_color_viridis_c()
+```
+
+Fit double log function
+
+```{r}
+#Format and remove one grid cell that only has 3 data points
 evi_df <- evi %>%
-  group_by(latitude, longitude, img_year) %>%
-  filter(n() > 50) 
+  filter(n() > 50) %>%
+  mutate(id = paste(latitude, longitude, img_year, sep = "_"))
 
-#library(furrr)
-#plan(multisession)
-final <- evi_df %>%
-  as_tibble() %>%
-  group_by(latitude, longitude, img_year) %>%
-  group_map(.f = ~ calc_curve(df = .x)) %>%
+#Set up parallel processing
+plan(multisession)
+#Set ids to process
+range <- 200:215
+#range <- c(898, 2994, 4951, 7024) #SERC
+fits_beck <- future_map(unique(evi_df$id)[range], 
+                        ~ calc_curve(id_i = .x, 
+                                     df = evi_df, 
+                                     method = "Beck"), 
+                        .progress = T) %>%
   bind_rows()
+
+fits_elmore <- future_map(unique(evi_df$id)[range], 
+                          ~ calc_curve(id_i = .x, 
+                                       df = evi_df,
+                                       method = "Elmore"), 
+                          .progress = T) %>%
+  bind_rows()
+```
+
+Generate predictions and plot
+
+```{r}
+pred_df_beck <- data.frame(id = rep(unique(fits_beck$id), each = 365),
+                      doy = rep(1:365, length(unique(fits_beck$id)))) %>%
+  left_join(fits_beck %>%
+              pivot_wider(names_from = param_name, 
+                          values_from = c(param_value, stdError))) %>%
+  mutate(pred = param_value_mn + (param_value_mx - param_value_mn) * 
+           (1/(1 + exp(-param_value_rsp * (doy - param_value_sos))) + 
+              1/(1 + exp(param_value_rau * (doy - param_value_eos))))) %>%
+  left_join(evi_df %>% rename(doy = img_doy)) %>%
+  mutate(method = "Beck")
+
+pred_df_elmore <- data.frame(id = rep(unique(fits_elmore$id), each = 365),
+                      doy = rep(1:365, length(unique(fits_elmore$id)))) %>%
+  left_join(fits_elmore %>%
+              pivot_wider(names_from = param_name, 
+                          values_from = c(param_value, stdError))) %>%
+  mutate(param_value_m3l = param_value_m3/param_value_m4,
+         param_value_m4l = 1/param_value_m4,
+         param_value_m5l = param_value_m5/param_value_m6,
+         param_value_m6l = 1/param_value_m6,
+         pred = param_value_m1 + (param_value_m2 - param_value_m7 * doy) * 
+           ((1/(1 + exp((param_value_m3l - doy)/param_value_m4l))) - 
+              (1/(1 + exp((param_value_m5l - doy)/param_value_m6l))))) %>%
+  left_join(evi_df %>% rename(doy = img_doy)) %>%
+  mutate(method = "Elmore")
+
+pred_df_beck %>%
+  select(id, doy, pred, evi, method) %>%
+  full_join(pred_df_elmore %>% select(id, doy, pred, method)) %>%
+  ggplot(aes(x = doy, y = pred))+
+  geom_point(aes(y = evi)) +
+  geom_line(aes(color = method)) +
+  facet_wrap(~id)
 ```
 

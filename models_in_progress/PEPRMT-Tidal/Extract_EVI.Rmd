@@ -40,3 +40,80 @@ evi_export <- evi %>%
 write.csv(evi_export, "../../processed_data/EVI.csv", row.names = FALSE)
 ```
 
+Generate modeled EVI timeseries
+
+```{r}
+#Load packages
+library(furrr) #For parallel processing
+source("../../analysis/FitDoubleLogBeck.R")
+source("../../analysis/FitDoubleLogElmore.R")
+source("../../analysis/calc_curve.R")
+options(future.rng.onMisuse = "ignore")
+
+#Format and remove one grid cell that only has 3 data points
+evi_df <- evi %>%
+  filter(n() > 50) %>%
+  mutate(id = paste(latitude, longitude, img_year, sep = "_"))
+
+#Set up parallel processing
+plan(multisession)
+#Set ids to process
+range <- c(898, 2994, 4951, 7024) #SERC
+fits_beck <- future_map(unique(evi_df$id)[range], 
+                        ~ calc_curve(id_i = .x, 
+                                     df = evi_df, 
+                                     method = "Beck"), 
+                        .progress = T) %>%
+  bind_rows()
+
+fits_elmore <- future_map(unique(evi_df$id)[range], 
+                          ~ calc_curve(id_i = .x, 
+                                       df = evi_df,
+                                       method = "Elmore"), 
+                          .progress = T) %>%
+  bind_rows()
+
+pred_df_beck <- data.frame(id = rep(unique(fits_beck$id), each = 365),
+                      doy = rep(1:365, length(unique(fits_beck$id)))) %>%
+  left_join(fits_beck %>%
+              pivot_wider(names_from = param_name, 
+                          values_from = c(param_value, stdError))) %>%
+  mutate(pred = param_value_mn + (param_value_mx - param_value_mn) * 
+           (1/(1 + exp(-param_value_rsp * (doy - param_value_sos))) + 
+              1/(1 + exp(param_value_rau * (doy - param_value_eos))))) %>%
+  left_join(evi_df %>% rename(doy = img_doy)) %>%
+  mutate(method = "Beck")
+
+pred_df_elmore <- data.frame(id = rep(unique(fits_elmore$id), each = 365),
+                      doy = rep(1:365, length(unique(fits_elmore$id)))) %>%
+  left_join(fits_elmore %>%
+              pivot_wider(names_from = param_name, 
+                          values_from = c(param_value, stdError))) %>%
+  mutate(param_value_m3l = param_value_m3/param_value_m4,
+         param_value_m4l = 1/param_value_m4,
+         param_value_m5l = param_value_m5/param_value_m6,
+         param_value_m6l = 1/param_value_m6,
+         pred = param_value_m1 + (param_value_m2 - param_value_m7 * doy) * 
+           ((1/(1 + exp((param_value_m3l - doy)/param_value_m4l))) - 
+              (1/(1 + exp((param_value_m5l - doy)/param_value_m6l))))) %>%
+  left_join(evi_df %>% rename(doy = img_doy)) %>%
+  mutate(method = "Elmore")
+
+pred_df_beck %>%
+  select(id, doy, pred, evi, method) %>%
+  full_join(pred_df_elmore %>% select(id, doy, pred, method)) %>%
+  ggplot(aes(x = doy, y = pred))+
+  geom_point(aes(y = evi)) +
+  geom_line(aes(color = method)) +
+  facet_wrap(~id)
+
+modeled_evi <- pred_df_beck %>%
+  select(id, doy, pred, evi, method) %>%
+  mutate(Year = sub(".*_", "", id),
+         Date = as.Date(as.Date(paste0(Year, "-01-01")) + doy)) %>%
+  group_by(Date) %>%
+  summarize(EVI = mean(pred, na.rm = T))
+
+write.csv(modeled_evi, "../../processed_data/modeled_EVI.csv", row.names = FALSE)
+```
+

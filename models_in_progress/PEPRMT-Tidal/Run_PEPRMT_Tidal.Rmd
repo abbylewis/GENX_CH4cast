@@ -23,7 +23,7 @@ comb <- bind_rows(raw, raw2)
 
 #Load PAR and EVI
 par <- read_csv("../../processed_data/PAR_output.csv", show_col_types = FALSE)
-evi <- read_csv("../../processed_data/EVI.csv", show_col_types = FALSE) 
+evi <- read_csv("../../processed_data/modeled_EVI.csv", show_col_types = FALSE) 
 
 #Need EVI/LUE/SOM that we don't currently have
 All_sites_master <- read.csv("All_sites_master.csv", header=TRUE) %>% 
@@ -32,6 +32,7 @@ example_data <- All_sites_master %>%
   filter(site_char == "US_STJ") %>%
   group_by(DOY_disc) %>%
   summarize(LUE = mean(LUE, na.rm = TRUE),
+            #EVI = mean(EVI, na.rm = T),
             SOM_MEM_gC_m3 = 
               mean(All_sites_master$SOM_MEM_gC_m3[All_sites_master$SOM_MEM_gC_m3 > 0], 
                    na.rm = TRUE))
@@ -56,7 +57,7 @@ target <- comb %>%
          LAI = NA_real_,
          FPAR = 0) %>%
   group_by(Date, site) %>%
-  summarize(across(is.numeric, mean, na.rm = TRUE)) %>%
+  summarize(across(where(is.numeric), \(x) mean(x, na.rm = TRUE))) %>%
   left_join(par, by = "Date") %>%
   rename(PAR_umol_m2_day = PAR) %>%
   left_join(evi, by = "Date") %>%
@@ -109,6 +110,11 @@ target_results <- target %>%
               rename(DOY = Time_2,
                      GPP_mod = GPP))
 
+target %>%
+  group_by(site, DOY) %>%
+  summarize(n = n()) %>%
+  filter(n > 1)
+
 #Second run Reco Module
 #Add modeled GPP into data before running Reco module (16th column)
 target[,16]<-target_results$GPP_mod
@@ -154,19 +160,13 @@ for(site_x in 1:length(unique(target$site))){
   plot <- site1 %>%
     complete(DOY = first(DOY):max(DOY)) %>%
     ggplot(aes(DOY)) +
-    geom_line(aes(x = DOY, y = CH4_slope_mgC_m2_d), color = "red", 
+    geom_line(aes(x = DOY, y = CH4_slope_mgC_m2_d, color = "observation"), 
               data = ch4_validation %>% filter(site == site_x) %>%
                 complete(DOY = first(DOY):max(DOY)))+
-    geom_line(aes(x = DOY, y = CH4_mod*1000))+
+    geom_line(aes(x = DOY, y = CH4_mod*100, color = "model"))+
     labs(x = "", y=bquote('CH4 '~ (mgC ~ m^-2 ~ d^-1))) +
     ## To make the plot look prettier
-    theme_bw(base_size = 12) +
-    theme(axis.line = element_line(colour = "black"),
-          panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          panel.border = element_rect(colour = "black"),
-          panel.background = element_blank(),
-          legend.position = "center")
+    theme_bw(base_size = 12) 
   print(plot)
 }
 
