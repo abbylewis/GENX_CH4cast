@@ -1,0 +1,50 @@
+---
+title: "Model EVI"
+author: "Abby Lewis"
+date: "2024-09-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plyr)
+library(dplyr)
+library(tidyverse)
+```
+
+```{r}
+evi <- read_csv("../Raw_data/EVI/smithsonianenvironmentalresearchcenter_evi_series.csv")
+
+source("FitDoubleLogBeck.R")
+
+calc_curve <- function(df){
+  x <- df %>%
+    ungroup() %>%
+    complete(img_doy = 1:365)
+  
+  fit <- FitDoubleLogBeck(x$evi
+                          #, hessian = T, ninit = 10
+                          )
+  
+  out <- data.frame(param_name = names(fit$params),
+                    param_value = fit$params
+                    #,
+                    #stdError = fit$stdError
+                    )
+  
+  return(out)
+}
+
+evi_df <- evi %>%
+  group_by(latitude, longitude, img_year) %>%
+  filter(n() > 50) 
+
+#library(furrr)
+#plan(multisession)
+final <- evi_df %>%
+  as_tibble() %>%
+  group_by(latitude, longitude, img_year) %>%
+  group_map(.f = ~ calc_curve(df = .x)) %>%
+  bind_rows()
+```
+

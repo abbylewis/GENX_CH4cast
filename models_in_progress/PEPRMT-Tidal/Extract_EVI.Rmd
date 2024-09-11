@@ -1,0 +1,42 @@
+---
+title: "Extract EVI"
+author: "Abby Lewis"
+date: "2024-09-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+evi <- read_csv("../../Raw_data/EVI/smithsonianenvironmentalresearchcenter_evi_series.csv")
+drivers <- read_csv("../../Raw_data/GENX_SD_Export_Waterlevel_2021-05-06_to_2022-12-30_derived_clean_btemps.csv", 
+                    show_col_types = F)
+lat <- unique(drivers$lat)
+lon <- unique(drivers$lon)
+
+evi %>%
+  group_by(img_doy, img_year) %>%
+  mutate(distance = sqrt((latitude - lat)^2 + (longitude - lon)^2)) %>%
+  filter(distance == min(distance),
+         distance < 0.001) %>%
+  select(img_year, img_doy, latitude, longitude, distance, evi) %>%
+  ggplot(aes(x = img_doy, y = evi, color = as.factor(distance))) +
+  geom_point() +
+  facet_wrap(~img_year)
+
+evi_export <- evi %>%
+  group_by(img_doy, img_year) %>%
+  mutate(distance = sqrt((latitude - lat)^2 + (longitude - lon)^2),
+         Date = as.Date(as.Date(paste0(img_year, "-01-01")) + img_doy)) %>%
+  filter(distance == min(distance),
+         distance < 0.001) %>%
+  group_by(Date) %>%
+  summarize(evi = mean(evi, na.rm = TRUE)) %>%
+  rename(EVI = evi)
+
+write.csv(evi_export, "../../processed_data/EVI.csv", row.names = FALSE)
+```
+

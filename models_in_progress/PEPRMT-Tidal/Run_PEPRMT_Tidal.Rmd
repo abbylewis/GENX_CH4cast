@@ -21,8 +21,9 @@ raw <- read_csv("../../Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_
 raw2 <- read_csv("../../Raw_data/GENX_Flux_SD_Loggernet_2023-01-01_to_2023-11-15_derived.csv", show_col_types = FALSE)
 comb <- bind_rows(raw, raw2)
 
-#Load PAR
+#Load PAR and EVI
 par <- read_csv("../../processed_data/PAR_output.csv", show_col_types = FALSE)
+evi <- read_csv("../../processed_data/EVI.csv", show_col_types = FALSE) 
 
 #Need EVI/LUE/SOM that we don't currently have
 All_sites_master <- read.csv("All_sites_master.csv", header=TRUE) %>% 
@@ -30,10 +31,10 @@ All_sites_master <- read.csv("All_sites_master.csv", header=TRUE) %>%
 example_data <- All_sites_master %>%
   filter(site_char == "US_STJ") %>%
   group_by(DOY_disc) %>%
-  summarize(EVI = mean(EVI, na.rm = TRUE),
-            LUE = mean(LUE, na.rm = TRUE),
+  summarize(LUE = mean(LUE, na.rm = TRUE),
             SOM_MEM_gC_m3 = 
-              mean(All_sites_master$SOM_MEM_gC_m3[All_sites_master$SOM_MEM_gC_m3 > 0], na.rm = TRUE))
+              mean(All_sites_master$SOM_MEM_gC_m3[All_sites_master$SOM_MEM_gC_m3 > 0], 
+                   na.rm = TRUE))
 
 target <- comb %>%
   mutate(time2 = with_tz(time2, tzone = "America/New_York"),
@@ -58,6 +59,7 @@ target <- comb %>%
   summarize(across(is.numeric, mean, na.rm = TRUE)) %>%
   left_join(par, by = "Date") %>%
   rename(PAR_umol_m2_day = PAR) %>%
+  left_join(evi, by = "Date") %>%
   left_join(example_data, by = "DOY_disc") %>%
   ungroup() %>%
   select(DOY, DOY_disc, Year, TA_C, WTD_cm, PAR_umol_m2_day, LAI, EVI, FPAR, LUE,
@@ -102,7 +104,7 @@ GPP_mod_target <- PEPRMT_GPP_final(GPP_theta,
                             data = target)
 
 #Create a new dataset that included model results
-target_results<-target %>%
+target_results <- target %>%
   left_join(GPP_mod_target %>%
               rename(DOY = Time_2,
                      GPP_mod = GPP))
@@ -131,7 +133,8 @@ target[,18]<-target_results$S2
 
 source('PEPRMT_CH4_FINAL.R')
 
-CH4_theta<- c( 14.9025078, 0.4644174, 16.7845002, 0.4359649, 15.8857612,0.5120464, 486.4106939, 0.1020278 )
+CH4_theta<- c( 14.9025078, 0.4644174, 16.7845002, 0.4359649, 15.8857612,
+               0.5120464, 486.4106939, 0.1020278 )
 CH4_mod_target <- PEPRMT_CH4_FINAL(CH4_theta,
                             data = target,
                             wetland_type=2)
@@ -166,5 +169,7 @@ for(site_x in 1:length(unique(target$site))){
           legend.position = "center")
   print(plot)
 }
+
+# 
 ```
 
