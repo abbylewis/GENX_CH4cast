@@ -15,6 +15,7 @@ source("../R/qaqc.R")
 raw <- read_csv("../Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_derived.csv", show_col_types = FALSE)
 raw2 <- read_csv("../Raw_data/GENX_Flux_SD_Loggernet_2023-01-01_to_2023-11-15_derived.csv", show_col_types = FALSE)
 met <- read_csv("../processed_data/met_output.csv")
+redox <- read_csv("../processed_data/REDOX_output.csv")
 
 ch4 <- bind_rows(raw, raw2) %>%
   qaqc() %>%
@@ -30,6 +31,7 @@ ch4 <- bind_rows(raw, raw2) %>%
                                          NA,
                                          CH4_slope_umol_per_day)) %>%
   left_join(met %>% rename(time2 = Date)) %>%
+  left_join(redox %>% rename(time2 = Date)) %>%
   filter(!is.na(time2))
 
 mean_of_all <- ch4 %>%
@@ -273,6 +275,33 @@ discrete_scales %>%
   ggplot(aes(x = time2, y = value, color = chamber_treatment)) +
   geom_line() +
   facet_grid(rows = vars(var_name), cols = vars(chamber_treatment), scales = "free_y") 
+
+discrete_scales %>%
+  dplyr::select(c(grouped_scale, chamber_treatment, time2, CH4_slope_umol_per_day)) %>%
+  left_join(discrete_scales_exp %>% 
+              pivot_wider(names_from = exp_var, 
+                          values_from = exp_var_value), 
+            by = c("chamber_treatment", "time2")) %>%
+  filter(grouped_scale == "Diel",
+         grouped_scale_exp == "Seasonal") %>%
+  ungroup() %>%
+  ggplot(aes(x = corrected_depth, y = CH4_slope_umol_per_day)) +
+  geom_point(size = 0.2, alpha = 0.5) +
+  geom_smooth(method = "lm") +
+  scale_y_continuous(trans='pseudo_log') +
+  facet_grid(cols = vars(chamber_treatment), scales = "free_y") 
+
+mut_infs %>%
+  filter(grouped_scale == "Diel") %>%
+  mutate(chamber_treatment = factor(chamber_treatment,
+                                    levels = chamber_levels),
+         grouped_scale = paste0(grouped_scale, " (CH4)")) %>%
+  ggplot(aes(x = mut_inf, y = exp_var, color = chamber_treatment)) +
+  geom_point() + 
+  facet_grid(cols = vars(grouped_scale), rows = vars(grouped_scale_exp)) +
+  ylab("Explanatory variable") +
+  xlab("Relative mutual information") +
+  scale_color_viridis_d()
 ```
 
 With lags

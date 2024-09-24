@@ -1,0 +1,29 @@
+---
+title: "Process PAR"
+author: "Abby Lewis"
+date: "2024-09-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+data_all <- list.files("../Raw_data/REDOX/", full.names = T) %>%
+  read_csv()
+
+redox_output <- data_all %>%
+  select(-se) %>%
+  filter(CO2Treat == "Amb") %>%
+  group_by(Date, Depth) %>%
+  summarize(mV.adj = mean(mV.adj, na.rm = TRUE)) %>%
+  pivot_wider(names_from = Depth, values_from = c(mV.adj)) %>%
+  rename(REDOX_20cm = `20 cm`,
+         REDOX_5cm = `5 cm`)
+
+write.csv(redox_output, 
+          "../processed_data/REDOX_output.csv", row.names = FALSE)
+```
+
