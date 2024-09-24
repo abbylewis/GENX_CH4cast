@@ -27,7 +27,7 @@ if(sites == "all"){
 horiz = 35
 step = 1
 #For testing
-site <- sites[1]
+site <- "c_1_amb"
 var <- model_variables[1]
 forecast_date <- as.Date("2023-07-01")
 
@@ -64,10 +64,7 @@ site_target_raw <- target |>
   dplyr::select(datetime, site_id, variable, observation) |>
   dplyr::filter(variable == var, 
                 site_id == site,
-                datetime < forecast_date) 
-
-# Format
-site_target_raw <- site_target_raw |>
+                datetime < forecast_date) |>
   tidyr::pivot_wider(names_from = "variable", values_from = "observation")
 
 if(!var %in% names(site_target_raw) || sum(!is.na(site_target_raw[var])) == 0){

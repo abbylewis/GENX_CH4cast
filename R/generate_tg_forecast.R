@@ -97,13 +97,14 @@ generate_tg_forecast <- function(forecast_date,
   if(plot) {
     if(unique(forecast$family) == "ensemble"){
       p1 <- forecast %>%
-        ggplot(aes(x = datetime, y = prediction, group = parameter)) +
+        ggplot(aes(x = datetime, y = prediction)) +
         geom_vline(xintercept = forecast_date) +
-        geom_line() +
+        geom_line(aes(group = parameter)) +
         geom_point(data = target %>%
                      filter(datetime >= forecast_date - 5 * step,
                             datetime <= forecast_date + horiz * step), 
-                   aes(x = datetime, y = observation, alpha = datetime >= forecast_date)) +
+                   aes(x = datetime, y = observation, alpha = datetime >= forecast_date), 
+                   color = "red") +
         scale_alpha_manual(values = c(1, .5)) +
         facet_grid(cols = vars(variable), rows = vars(site_id), scales = "free_y") +
         theme(legend.position = "none")
