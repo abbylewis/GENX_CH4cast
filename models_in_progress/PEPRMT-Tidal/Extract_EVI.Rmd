@@ -7,16 +7,25 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+#libraries
 library(tidyverse)
+
+#evi time series
+evi <- read_csv("../../Raw_data/EVI/smithsonianenvironmentalresearchcenter_evi_series.csv")
 ```
 
+Process observed (not modeled) data for SERC
+
 ```{r}
-evi <- read_csv("../../Raw_data/EVI/smithsonianenvironmentalresearchcenter_evi_series.csv")
+#for coords
 drivers <- read_csv("../../Raw_data/GENX_SD_Export_Waterlevel_2021-05-06_to_2022-12-30_derived_clean_btemps.csv", 
                     show_col_types = F)
+
+#coords
 lat <- unique(drivers$lat)
 lon <- unique(drivers$lon)
 
+#plot evi at this site
 evi %>%
   group_by(img_doy, img_year) %>%
   mutate(distance = sqrt((latitude - lat)^2 + (longitude - lon)^2)) %>%
@@ -27,6 +36,7 @@ evi %>%
   geom_point() +
   facet_wrap(~img_year)
 
+#export
 evi_export <- evi %>%
   group_by(img_doy, img_year) %>%
   mutate(distance = sqrt((latitude - lat)^2 + (longitude - lon)^2),
@@ -36,7 +46,6 @@ evi_export <- evi %>%
   group_by(Date) %>%
   summarize(evi = mean(evi, na.rm = TRUE)) %>%
   rename(EVI = evi)
-
 write.csv(evi_export, "../../processed_data/EVI.csv", row.names = FALSE)
 ```
 
@@ -44,7 +53,7 @@ Generate modeled EVI timeseries
 
 ```{r}
 #Load packages
-library(furrr) #For parallel processing
+library(furrr)
 source("../../analysis/FitDoubleLogBeck.R")
 source("../../analysis/FitDoubleLogElmore.R")
 source("../../analysis/calc_curve.R")
@@ -59,6 +68,8 @@ evi_df <- evi %>%
 plan(multisession)
 #Set ids to process
 range <- c(898, 2994, 4951, 7024) #SERC
+
+#beck
 fits_beck <- future_map(unique(evi_df$id)[range], 
                         ~ calc_curve(id_i = .x, 
                                      df = evi_df, 
@@ -66,6 +77,7 @@ fits_beck <- future_map(unique(evi_df$id)[range],
                         .progress = T) %>%
   bind_rows()
 
+#elmore
 fits_elmore <- future_map(unique(evi_df$id)[range], 
                           ~ calc_curve(id_i = .x, 
                                        df = evi_df,
@@ -73,6 +85,8 @@ fits_elmore <- future_map(unique(evi_df$id)[range],
                           .progress = T) %>%
   bind_rows()
 
+#use parameters (calculated above) to generate predictions
+#beck
 pred_df_beck <- data.frame(id = rep(unique(fits_beck$id), each = 365),
                       doy = rep(1:365, length(unique(fits_beck$id)))) %>%
   left_join(fits_beck %>%
@@ -84,6 +98,7 @@ pred_df_beck <- data.frame(id = rep(unique(fits_beck$id), each = 365),
   left_join(evi_df %>% rename(doy = img_doy)) %>%
   mutate(method = "Beck")
 
+#elmore
 pred_df_elmore <- data.frame(id = rep(unique(fits_elmore$id), each = 365),
                       doy = rep(1:365, length(unique(fits_elmore$id)))) %>%
   left_join(fits_elmore %>%
@@ -99,6 +114,7 @@ pred_df_elmore <- data.frame(id = rep(unique(fits_elmore$id), each = 365),
   left_join(evi_df %>% rename(doy = img_doy)) %>%
   mutate(method = "Elmore")
 
+#plot
 pred_df_beck %>%
   select(id, doy, pred, evi, method) %>%
   full_join(pred_df_elmore %>% select(id, doy, pred, method)) %>%
@@ -107,13 +123,13 @@ pred_df_beck %>%
   geom_line(aes(color = method)) +
   facet_wrap(~id)
 
+#export
 modeled_evi <- pred_df_beck %>%
   select(id, doy, pred, evi, method) %>%
   mutate(Year = sub(".*_", "", id),
          Date = as.Date(as.Date(paste0(Year, "-01-01")) + doy)) %>%
   group_by(Date) %>%
   summarize(EVI = mean(pred, na.rm = T))
-
 write.csv(modeled_evi, "../../processed_data/modeled_EVI.csv", row.names = FALSE)
 ```
 

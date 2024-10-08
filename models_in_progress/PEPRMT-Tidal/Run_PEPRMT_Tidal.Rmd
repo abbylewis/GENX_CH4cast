@@ -6,6 +6,7 @@ author: Patty Oikawa
 email: patty.oikawa@gmail.com
 ---
 
+
 Load packages
 
 ```{r setup, echo=FALSE, message=FALSE}
@@ -16,82 +17,10 @@ p_load(R.matlab, here, tidyverse, FME, Metrics, lubridate, gridExtra)
 Load data
 
 ```{r}
-source("../../R/qaqc.R")
-raw <- read_csv("../../Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_derived.csv", show_col_types = FALSE)
-raw2 <- read_csv("../../Raw_data/GENX_Flux_SD_Loggernet_2023-01-01_to_2023-11-15_derived.csv", show_col_types = FALSE)
-comb <- bind_rows(raw, raw2)
-
-#Load PAR and EVI
-par <- read_csv("../../processed_data/PAR_output.csv", show_col_types = FALSE)
-evi <- read_csv("../../processed_data/modeled_EVI.csv", show_col_types = FALSE) 
-
-#Need EVI/LUE/SOM that we don't currently have
-All_sites_master <- read.csv("All_sites_master.csv", header=TRUE) %>% 
- dplyr::select(1:24) 
-example_data <- All_sites_master %>%
-  filter(site_char == "US_STJ") %>%
-  group_by(DOY_disc) %>%
-  summarize(LUE = mean(LUE, na.rm = TRUE),
-            #EVI = mean(EVI, na.rm = T),
-            SOM_MEM_gC_m3 = 
-              mean(All_sites_master$SOM_MEM_gC_m3[All_sites_master$SOM_MEM_gC_m3 > 0], 
-                   na.rm = TRUE))
-
-target <- comb %>%
-  mutate(time2 = with_tz(time2, tzone = "America/New_York"),
-         time2 = as.Date(time2)) %>%
-  qaqc() %>%
-  rename(site_id = chamber_treatment) %>%
-  mutate(site = as.numeric(as.factor(site_id)),
-         Date = as.Date(time2),
-         DOY_disc = yday(Date)) %>%
-  group_by(site_id) %>%
-  mutate(DOY = yday(first(Date)) + 
-           as.numeric(difftime(Date, first(Date), units = "days")),
-         Year = year(Date),
-         TA_C = temp,
-         WTD_cm = -corrected_depth,
-         Wetland_age_years = 4000,
-         Salinity_daily_ave_ppt = salinity,
-         NO3_mg_L = 0,
-         LAI = NA_real_,
-         FPAR = 0) %>%
-  group_by(Date, site) %>%
-  summarize(across(where(is.numeric), \(x) mean(x, na.rm = TRUE))) %>%
-  left_join(par, by = "Date") %>%
-  rename(PAR_umol_m2_day = PAR) %>%
-  left_join(evi, by = "Date") %>%
-  left_join(example_data, by = "DOY_disc") %>%
-  ungroup() %>%
-  select(DOY, DOY_disc, Year, TA_C, WTD_cm, PAR_umol_m2_day, LAI, EVI, FPAR, LUE,
-         Wetland_age_years, Salinity_daily_ave_ppt, NO3_mg_L, SOM_MEM_gC_m3,
-         site) %>%
-  filter(!is.na(TA_C),
-         !is.na(WTD_cm),
-         !is.na(PAR_umol_m2_day),
-         !is.na(EVI)) %>%
+target <- read_csv("peprmt_target.csv") %>%
   as.data.frame()
-
-#Create CH4 validation dataset
-ch4_validation <- comb %>%
-  mutate(time2 = with_tz(time2, tzone = "America/New_York"),
-         time2 = as.Date(time2)) %>%
-  qaqc() %>%
-  rename(site_id = chamber_treatment) %>%
-  mutate(site = as.numeric(as.factor(site_id)),
-         Date = as.Date(time2),
-         DOY_disc = yday(Date)) %>%
-  group_by(site_id) %>%
-  mutate(DOY = yday(first(Date)) + 
-           as.numeric(difftime(Date, first(Date), units = "days")),
-         Year = year(Date)) %>%
-  group_by(Date, site) %>%
-  summarize(across(is.numeric, mean, na.rm = TRUE)) %>%
-  select(DOY, DOY_disc, Year, site, CH4_slope_umol_per_day) %>%
-  as.data.frame() %>%
-  mutate(CH4_slope_mgC_m2_d = CH4_slope_umol_per_day * 12.011 / 1000 / 0.196)
-         
-#Column descriptions are in PEPRMT_GPP_FINAL.R
+ch4_validation <- read_csv("ch4_validation.csv") %>%
+  as.data.frame()
 ```
 
 Run all modules
@@ -107,13 +36,8 @@ GPP_mod_target <- PEPRMT_GPP_final(GPP_theta,
 #Create a new dataset that included model results
 target_results <- target %>%
   left_join(GPP_mod_target %>%
-              rename(DOY = Time_2,
-                     GPP_mod = GPP))
-
-target %>%
-  group_by(site, DOY) %>%
-  summarize(n = n()) %>%
-  filter(n > 1)
+              rename(GPP_mod = GPP,
+                     DOY = Time_2))
 
 #Second run Reco Module
 #Add modeled GPP into data before running Reco module (16th column)
@@ -150,6 +74,11 @@ target_results<-target_results %>%
   left_join(CH4_mod_target %>%
               rename(DOY = Time_2,
                      CH4_mod = pulse_emission_total))
+
+comb %>%
+  ggplot(aes(y = CH4_slope_umol_per_day / 0.196, x = time2)) +
+  geom_point(alpha = 0.02)+
+  scale_y_log10()
 ```
 
 Plot
@@ -163,8 +92,23 @@ for(site_x in 1:length(unique(target$site))){
     geom_line(aes(x = DOY, y = CH4_slope_mgC_m2_d, color = "observation"), 
               data = ch4_validation %>% filter(site == site_x) %>%
                 complete(DOY = first(DOY):max(DOY)))+
-    geom_line(aes(x = DOY, y = CH4_mod*100, color = "model"))+
+    geom_line(aes(x = DOY, y = CH4_mod*1000, color = "model"))+
     labs(x = "", y=bquote('CH4 '~ (mgC ~ m^-2 ~ d^-1))) +
+    ## To make the plot look prettier
+    theme_bw(base_size = 12) 
+  print(plot)
+}
+
+for(site_x in 1:length(unique(target$site))){
+  site1 <- subset(target_results, site == site_x)
+  plot <- site1 %>%
+    complete(DOY = first(DOY):max(DOY)) %>%
+    ggplot(aes(DOY)) +
+    #geom_line(aes(x = DOY, y = GPP_mod, color = "observation"), 
+    #          data = ch4_validation %>% filter(site == site_x) %>%
+    #            complete(DOY = first(DOY):max(DOY)))+
+    geom_line(aes(x = DOY, y = GPP_mod, color = "model"))+
+    labs(x = "", y="GPP") +
     ## To make the plot look prettier
     theme_bw(base_size = 12) 
   print(plot)

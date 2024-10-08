@@ -1,0 +1,1387 @@
+---
+title: "Generalized Test of MODMCMC"
+author: "Michael Najarro +Patty Oikawa"
+date: "6/27/2021"
+output: html_document:
+    keep_md: yes
+---
+
+# Introduction
+
+The underlying goal of this project is to evaluate the forecast ability of PEPRMT-tidal for chamber ch4 measurements.
+
+To run this model, parameters involved in physical chemistry within PEPRMT must be parameterized.
+
+
+# Goal
+This script uses the package FME's function `modMCMC`, which implements a delayed rejection adaptive monte carlo markov chain algorithm, to estimate theta parameters for PEPRMT upon a multi-plot data set.
+
+
+
+
+# The Process
+
+```{r, echo=FALSE, message=FALSE}
+library(pacman)
+p_load(R.matlab,
+       here,
+       tidyverse,
+       magrittr,
+       FME,
+       tictoc,
+       beepr,
+       Metrics,
+       gridExtra)
+```
+
+## 1. Build error data set
+
+Estimating parameters for PEPRMT requires calculating an error term (or vector of terms) for DRAM. The data is comprised of a data frame containing the methane, daily integral error (gap filled), and random error from Eddy Covariance Towers.
+
+For MEM-PEPRMT, we will calculate a sum of squares on the error data, which will later applied to the DRAM parameter space selection distribution. 
+
+For each day that exists within a given data set, there should exist three error values: ydata, gpf, and re.
+
+first identify the number of days of data per site, by recording the number of rows per site.
+
+```{r}
+# #load in the data, all sites in 1 spreadsheet
+EL_RR_De_data <- read.csv("All_param_sites_master_NO3_corr_20211206_GPP.csv", header=TRUE) %>% 
+  dplyr::select(1:18) 
+summary(EL_RR_De_data)
+str(EL_RR_De_data)
+
+target <- read_csv("peprmt_target.csv") %>%
+  as.data.frame()
+ch4_validation <- read_csv("ch4_validation.csv") %>%
+  as.data.frame()
+```
+
+There are 873, 512, and 366, measures for Eden Landing, Rush Ranch, and St. Jones.  Let's convert the site to a numerical value, which will become a critical component for running PEPRMT.
+
+```{r echo=FALSE}
+#initial_data$site <- as.numeric(initial_data$site)
+EL_RR_De_data$site <- as.numeric(factor(EL_RR_De_data$site))
+summary(EL_RR_De_data)
+```
+
+
+Given that we have measures of error for Eden Landing, I must now generate more data for each column of the error data set. I'll build upon the Eden Landing data by extending it columns out. 
+
+```{r}
+# #import EL error data.
+
+global_errors <- read.csv("All_param_sites_master_NO3_corr_20211206_GPP.csv", header=TRUE) %>% 
+ dplyr::select(13:15) 
+#global_errors<-EL_RR_De_data[c(13:15)]
+
+```
+
+
+## 2. Test run of the SS script
+
+Now, that error data exists for all three sites merged into one data frame, I can calculate a sum of squares upon the data by running the `SS PEPRMT CH4` script.
+
+
+```{r}
+#determining LUE for each site
+
+#Best to keep the umol unit
+LUE_gC_MJ_Edn_umol=mean(EL_RR_De_data$GPP_gC_m2_day[1:1217]/EL_RR_De_data$PAR_daily_ave_umol_m2_day[1:1217])
+LUE_gC_MJ_Srr_umol=mean(EL_RR_De_data$GPP_gC_m2_day[1218:2871]/EL_RR_De_data$PAR_daily_ave_umol_m2_day[1218:2871])
+EL_RR_De_data$PAR_daily_ave_umol_m2_day[2872]<-EL_RR_De_data$PAR_daily_ave_umol_m2_day[2871]
+LUE_gC_MJ_Stj_umol=mean(EL_RR_De_data$GPP_gC_m2_day[2872:3967]/EL_RR_De_data$PAR_daily_ave_umol_m2_day[2872:3967])
+#Now create a LUE column for entire dataset that uses this growing season mean LUE for each site
+EL_RR_De_data$LUE <-EL_RR_De_data$Wetland_age_years*0
+EL_RR_De_data$LUE[1:1217] <-EL_RR_De_data$LUE[1:1217]+LUE_gC_MJ_Edn_umol*-1
+EL_RR_De_data$LUE[1218:2871] <-EL_RR_De_data$LUE[1218:2871]+LUE_gC_MJ_Srr_umol*-1
+EL_RR_De_data$LUE[2872:3967] <-EL_RR_De_data$LUE[2872:3967]+LUE_gC_MJ_Stj_umol*-1
+
+
+```
+
+
+
+
+
+
+
+```{r}
+# bring in required inputs
+#: global errors should be in your environment, which is the full error data set.
+#error_set <- global_errors
+  
+source('PEPRMT_final_sys_CO2_GPP_param.R')
+
+#
+
+     # run peprmt Reco
+    #theta <- c(1, 1, 0, 0)
+    #theta <-c(1.015387 ,  1.008252, 110.973354,  99.983830)
+     theta <-c(1,1, 110.973354,  99.983830)
+    GPP_mod_RR <- PEPRMT_final_sys_CO2_GPP_param(theta,
+                                           data = EL_RR_De_data)
+
+  #make new data matrix for plotting
+  EL_RR_De_data_results <- read.csv("All_param_sites_master_NO3_corr_20211206_GPP.csv", header=TRUE) %>% 
+  dplyr::select(1:15) 
+ 
+  EL_RR_De_data_results$GPP_mod <- GPP_mod_RR
+  
+  #PLOT new RESULTS  2015-17
+  #eden
+    # ggplot(data = EL_RR_De_data_results, mapping = aes(x = Day_of_year, y = CH4_mod)) 
+    # geom_point(alpha = 0.1, color = "blue")
+    
+    plot(EL_RR_De_data_results$Day_of_year[1:1217],EL_RR_De_data_results$GPP_mod[1:1217], type="b", pch=19, col="red", xlab="DOY", ylab="CH4 (gC m-2 d-1)")
+# Add a line
+lines(EL_RR_De_data_results$Day_of_year[1:1217], EL_RR_De_data_results$GPP_gC_m2_day[1:1217], type="l", pch=18, col="blue")#, type="b", lty=2)
+# Add a legend
+legend(1, 95, legend=c("mod", "obs"),
+       col=c("red", "blue"))#, lty=1:2, cex=0.8)
+RMSE_GPP_mod_Edn_prior <- rmse(EL_RR_De_data_results$GPP_mod[1:1217], EL_RR_De_data_results$GPP_gC_m2_day[1:1217])
+#RR
+    # ggplot(data = EL_RR_De_data_results, mapping = aes(x = Day_of_year, y = CH4_mod)) 
+    # geom_point(alpha = 0.1, color = "blue")
+    
+    plot(EL_RR_De_data_results$Day_of_year[1218:2871],EL_RR_De_data_results$GPP_mod[1218:2871], type="b", pch=19, col="red", xlab="DOY", ylab="CH4 (gC m-2 d-1)")
+# Add a line
+lines(EL_RR_De_data_results$Day_of_year[1218:2871], EL_RR_De_data_results$GPP_gC_m2_day[1218:2871], type="l", pch=18, col="blue")#, type="b", lty=2)
+# Add a legend
+legend(1, 95, legend=c("mod", "obs"),
+       col=c("red", "blue"))#, lty=1:2, cex=0.8)
+RMSE_GPP_mod_Srr_prior <- rmse(EL_RR_De_data_results$GPP_mod[1218:2871], EL_RR_De_data_results$GPP_gC_m2_day[1218:2871])
+#Stj
+    # ggplot(data = EL_RR_De_data_results, mapping = aes(x = Day_of_year, y = CH4_mod)) 
+    # geom_point(alpha = 0.1, color = "blue")
+    
+    plot(EL_RR_De_data_results$Day_of_year[2872:3967],EL_RR_De_data_results$GPP_mod[2872:3967], type="b", pch=19, col="red", xlab="DOY", ylab="CH4 (gC m-2 d-1)")
+# Add a line
+lines(EL_RR_De_data_results$Day_of_year[2872:3967], EL_RR_De_data_results$GPP_gC_m2_day[2872:3967], type="l", pch=18, col="blue")#, type="b", lty=2)
+# Add a legend
+legend(1, 95, legend=c("mod", "obs"),
+       col=c("red", "blue"))#, lty=1:2, cex=0.8)
+
+RMSE_GPP_mod_Stj_prior <- rmse(EL_RR_De_data_results$GPP_mod[2872:3967], EL_RR_De_data_results$GPP_gC_m2_day[2872:3967])
+
+#write_csv(EL_RR_De_data_results,"data_sets/final_model_results.csv")
+
+```
+
+
+
+
+```{r}
+source('SS_PEPRMT_GPP.R')
+
+saveRDS(EL_RR_De_data, file = "EL_RR_De_data.rds")
+#theta <- c(0.5,0.5, 0, 0)
+theta <-c(1,1, 110.973354,  99.983830)
+# run the sum of squares script as a test
+ss_global <- ss_GPP(theta = theta,
+   y = global_errors)
+
+
+#use for troubleshooting SS code
+# y = global_errors
+# plot(ydata)
+# plot(mod)
+# plot(ss1, ylim=c(0,1))
+# plot(y$daily_wm_gf_error,ylim=c(0,0.1))
+# plot(y$daily_wm_re_error)
+
+
+```
+
+
+## 3. FME: modMCMC function
+
+Here we will open the package FME and execute the 
+method `modMCMC`, which will run a delayed-rejection, adaptive Monte Carlo Markov Chain, Metroplolis- Hastings Algorithm.
+
+```{r}
+# run FME
+tic()
+paramod <- modMCMC(f = ss_GPP,
+        p = theta,
+        y = global_errors,
+        jump = .01,  
+        lower = c(0,1,-20, -50),
+        upper = c(5,5,200, 300),
+        prior = NULL,
+        var0 = NULL,
+        wvar0 = NULL, 
+        n0 = NULL,
+        niter = 200000,
+        outputlength = 200000,
+        burninlength = 50000,
+        updatecov = 100,
+        covscale = 2.4^2/length(theta),
+        ntrydr = 2,
+        drscale = NULL,
+        verbose = TRUE)
+toc()
+beepr::beep(sound=2)
+```
+
+```{r}
+#Save and load paramod depending on date of run
+saveRDS(paramod,"paramod_20221115.rds")
+
+paramod<-readRDS("paramod_20221115.rds")
+
+#plot best parameter set
+theta_best <- paramod$bestpar
+
+#test how model performs
+source('PEPRMT_final_sys_CO2_GPP_param.R')
+  
+
+  #5. execute PEPRMT CH4
+
+  y_model <- PEPRMT_final_sys_CO2_GPP_param(theta = theta_best,
+                                      data = EL_RR_De_data)
+  #add it onto results matrix
+  EL_RR_De_data_results$GPP_mod_best <- y_model
+  
+  #PLOT new RESULTS  2015-17
+  #eden
+    # ggplot(data = EL_RR_De_data_results, mapping = aes(x = Day_of_year, y = CH4_mod_best)) 
+    # geom_point(alpha = 0.1, color = "blue")
+  par(mfrow=c(2,2))  
+    plot(EL_RR_De_data_results$Day_of_year[1:1217],EL_RR_De_data_results$GPP_mod_best[1:1217], type="b", pch=19, col="red", xlab="DOY", ylab="GPP (gC m-2 d-1)", ylim=c(-15, 1))
+# Add a line
+lines(EL_RR_De_data_results$Day_of_year[1:1217], EL_RR_De_data_results$GPP_gC_m2_day[1:1217]+1, type="l", pch=18, col="blue", ylim=c(-15, 1))#, type="b", lty=2)
+# Add a legend
+legend(1, 95, legend=c("mod", "obs"),
+       col=c("red", "blue"))#, lty=1:2, cex=0.8)
+
+RMSE_GPP_mod_Edn <- rmse(EL_RR_De_data_results$GPP_mod_best[1:1217], EL_RR_De_data_results$GPP_gC_m2_day[1:1217])
+#RR
+    # ggplot(data = EL_RR_De_data_results, mapping = aes(x = Day_of_year, y = CH4_mod_best)) 
+    # geom_point(alpha = 0.1, color = "blue")
+    
+    plot(EL_RR_De_data_results$Day_of_year[1218:2871],EL_RR_De_data_results$GPP_mod_best[1218:2871], type="b", pch=19, col="red", xlab="DOY", ylab="GPP (gC m-2 d-1)", ylim=c(-15, 1))
+# Add a line
+lines(EL_RR_De_data_results$Day_of_year[1218:2871], EL_RR_De_data_results$GPP_gC_m2_day[1218:2871], type="l", pch=18, col="blue", ylim=c(-15, 1))#, type="b", lty=2)
+# Add a legend
+legend(1, 95, legend=c("mod", "obs"),
+       col=c("red", "blue"))#, lty=1:2, cex=0.8)
+
+RMSE_GPP_mod_Srr <- rmse(EL_RR_De_data_results$GPP_mod_best[1218:2871], EL_RR_De_data_results$GPP_gC_m2_day[1218:2871])
+
+#Stj
+    # ggplot(data = EL_RR_De_data_results, mapping = aes(x = Day_of_year, y = CH4_mod_best)) 
+    # geom_point(alpha = 0.1, color = "blue")
+    
+    plot(EL_RR_De_data_results$Day_of_year[2872:3967],EL_RR_De_data_results$GPP_mod_best[2872:3967], type="b", pch=19, col="red", xlab="DOY", ylab="GPP (gC m-2 d-1)", ylim=c(-15, 1))
+# Add a line
+lines(EL_RR_De_data_results$Day_of_year[2872:3967], EL_RR_De_data_results$GPP_gC_m2_day[2872:3967], type="l", pch=18, col="blue", ylim=c(-15, 1))#, type="b", lty=2)
+# Add a legend
+legend(1, 95, legend=c("mod", "obs"),
+       col=c("red", "blue"))#, lty=1:2, cex=0.8)
+
+RMSE_GPP_mod_Stj <- rmse(EL_RR_De_data_results$GPP_mod_best[2872:3967], EL_RR_De_data_results$GPP_gC_m2_day[2872:3967])
+```
+
+
+
+
+#investigate SS
+```{r}
+hist(paramod$SS)
+plot(paramod$SS)
+
+#bring in script
+source("SS_PEPRMT_GPP.R")
+
+# run the sum of squares script as a test
+ss_global <- ss_GPP(theta = theta_best,
+   y = global_errors)
+
+saveRDS(paramod,file="paramod.rds")
+paramod<-readRDS("paramod.rds")
+```
+
+
+
+
+## 5. Plot markov chains per parameter
+
+here i plot each parameter and then zoom in on the last 5% of jump steps to determine the limit, or to where the posterior distribution $\pi(x)$ converges per parameter.
+
+```{r}
+df_thetas <- as.data.frame(paramod$pars)
+colnames(df_thetas) <- c("t1", 
+                          "t2",
+                          "t3",
+                          "t4")
+
+df_thetas <- df_thetas %>%
+        mutate(step = c(1:nrow(df_thetas))) %>%
+        pivot_longer(.,
+                     c(t1,
+                       t2,
+                       t3,
+                       t4),
+                     names_to = "parameter",
+                     values_to = "state")
+
+#Plot each parameter
+ggplot(data =df_thetas,
+       mapping=aes(x=step,
+                   y =state)) +
+        geom_line(mapping=aes(col=parameter))
+
+# Now plot up to the last 5% of the step values
+lv <- as.numeric(max(df_thetas$step)-.05*max(df_thetas$step))
+uv <- as.numeric(max(df_thetas$step))
+
+ggplot(data =df_thetas,
+       mapping=aes(x=step,
+                   y=state)) +
+        geom_line(mapping=aes(col=parameter)) +
+        coord_trans(xlim=c(lv,uv))
+```
+Checking for MCMC convergence
+http://docs.zeligproject.org/articles/diagnostics.html
+Geweke Diagnostic
+The Geweke diagnostic tests the null hypothesis that the Markov chain is in the stationary distribution and produces z-statistics for each estimated parameter.
+
+Heidelberger-Welch Diagnostic
+The Heidelberger and Welch diagnostic first tests the null hypothesis that the Markov Chain is in the stationary distribution and produces p-values for each estimated parameter. Calling this diagnostic also produces output that indicates whether the mean of a marginal posterior distribution can be estimated with sufficient precision, assuming that the Markov Chain is in the stationary distribution
+
+Raftery-Lewis Diagnostic
+The Raftery and Lewis diagnostic indicates how long the Markov Chain should run before considering draws from the marginal posterior distributions sufficiently representative of the stationary distribution.
+
+```{r}
+#checking for convergence
+#GEWEKE
+#Geweke (1992) proposed a convergence diagnostic for Markov chains based on a test for equality of the means of the first and last part of a Markov chain (by default the first 10% and the last 50%). If the samples are drawn from the stationary distribution of the chain, the two means are equal and Geweke's statistic has an asymptotically standard normal distribution
+#if all the parameters have a pvalue >0.05 then we can assume the first 10% of the chain is burn in
+geweke.diag(paramod$pars, frac1=0.1, frac2=0.5) #if all p values are > 0.05 passes
+```
+
+```{r}
+#HEIDEL
+#The convergence test uses the Cramer-von-Mises statistic to test the null hypothesis that the sampled values come from a stationary distribution. The test is successively applied, firstly to the whole chain, then after discarding the first 10%, 20%, … of the chain until either the null hypothesis is accepted, or 50% of the chain has been discarded. The latter outcome constitutes `failure' of the stationarity test and indicates that a longer MCMC run is needed. If the stationarity test is passed, the number of iterations to keep and the number to discard are reported.
+heidel.diag(paramod$pars)#Check if all parameters pass, if not a longer chain may be needed
+
+```
+
+```{r}
+#RAFTERY
+#If the number of iterations in data is too small, an error message is printed indicating the minimum length of pilot run. The minimum length is the required sample size for a chain with no correlation between consecutive samples. Positive autocorrelation will increase the required sample size above this minimum value. An estimate I (the `dependence factor') of the extent to which autocorrelation inflates the required sample size is also provided. Values of I larger than 5 indicate strong autocorrelation which may be due to a poor choice of starting value, high posterior correlations or `stickiness' of the MCMC algorithm.
+raftery.diag(paramod$pars)
+
+
+```
+
+```{r}
+#make box plots of last 10,000 parameter sets
+
+
+final_parameter_set = paramod$pars
+#for longer chains
+final_parameter_set <- final_parameter_set[135001:145000, ]
+#for shorter chains
+#final_parameter_set <- final_parameter_set[35001:45000, ]
+
+boxplot(final_parameter_set,data=final_parameter_set, main="parameter stability",
+   xlab="parameter", ylab="parameter values")#,ylim=c(0.75,1.3))
+```
+
+
+
+```{r gpp_param_distr, dev = c("jpg")}
+
+#tiff("gpp_param_distr.tiff")
+#Best to just screenshot this figure and save 
+par(mfrow=c(2,2))
+hist1<- hist(final_parameter_set[,1],main="",
+xlab=expression('a'['0']))
+text(0.6, 2300, cex = 1, bquote(paste((a))))#cex changes font size
+hist2<-hist(final_parameter_set[,2],main="",
+xlab=expression('a'['1']))
+text(1.1, 4900, cex = 1, bquote(paste((b))))#cex changes font size
+hist3<-hist(final_parameter_set[,3]+30,main="",
+xlab=expression('H'['a']* ' (kJ mol'^'-1'* ')'))
+text(65, 1000, cex = 1, bquote(paste((c))))#cex changes font size
+hist4<-hist(final_parameter_set[,4]+100,main="",
+xlab=expression('H'['d']* ' (kJ mol'^'-1' * ')'))
+text(55, 800, cex = 1, bquote(paste((d))))#cex changes font size
+#dev.off()
+
+
+# head(final_parameter_set)
+# final_param_long <- final_parameter_set %>% 
+#   as.data.frame() %>%
+#   pivot_longer(cols = everything(), names_to = "params", values_to= "estimate")
+# 
+# head(final_param_long)
+# 
+# final_param_plot <- ggplot(final_param_long, aes(x = estimate)) +
+#   geom_histogram() +
+#   facet_wrap(~params)
+# final_param_plot
+
+```
+
+```{r}
+
+
+#identify median and CI for ea parameter
+theta_med <- apply(final_parameter_set,2, function(x) median(x))
+cil_theta <- apply(final_parameter_set,2, function(x) quantile(x, 0.025))
+ciu_theta <- apply(final_parameter_set, 2, function(x) quantile(x, 0.975))
+
+
+#are parameters correlated
+r2_theta1_2 <- cor(final_parameter_set[ ,1], final_parameter_set[ ,2])
+r2_theta1_3 <- cor(final_parameter_set[ ,1], final_parameter_set[ ,3])
+r2_theta1_4 <- cor(final_parameter_set[ ,1], final_parameter_set[ ,4])
+r2_theta2_3 <- cor(final_parameter_set[ ,2], final_parameter_set[ ,3])
+r2_theta2_4 <- cor(final_parameter_set[ ,2], final_parameter_set[ ,4])
+r2_theta3_4 <- cor(final_parameter_set[ ,3], final_parameter_set[ ,4])
+
+model_theta_1_2 <- lm(final_parameter_set[ ,1] ~ final_parameter_set[ ,2])
+summary(model_theta_1_2)
+#theta 1 and 2 are correlated byt the r2 is low =0.02
+
+model_theta_1_3 <- lm(final_parameter_set[ ,1] ~ final_parameter_set[ ,3])
+summary(model_theta_1_3)
+#theta 1 and 3 are correlated r2=0.43
+
+model_theta_1_4 <- lm(final_parameter_set[ ,1] ~ final_parameter_set[ ,4])
+summary(model_theta_1_4)
+#theta 1 and 4 are correlated but r2 is low 0.09
+
+model_theta_2_3 <- lm(final_parameter_set[ ,2] ~ final_parameter_set[ ,3])
+summary(model_theta_2_3)
+#theta 2 and 3 are correlated but r2 is low 0.07
+
+model_theta_2_4 <- lm(final_parameter_set[ ,2] ~ final_parameter_set[ ,4])
+summary(model_theta_2_4)
+#theta 2 and 4 are correlated but r2 is low 0.01
+
+
+model_theta_3_4 <- lm(final_parameter_set[ ,3] ~ final_parameter_set[ ,4])
+summary(model_theta_3_4)
+#theta 3 and 4 are correlated  r2 =0.64 
+
+ par(mfrow=c(3,3))  
+plot(final_parameter_set[ ,1],final_parameter_set[ ,2],type="b", pch=19, col="red", xlab="theta 1", ylab="theta 2")
+plot(final_parameter_set[ ,1],final_parameter_set[ ,3],type="b", pch=19, col="red", xlab="theta 1", ylab="theta 3")
+plot(final_parameter_set[ ,1],final_parameter_set[ ,4],type="b", pch=19, col="red", xlab="theta 1", ylab="theta 4")
+plot(final_parameter_set[ ,2],final_parameter_set[ ,3],type="b", pch=19, col="red", xlab="theta 2", ylab="theta 3")
+plot(final_parameter_set[ ,2],final_parameter_set[ ,4],type="b", pch=19, col="red", xlab="theta 2", ylab="theta 4")
+plot(final_parameter_set[ ,3],final_parameter_set[ ,4],type="b", pch=19, col="red", xlab="theta 3", ylab="theta 4")
+```
+
+
+
+
+
+
+```{r}
+theta_med
+theta_median <- c(0.7479271,   1.0497113, 149.4681710,  94.4532674 )
+#make output
+theta_median_actual<-theta_median
+theta_median_actual[1] <- theta_median[1]
+theta_median_actual[2] <- theta_median[2]
+theta_median_actual[3] <- theta_median[3]+30
+theta_median_actual[4] <- theta_median[4]+100
+#test how model performs
+source('./PEPRMT_Scripts/PEPRMT_final_sys_CO2_GPP_param.R')
+  
+
+  #5. execute PEPRMT CH4
+
+  y_model <- PEPRMT_final_sys_CO2_GPP_param(theta = theta_median,
+                                      data = EL_RR_De_data)
+  #add it onto results matrix
+  EL_RR_De_data_results$GPP_mod_best <- y_model
+  
+  #PLOT new RESULTS  2015-17
+  #eden
+    # ggplot(data = EL_RR_De_data_results, mapping = aes(x = Day_of_year, y = CH4_mod_best)) 
+    # geom_point(alpha = 0.1, color = "blue")
+  par(mfrow=c(2,2))  
+    plot(EL_RR_De_data_results$Day_of_year[1:1217],EL_RR_De_data_results$GPP_mod_best[1:1217], type="b", pch=19, col="red", xlab="DOY", ylab="GPP (gC m-2 d-1)", ylim=c(-15, 1))
+# Add a line
+lines(EL_RR_De_data_results$Day_of_year[1:1217], EL_RR_De_data_results$GPP_gC_m2_day[1:1217]+1, type="l", pch=18, col="blue", ylim=c(-15, 1))#, type="b", lty=2)
+# Add a legend
+legend(1, 95, legend=c("mod", "obs"),
+       col=c("red", "blue"))#, lty=1:2, cex=0.8)
+
+RMSE_GPP_mod_Edn <- rmse(EL_RR_De_data_results$GPP_mod_best[1:1217], EL_RR_De_data_results$GPP_gC_m2_day[1:1217])
+#RR
+    # ggplot(data = EL_RR_De_data_results, mapping = aes(x = Day_of_year, y = CH4_mod_best)) 
+    # geom_point(alpha = 0.1, color = "blue")
+    
+    plot(EL_RR_De_data_results$Day_of_year[1218:2871],EL_RR_De_data_results$GPP_mod_best[1218:2871], type="b", pch=19, col="red", xlab="DOY", ylab="GPP (gC m-2 d-1)", ylim=c(-15, 1))
+# Add a line
+lines(EL_RR_De_data_results$Day_of_year[1218:2871], EL_RR_De_data_results$GPP_gC_m2_day[1218:2871], type="l", pch=18, col="blue", ylim=c(-15, 1))#, type="b", lty=2)
+# Add a legend
+legend(1, 95, legend=c("mod", "obs"),
+       col=c("red", "blue"))#, lty=1:2, cex=0.8)
+
+RMSE_GPP_mod_Srr <- rmse(EL_RR_De_data_results$GPP_mod_best[1218:2871], EL_RR_De_data_results$GPP_gC_m2_day[1218:2871])
+
+#Stj
+    # ggplot(data = EL_RR_De_data_results, mapping = aes(x = Day_of_year, y = CH4_mod_best)) 
+    # geom_point(alpha = 0.1, color = "blue")
+    
+    plot(EL_RR_De_data_results$Day_of_year[2872:3967],EL_RR_De_data_results$GPP_mod_best[2872:3967], type="b", pch=19, col="red", xlab="DOY", ylab="GPP (gC m-2 d-1)", ylim=c(-15, 1))
+# Add a line
+lines(EL_RR_De_data_results$Day_of_year[2872:3967], EL_RR_De_data_results$GPP_gC_m2_day[2872:3967], type="l", pch=18, col="blue", ylim=c(-15, 1))#, type="b", lty=2)
+# Add a legend
+legend(1, 95, legend=c("mod", "obs"),
+       col=c("red", "blue"))#, lty=1:2, cex=0.8)
+
+RMSE_GPP_mod_Stj <- rmse(EL_RR_De_data_results$GPP_mod_best[2872:3967], EL_RR_De_data_results$GPP_gC_m2_day[2872:3967])
+
+```
+
+```{r}
+#run the model on all 10,000 sets and plot means and 95% CI
+
+source('./PEPRMT_Scripts/PEPRMT_final_sys_CO2_GPP_param.R')
+
+GPP_mod <- NULL
+
+#--loop for running model 10,000 times---
+  for(t in 1:length(final_parameter_set[ ,1])) {
+
+  
+  #5. execute PEPRMT CH4
+  y_model<- PEPRMT_final_sys_CO2_GPP_param(theta = final_parameter_set[t , ],
+                           data = EL_RR_De_data)
+  mod_result <- y_model
+  GPP_mod <- cbind(GPP_mod, mod_result)
+  }
+
+GPP_mod <- as.data.frame(GPP_mod)
+
+## Transpose data.frame so that columns are time points and rows are samples from posterior
+GPP_mod2 <- GPP_mod %>%
+  t() %>%
+  as.data.frame() %>%
+  slice(1:10000)
+
+## Calculate median and 95% credible intervals
+## Each of these objects are vectors of length 3967
+medianGPP <- apply(GPP_mod2, 2, median)
+cilGPP <- apply(GPP_mod2, 2, function(x) quantile(x, 0.025))
+ciuGPP <- apply(GPP_mod2, 2, function(x) quantile(x, 0.975))
+
+## Put the summary stats together, with column of time points
+library(lubridate)
+GPPmod_summary <- data.frame(time = 1:length(medianGPP), 
+                             median = medianGPP,
+                             cil = cilGPP,
+                             ciu = ciuGPP)
+
+#For a ggplot figure with line and shaded region:
+GPPModelPlot <- ggplot(GPPmod_summary, aes(x = time, y = median)) +
+  geom_ribbon(aes(ymin = cil, ymax = ciu), fill = "grey70", alpha = 1) + # shaded region
+  geom_line(color = "black") + # line
+  ## To edit the x and y axes
+  scale_x_continuous("Time") +
+  scale_y_continuous("GPP") +
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "none")
+GPPModelPlot
+
+
+#add to results file for plotting
+EL_RR_De_data_results$GPP_mod_final<-GPPmod_summary[,2]
+EL_RR_De_data_results$cil<-GPPmod_summary[,3]
+EL_RR_De_data_results$ciu<-GPPmod_summary[,4]
+
+## Hard to see the CI 
+## Eden Landing Plot
+
+edn<-ggplot(EL_RR_De_data_results[1:1217,], aes(Day_of_year)) +
+  geom_ribbon(aes(ymin = cil, ymax = ciu), fill = "grey50", alpha = 1) + # shaded region
+  geom_line(aes(x = Day_of_year, y = GPP_mod_final))+
+  geom_line(aes(y = GPP_gC_m2_day+1), color = "red")+
+  ## To edit the x and y axes
+  #scale_x_continuous("") +
+  #scale_y_continuous("") +
+  labs(x = "", y="          ") +
+  geom_text(x=20, y=0, label="(a)")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "center")
+
+
+#Rush Ranch
+RR<-ggplot(EL_RR_De_data_results[1218:2871,], aes(Day_of_year)) +
+  geom_ribbon(aes(ymin = cil, ymax = ciu), fill = "grey50", alpha = 1) + # shaded region
+  geom_line(aes(y = GPP_mod_final))+
+  geom_line(aes(y = GPP_gC_m2_day, color = "red"))+
+ 
+  ## To edit the x and y axes
+  #scale_x_continuous("") +
+  #scale_y_continuous("") +
+  labs(x = "", y=bquote('GPP '~ (gC ~ m^-2 ~ d^-1))) +
+
+  geom_text(x=30, y=-2, label="(b)")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "center") 
+
+#Delaware
+Stj<-ggplot(EL_RR_De_data_results[2872:3967,], aes(Day_of_year)) +
+  geom_ribbon(aes(ymin = cil, ymax = ciu), fill = "grey50", alpha = 1) + # shaded region
+  geom_line(aes(y = GPP_mod_final))+
+  geom_line(aes(y = GPP_gC_m2_day, color = "red"))+
+  ## To edit the x and y axes
+  #scale_x_continuous("") +
+  #scale_y_continuous("") +
+  labs(x = "Continuous day of year", y="          ") +
+  geom_text(x=-25, y=-1, label="(c)")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "center") 
+
+
+```
+
+
+
+
+
+```{r}
+#Run stats on final model results
+EL_RR_De_data_results$medianGPP <- medianGPP
+medianGPP<-EL_RR_De_data_results$medianGPP
+
+
+RMSE_GPP_mod_Edn <- rmse(medianGPP[1:1217], EL_RR_De_data_results$GPP_gC_m2_day[1:1217])
+RMSE_GPP_mod_Srr <- rmse(medianGPP[1218:2871], EL_RR_De_data_results$GPP_gC_m2_day[1218:2871])
+RMSE_GPP_mod_Stj <- rmse(medianGPP[2872:3967], EL_RR_De_data_results$GPP_gC_m2_day[2872:3967])
+
+#Normalized RMSE dimensionless metric of accuracy of model against SD of obs
+SD_GPP_Edn <-sd(EL_RR_De_data_results$GPP_gC_m2_day[1:1217])
+SD_GPP_Srr <- sd(EL_RR_De_data_results$GPP_gC_m2_day[1218:2871])
+SD_GPP_Stj <- sd(EL_RR_De_data_results$GPP_gC_m2_day[2872:3967])
+
+N_RMSE_GPP_mod_Edn <- RMSE_GPP_mod_Edn/SD_GPP_Edn
+N_RMSE_GPP_mod_Srr <- RMSE_GPP_mod_Srr/SD_GPP_Srr
+N_RMSE_GPP_mod_Stj <- RMSE_GPP_mod_Stj/SD_GPP_Stj
+#Pearson's correlation coefficient
+r_Edn <- cor(EL_RR_De_data_results$GPP_gC_m2_day[1:1217]+1, medianGPP[1:1217])
+r_Srr <- cor(EL_RR_De_data_results$GPP_gC_m2_day[1218:2871], medianGPP[1218:2871])
+r_Stj <- cor(EL_RR_De_data_results$GPP_gC_m2_day[2872:3967], medianGPP[2872:3967])
+
+model_Edn <- lm(GPP_gC_m2_day[1:1217]+1 ~ medianGPP[1:1217], data=EL_RR_De_data_results)
+summary(model_Edn)
+model_Srr <- lm(GPP_gC_m2_day[1218:2871] ~ medianGPP[1218:2871], data=EL_RR_De_data_results)
+summary(model_Srr)
+model_Stj <- lm(GPP_gC_m2_day[2872:3967] ~ medianGPP[2872:3967], data=EL_RR_De_data_results)
+summary(model_Stj)
+
+library(gridExtra)
+
+#Annual error in g C m-2 y-1
+annual_error_Edn_year1 <- (tail(cumsum(medianGPP[1:319]),1)-tail(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[1:319]),1))
+annual_error_Edn_year2 <- (tail(cumsum(medianGPP[320:684]),1)-tail(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[320:684]),1))
+annual_error_Edn_year3 <- (tail(cumsum(medianGPP[685:1050]),1)-tail(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[685:1050]),1))
+ave_annual_error_Edn <- (annual_error_Edn_year1+annual_error_Edn_year2+annual_error_Edn_year3)/3
+
+annual_error_Srr_year1 <- (tail(cumsum(medianGPP[1218:1512]),1)-tail(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[1218:1512]),1))
+annual_error_Srr_year2 <- (tail(cumsum(medianGPP[1513:1877]),1)-tail(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[1513:1877]),1))
+annual_error_Srr_year3 <- (tail(cumsum(medianGPP[1878:2243]),1)-tail(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[1878:2243]),1))
+annual_error_Srr_year4 <- (tail(cumsum(medianGPP[2244:2608]),1)-tail(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[2244:2608]),1))
+annual_error_Srr_year5 <- (tail(cumsum(medianGPP[2609:2871]),1)-tail(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[2609:2871]),1))
+ave_annual_error_Srr <- (annual_error_Srr_year1+annual_error_Srr_year2+annual_error_Srr_year3+annual_error_Srr_year4+annual_error_Srr_year5)/5
+
+annual_error_Stj_year1 <- (tail(cumsum(medianGPP[2872:3236]),1)-tail(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[2872:3236]),1))
+annual_error_Stj_year2 <- (tail(cumsum(medianGPP[3237:3602]),1)-tail(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[3237:3602]),1))
+annual_error_Stj_year3 <- (tail(cumsum(medianGPP[3603:3967]),1)-tail(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[3603:3967]),1))
+ave_annual_error_Stj <- (annual_error_Stj_year1+annual_error_Stj_year2+annual_error_Stj_year3)/3
+
+#Annual error %
+annual_error_Edn_percent_year1 <- (min(cumsum(medianGPP[1:319]))-min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[1:319])))/min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[1:319]))*100
+annual_error_Edn_percent_year2 <- (min(cumsum(medianGPP[320:684]))-min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[320:684])))/min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[320:684]))*100
+annual_error_Edn_percent_year3 <- (min(cumsum(medianGPP[685:1050]))-min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[685:1050])))/min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[685:1050]))*100
+ave_annual_error_Edn <- (annual_error_Edn_percent_year1+annual_error_Edn_percent_year2+annual_error_Edn_percent_year3)/3
+
+annual_error_Srr_percent_year1 <- (min(cumsum(medianGPP[1218:1512]))-min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[1218:1512])))/min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[1218:1512]))*100
+annual_error_Srr_percent_year2 <- (min(cumsum(medianGPP[1513:1877]))-min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[1513:1877])))/min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[1513:1877]))*100
+annual_error_Srr_percent_year3 <- (min(cumsum(medianGPP[1878:2243]))-min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[1878:2243])))/min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[1878:2243]))*100
+annual_error_Srr_percent_year4 <- (min(cumsum(medianGPP[2244:2608]))-min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[2244:2608])))/min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[2244:2608]))*100
+annual_error_Srr_percent_year5 <- (min(cumsum(medianGPP[2609:2871]))-min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[2609:2871])))/min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[2609:2871]))*100
+ave_annual_error_Srr <- (annual_error_Srr_percent_year1+annual_error_Srr_percent_year2+annual_error_Srr_percent_year3+annual_error_Srr_percent_year4+annual_error_Srr_percent_year5)/5
+
+annual_error_Stj_percent_year1 <- (min(cumsum(medianGPP[2872:3236]))-min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[2872:3236])))/min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[2872:3236]))*100
+annual_error_Stj_percent_year2 <- (min(cumsum(medianGPP[3237:3602]))-min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[3237:3602])))/min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[3237:3602]))*100
+annual_error_Stj_percent_year3 <- (min(cumsum(medianGPP[3603:3967]))-min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[3603:3967])))/min(cumsum(EL_RR_De_data_results$GPP_gC_m2_day[3603:3967]))*100
+ave_annual_error_Stj <- (annual_error_Stj_percent_year1+annual_error_Stj_percent_year2+annual_error_Stj_percent_year3)/3
+
+p1 <- ggplot(EL_RR_De_data_results[1:1217,], aes(medianGPP, GPP_gC_m2_day)) +
+  geom_point() +
+  stat_smooth(method = lm)+
+  labs(x = "Mod", y="Obs")+
+geom_text(x=-6.2, y=-0.3, label="(a)")+
+geom_text(x=-5.2, y=-0.8, label="y=0.71x-1.36")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "center") 
+p2 <- ggplot(EL_RR_De_data_results[1218:2871,], aes(medianGPP, GPP_gC_m2_day)) +
+  geom_point() +
+  stat_smooth(method = lm)+
+    labs(x = "Mod", y="Obs")+
+  geom_text(x=-7.75, y=0, label="(b)")+
+  geom_text(x=-5.75, y=-1, label="y=1.18x-0.53")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "center") 
+p3 <- ggplot(EL_RR_De_data_results[2872:3967,], aes(medianGPP, GPP_gC_m2_day)) +
+  geom_point() +
+  stat_smooth(method = lm)+
+    labs(x = "Mod", y="Obs")+
+  geom_text(x=-13, y=1, label="(c)")+
+  geom_text(x=-10, y=0, label="y=0.77x-0.57")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "center") 
+grid.arrange(p1, p2, p3, nrow = 1)
+
+
+
+saveRDS(EL_RR_De_data_results,file="Final_GPP_param.rds")
+```
+
+
+```{r}
+#Run model on validation sites,
+#First import datasets from other sites
+LA1_data <- read.csv("data_sets/Validation sites/LA1_data_GPP_mod.csv", header=TRUE) %>% 
+ dplyr::select(1:15) 
+#Take out the extra first column
+LA1_data<-LA1_data[ ,2:15]
+MRM_data <- read.csv("data_sets/Validation sites/MRM_data_GPP_mod.csv", header=TRUE) %>% 
+ dplyr::select(1:15) 
+#Take out the extra first column
+MRM_data<-MRM_data[ ,2:15]
+PLM_data <- read.csv("data_sets/Validation sites/Plm_data_GPP_mod.csv", header=TRUE) %>% 
+ dplyr::select(1:15) 
+#Take out the extra first column
+PLM_data<-PLM_data[ ,2:15]
+
+```
+
+```{r}
+#run the model on all 10,000 sets and plot means and 95% CI for 3 validation sites
+#Start with LA1
+
+source('./PEPRMT_Scripts/PEPRMT_final_sys_CO2_GPP.R')
+
+GPP_mod_LA1 <- NULL
+
+LA1_data <- LA1_data[c("DOY", "DOY_disc", "TA", "WT_cm", "PAR_umol_m2_s",
+                "Reco_gC_m2_d", "GPP_gC_m2_d", "EVI", "Season",
+               "NEE_error", "wetland_age", "FPAR","LUE")]
+#--loop for running model 10,000 times---
+  for(t in 1:length(final_parameter_set[ ,1])) {
+
+  
+  #5. execute PEPRMT CH4
+  y_model<- PEPRMT_final_sys_CO2_GPP(theta = final_parameter_set[t , ],
+                           data = LA1_data)
+  mod_result <- y_model
+  GPP_mod_LA1 <- cbind(GPP_mod_LA1, mod_result)
+  }
+
+GPP_mod_LA1 <- as.data.frame(GPP_mod_LA1)
+
+## Transpose data.frame so that columns are time points and rows are samples from posterior
+GPP_mod_LA12 <- GPP_mod_LA1 %>%
+  t() %>%
+  as.data.frame() %>%
+  slice(1:10000)
+
+## Calculate median and 95% credible intervals
+## Each of these objects are vectors of length 3967
+medianGPP_LA1 <- apply(GPP_mod_LA12, 2, median)
+cilGPP_LA1 <- apply(GPP_mod_LA12, 2, function(x) quantile(x, 0.025))
+ciuGPP_LA1 <- apply(GPP_mod_LA12, 2, function(x) quantile(x, 0.975))
+
+## Put the summary stats together, with column of time points
+GPPmod_summary_LA1 <- data.frame(time = 1:length(medianGPP_LA1), 
+                             median = medianGPP_LA1,
+                             cil = cilGPP_LA1,
+                             ciu = ciuGPP_LA1)
+
+#For a ggplot figure with line and shaded region:
+GPPModelPlot <- ggplot(GPPmod_summary_LA1, aes(x = time, y = median)) +
+  geom_ribbon(aes(ymin = cil, ymax = ciu), fill = "grey70", alpha = 1) + # shaded region
+  geom_line(color = "black") + # line
+  ## To edit the x and y axes
+  scale_x_continuous("Time") +
+  scale_y_continuous("GPP") +
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "none")
+GPPModelPlot
+```
+
+
+```{r}
+#run the model on all 10,000 sets and plot means and 95% CI for 3 validation sites
+#MRM
+
+source('./PEPRMT_Scripts/PEPRMT_final_sys_CO2_GPP.R')
+
+GPP_mod_MRM <- NULL
+
+MRM_data <- MRM_data[c("DOY", "DOY_disc", "TA", "WT_cm", "PAR_umol_m2_s",
+                "Reco_gC_m2_d", "GPP_gC_m2_d", "EVI", "Season",
+               "NEE_error", "wetland_age", "FPAR","LUE")]
+#--loop for running model 10,000 times---
+  for(t in 1:length(final_parameter_set[ ,1])) {
+
+  
+  #5. execute PEPRMT CH4
+  y_model<- PEPRMT_final_sys_CO2_GPP(theta = final_parameter_set[t , ],
+                           data = MRM_data)
+  mod_result <- y_model
+  GPP_mod_MRM <- cbind(GPP_mod_MRM, mod_result)
+  }
+
+GPP_mod_MRM <- as.data.frame(GPP_mod_MRM)
+
+## Transpose data.frame so that columns are time points and rows are samples from posterior
+GPP_mod_MRM2 <- GPP_mod_MRM %>%
+  t() %>%
+  as.data.frame() %>%
+  slice(1:10000)
+
+## Calculate median and 95% credible intervals
+## Each of these objects are vectors of length 3967
+medianGPP_MRM <- apply(GPP_mod_MRM2, 2, median)
+cilGPP_MRM <- apply(GPP_mod_MRM2, 2, function(x) quantile(x, 0.025))
+ciuGPP_MRM <- apply(GPP_mod_MRM2, 2, function(x) quantile(x, 0.975))
+
+## Put the summary stats together, with column of time points
+GPPmod_summary_MRM <- data.frame(time = 1:length(medianGPP_MRM), 
+                             median = medianGPP_MRM,
+                             cil = cilGPP_MRM,
+                             ciu = ciuGPP_MRM)
+
+#For a ggplot figure with line and shaded region:
+GPPModelPlot <- ggplot(GPPmod_summary_MRM, aes(x = time, y = median)) +
+  geom_ribbon(aes(ymin = cil, ymax = ciu), fill = "grey70", alpha = 1) + # shaded region
+  geom_line(color = "black") + # line
+  ## To edit the x and y axes
+  scale_x_continuous("Time") +
+  scale_y_continuous("GPP") +
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "none")
+GPPModelPlot
+```
+
+
+```{r}
+#run the model on all 10,000 sets and plot means and 95% CI for 3 validation sites
+#PLM
+source('./PEPRMT_Scripts/PEPRMT_final_sys_CO2_GPP.R')
+
+GPP_mod_PLM <- NULL
+
+PLM_data <- PLM_data[c("DOY", "DOY_disc", "TA", "WT_cm", "PAR_umol_m2_s",
+                "Reco_gC_m2_d", "GPP_gC_m2_d", "EVI", "Season",
+               "NEE_error", "wetland_age", "FPAR","LUE")]
+#--loop for running model 10,000 times---
+  for(t in 1:length(final_parameter_set[ ,1])) {
+
+  
+  #5. execute PEPRMT CH4
+  y_model<- PEPRMT_final_sys_CO2_GPP(theta = final_parameter_set[t , ],
+                           data = PLM_data)
+  mod_result <- y_model
+  GPP_mod_PLM <- cbind(GPP_mod_PLM, mod_result)
+  }
+
+GPP_mod_PLM <- as.data.frame(GPP_mod_PLM)
+
+## Transpose data.frame so that columns are time points and rows are samples from posterior
+GPP_mod_PLM2 <- GPP_mod_PLM %>%
+  t() %>%
+  as.data.frame() %>%
+  slice(1:10000)
+
+## Calculate median and 95% credible intervals
+## Each of these objects are vectors of length 3967
+medianGPP_PLM <- apply(GPP_mod_PLM2, 2, median)
+cilGPP_PLM <- apply(GPP_mod_PLM2, 2, function(x) quantile(x, 0.025))
+ciuGPP_PLM <- apply(GPP_mod_PLM2, 2, function(x) quantile(x, 0.975))
+
+## Put the summary stats together, with column of time points
+GPPmod_summary_PLM <- data.frame(time = 1:length(medianGPP_PLM), 
+                             median = medianGPP_PLM,
+                             cil = cilGPP_PLM,
+                             ciu = ciuGPP_PLM)
+
+#For a ggplot figure with line and shaded region:
+GPPModelPlot <- ggplot(GPPmod_summary_PLM, aes(x = time, y = median)) +
+  geom_ribbon(aes(ymin = cil, ymax = ciu), fill = "grey70", alpha = 1) + # shaded region
+  geom_line(color = "black") + # line
+  ## To edit the x and y axes
+  scale_x_continuous("Time") +
+  scale_y_continuous("GPP") +
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "none")
+GPPModelPlot
+```
+
+
+```{r}
+
+## Hard to see the CI 
+## LA1 Plot
+LA1_data$GPP_mod_final <- GPPmod_summary_LA1$median
+LA1_data$cil <- GPPmod_summary_LA1$cil
+LA1_data$ciu <- GPPmod_summary_LA1$ciu
+
+la1<-ggplot(LA1_data, aes(DOY)) +
+  geom_ribbon(aes(ymin = cil, ymax = ciu), fill = "grey50", alpha = 1) + # shaded region
+  geom_line(aes(x = DOY, y = GPP_mod_final))+
+  geom_line(aes(y = GPP_gC_m2_d*-1), color = "red")+
+  ## To edit the x and y axes
+  #scale_x_continuous("") +
+  #scale_y_continuous("") +
+  labs(x = "", y="          ") +
+  geom_text(x=275, y=-0.5, label="(a)")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "center")
+
+
+## MRM Plot
+MRM_data$GPP_mod_final <- GPPmod_summary_MRM$median
+MRM_data$cil <- GPPmod_summary_MRM$cil
+MRM_data$ciu <- GPPmod_summary_MRM$ciu
+
+mrm<-ggplot(MRM_data, aes(DOY)) +
+  geom_ribbon(aes(ymin = cil, ymax = ciu), fill = "grey50", alpha = 1) + # shaded region
+  geom_line(aes(y = GPP_mod_final))+
+  geom_line(aes(y = GPP_gC_m2_d, color = "red"))+
+ 
+  ## To edit the x and y axes
+  #scale_x_continuous("") +
+  #scale_y_continuous("") +
+  labs(x = "", y=bquote('GPP '~ (gC ~ m^-2 ~ d^-1))) +
+
+  geom_text(x=-5, y=-2, label="(b)")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "center") 
+
+## Plm Plot
+PLM_data$GPP_mod_final <- GPPmod_summary_PLM$median
+PLM_data$cil <- GPPmod_summary_PLM$cil
+PLM_data$ciu <- GPPmod_summary_PLM$ciu
+
+plm<-ggplot(PLM_data, aes(DOY)) +
+  geom_ribbon(aes(ymin = cil, ymax = ciu), fill = "grey50", alpha = 1) + # shaded region
+  geom_line(aes(y = GPP_mod_final))+
+  geom_line(aes(y = GPP_gC_m2_d, color = "red"))+
+  ## To edit the x and y axes
+  #scale_x_continuous("") +
+  #scale_y_continuous("") +
+  labs(x = "Continuous day of year", y="          ") +
+  geom_text(x=100, y=-2, label="(c)")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "center") 
+
+grid.arrange(la1, mrm, plm, ncol=1, nrow =3)
+```
+
+
+
+```{r}
+#Run stats on final model results
+
+LA1_data<-Final_GPP_valid[1:426,]
+PLM_data<-Final_GPP_valid[1158:1357,]
+
+
+RMSE_GPP_mod_LA1 <- rmse(LA1_data$GPP_mod_final, LA1_data$GPP_gC_m2_d*-1)
+RMSE_GPP_mod_PLM <- rmse(PLM_data$GPP_mod_final, PLM_data$GPP_gC_m2_d)
+
+#Normalized RMSE dimensionless metric of accuracy of model against SD of obs 
+SD_GPP_LA1 <-sd(LA1_data$GPP_gC_m2_d*-1)
+SD_GPP_PLM <- sd(PLM_data$GPP_gC_m2_d)
+
+N_RMSE_GPP_mod_LA1 <- RMSE_GPP_mod_LA1/(SD_GPP_LA1)
+N_RMSE_GPP_mod_PLM <- RMSE_GPP_mod_PLM/SD_GPP_PLM
+
+#Pearson's correlation coefficient r
+r_LA1 <- cor(LA1_data$GPP_gC_m2_d*-1, LA1_data$GPP_mod_final)
+#r_MRM <- cor(MRM_data$GPP_gC_m2_d, MRM_data$GPP_mod_final)
+r_PLM <- cor(PLM_data$GPP_gC_m2_d, PLM_data$GPP_mod_final)
+
+model_la1 <- lm(GPP_gC_m2_d*-1 ~ GPP_mod_final, data=LA1_data)
+summary(model_la1)
+model_mrm <- lm(GPP_gC_m2_d ~ GPP_mod_final, data=MRM_data)
+summary(model_mrm)
+model_plm <- lm(GPP_gC_m2_d ~ GPP_mod_final, data=PLM_data)
+summary(model_plm)
+
+#Annual Error
+#LA has a little more than a year, but I'll just lump it all together
+annual_error_LA1_year1 <- (tail(cumsum(LA1_data$daily_gpp_mod),1)-tail(cumsum(LA1_data$GPP_gC_m2_d*-1),1))
+
+# annual_error_MRM_percent_year1 <- (min(cumsum(MRM_data$GPP_mod_final[1:366]))-min(cumsum(MRM_data$GPP_gC_m2_d[1:366])))/
+#   min(cumsum(MRM_data$GPP_gC_m2_d[1:366]))*100
+# annual_error_MRM_percent_year2 <- (min(cumsum(MRM_data$GPP_mod_final[367:731]))-min(cumsum(MRM_data$GPP_gC_m2_d[367:731])))/
+#   min(cumsum(MRM_data$GPP_gC_m2_d[367:731]))*100
+# ave_annual_error_MRM <- (annual_error_MRM_percent_year1+annual_error_MRM_percent_year2)/2
+
+annual_error_PLM_year1 <- (tail(cumsum(PLM_data$daily_gpp_mod),1)-tail(cumsum(PLM_data$GPP_gC_m2_d),1))
+
+Overall_annual_ave_error <- (annual_error_LA1_year1+annual_error_PLM_year1)/2
+
+
+
+
+
+p1 <- ggplot(LA1_data, aes(GPP_mod_final, GPP_gC_m2_d*-1)) +
+  geom_point() +
+  stat_smooth(method = lm)+
+  labs(x = "Mod", y="Obs")+
+geom_text(x=-2, y=0, label="(a)")+
+geom_text(x=-0.75, y=-3, label="y=0.6x-0.32")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "center") 
+p2 <- ggplot(MRM_data, aes(GPP_mod_final, GPP_gC_m2_d)) +
+  geom_point() +
+  stat_smooth(method = lm)+
+    labs(x = "Mod", y="Obs")+
+  geom_text(x=-7, y=1, label="(b)")+
+  geom_text(x=-5.75, y=0, label="y=1.7x-0.17")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "center") 
+p3 <- ggplot(PLM_data, aes(GPP_mod_final, GPP_gC_m2_d)) +
+  geom_point() +
+  stat_smooth(method = lm)+
+    labs(x = "Mod", y="Obs")+
+  geom_text(x=-7.5, y=-0, label="(c)")+
+  geom_text(x=-6, y=-0.5, label="y=1.35x-0.16")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 12) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(colour = "black"),
+        panel.background = element_blank(),
+        legend.position = "center") 
+grid.arrange(p1, p2, p3, nrow = 1)
+
+
+
+```
+
+
+
+
+
+
+```{r}
+saveRDS(EL_RR_De_data_results,file="Final_GPP_param.rds")
+saveRDS(LA1_MRM_PLM_data_results,file="Final_GPP_valid.rds")
+
+#Export final GPP model results and add into file for Reco modeling
+write_csv(Final_GPP_param,"data_sets/final_GPP_model_results.csv")
+
+```
+
+```{r}
+#FINAL GPP FIGURE WITH ALL PARAM AND VALIDATION SITES NO MRM ##########################################
+
+#Load Final_GPP_valid.rds and Final_GPP_param.rds
+
+update_geom_defaults("text", list(size = 2.5))
+
+edn<-ggplot(Final_GPP_param[1:1217,], aes(Day_of_year)) +
+    geom_line(aes(y = GPP_gC_m2_day), color = "red", size = 0.2)+
+  geom_ribbon(aes(ymin = cil, ymax = ciu), fill = "grey50", alpha = 1) + # shaded region
+  geom_line(aes(y = GPP_mod_final), size = 0.2)+
+  labs(x = "", y=bquote('GPP' ~ (g~ C-CO[2] ~ m^-2 ~ d^-1))) +
+    ylim(-10, 5)+
+geom_text(x=-Inf, y=Inf, label="(a) US-EDN",hjust = 0, vjust = 1)+
+  ## To make the plot look prettier
+  theme_bw(base_size = 7) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "center",
+        aspect.ratio=0.25)
+#edn<- edn + scale_y_continuous(
+  #labels = scales::number_format(accuracy = 1))
+
+
+#Rush Ranch
+RR<-ggplot(Final_GPP_param[1218:2871,], aes(Day_of_year)) +
+    geom_line(aes(y = GPP_gC_m2_day), color = "red", size=0.2)+
+  geom_ribbon(aes(ymin = cil, ymax = ciu), fill = "grey50", alpha = 1) + # shaded region
+  geom_line(aes(y = GPP_mod_final),size=0.2)+
+  labs(x = "", y=bquote('GPP' ~ (g~ C-CO[2] ~ m^-2 ~ d^-1)))+
+    ylim(-15, 5)+
+geom_text(x=-Inf, y=Inf, label="(c) US-Srr",hjust = 0, vjust = 1)+
+  ## To make the plot look prettier
+  theme_bw(base_size = 7) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "center",
+        aspect.ratio=0.25) 
+#RR<- RR + scale_y_continuous(
+ # labels = scales::number_format(accuracy = 1))
+
+#Delaware
+Stj<-ggplot(Final_GPP_param[2872:3967,], aes(Day_of_year)) +
+    geom_line(aes(y = GPP_gC_m2_day), color = "red",size=0.2)+
+  geom_ribbon(aes(ymin = cil, ymax = ciu), fill = "grey50", alpha = 1) + # shaded region
+  geom_line(aes(y = GPP_mod_final),size=0.2)+
+  labs(x = "", y=bquote('GPP' ~ (g~ C-CO[2] ~ m^-2 ~ d^-1))) +
+geom_text(x=-Inf, y=Inf, label="(e) US-StJ",hjust = 0, vjust = 1)+
+      ylim(-15, 5)+
+  ## To make the plot look prettier
+  theme_bw(base_size = 7) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "center",
+        aspect.ratio=0.25) 
+#Stj<- Stj + scale_y_continuous(
+  #labels = scales::number_format(accuracy = 1))
+
+p1 <- ggplot(Final_GPP_param[1:1217,], aes(GPP_mod_final, GPP_gC_m2_day)) +
+  geom_point(size=0.5) +
+  stat_smooth(method = lm)+
+  labs(x = "Mod", y="Obs")+
+geom_text(x=-Inf, y=Inf, label="(b) y=0.71x-1.36",hjust = 0, vjust = 1)+
+  xlim(-5,0)+
+  ylim(-6,2)+
+   geom_abline(intercept = 0, color="red")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 7) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "center",
+        aspect.ratio=0.75)
+
+p2 <- ggplot(Final_GPP_param[1218:2871,], aes(GPP_mod_final, GPP_gC_m2_day)) +
+  geom_point(size=0.5) +
+  stat_smooth(method = lm)+
+    labs(x = "Mod", y="Obs")+
+geom_text(x=-Inf, y=Inf, label="(d) y=1.18x-0.53",hjust = 0, vjust = 1)+
+   # xlim(0,50)+
+  ylim(-15,2)+
+   geom_abline(intercept = 0, color="red")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 7) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "center",
+        aspect.ratio=0.75)
+
+p3 <- ggplot(Final_GPP_param[2872:3967,], aes(GPP_mod_final, GPP_gC_m2_day)) +
+  geom_point(size=0.5) +
+  stat_smooth(method = lm)+
+    labs(x = "Mod", y="Obs")+
+geom_text(x=-Inf, y=Inf, label="(f) y=0.77x-0.57",hjust = 0, vjust = 1)+
+  #  xlim(0,500)+
+  ylim(-15,2)+
+   geom_abline(intercept = 0, color="red")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 7) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "center",
+        aspect.ratio=0.75) 
+
+la1<-ggplot(Final_GPP_valid[1:426,], aes(DOY)) +
+    geom_line(aes(y = GPP_gC_m2_d*-1), color = "red",size=0.2)+
+  geom_ribbon(aes(ymin = cil, ymax = ciu), fill = "grey50", alpha = 1) + # shaded region
+  geom_line(aes(y = GPP_mod_final),size=0.2)+
+  labs(x = "", y=bquote('GPP' ~ (g~ C-CO[2] ~ m^-2 ~ d^-1))) +
+    ylim(-5, 5) +
+geom_text(x=-Inf, y=Inf, label="(g) US-LA1",hjust = 0, vjust = 1)+
+  ## To make the plot look prettier
+  theme_bw(base_size = 7) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "center",
+        aspect.ratio=0.25)
+#la1<- la1 + scale_y_continuous(
+ # labels = scales::number_format(accuracy = 1))
+
+## Plm Plot
+
+plm<-ggplot(Final_GPP_valid[1158:1357,], aes(DOY)) +
+    geom_line(aes(y = GPP_gC_m2_d), color = "red",size=0.2)+
+  geom_ribbon(aes(ymin = cil, ymax = ciu), fill = "grey50", alpha = 1) + # shaded region
+  geom_line(aes(y = GPP_mod_final),size=0.2)+
+    labs(x = "Continuous day of year", y=bquote('GPP' ~ (g~ C-CO[2] ~ m^-2 ~ d^-1))) +
+  ylim(-15, 5) +
+geom_text(x=-Inf, y=Inf, label="(i) US-PLM",hjust = 0, vjust = 1)+
+  ## To make the plot look prettier
+  theme_bw(base_size = 7) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "center",
+        aspect.ratio=0.25) 
+#plm<- plm + scale_y_continuous(
+  #labels = scales::number_format(accuracy = 1))
+
+p4 <- ggplot(Final_GPP_valid[1:426,], aes(GPP_mod_final, GPP_gC_m2_d*-1)) +
+  geom_point(size=0.5) +
+  stat_smooth(method = lm)+
+  labs(x = "Mod", y="Obs")+
+geom_text(x=-Inf, y=Inf, label="(h) y=0.6x-0.32",hjust = 0, vjust = 1)+
+  #xlim(0,50)+
+  ylim(-5,2)+
+   geom_abline(intercept = 0, color="red")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 7) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "center",
+        aspect.ratio=0.75) 
+
+p5 <- ggplot(Final_GPP_valid[1158:1357,], aes(GPP_mod_final, GPP_gC_m2_d)) +
+  geom_point(size=0.5) +
+  stat_smooth(method = lm)+
+    labs(x = "Mod", y="Obs")+
+geom_text(x=-Inf, y=Inf, label="(j) y=1.35x-0.16",hjust = 0, vjust = 1)+
+  #xlim(0,50)+
+  ylim(-12,2)+
+ geom_abline(intercept = 0, color="red")+
+  ## To make the plot look prettier
+  theme_bw(base_size = 7) +
+  theme(axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "center",
+        aspect.ratio=0.75) 
+
+GPP_final_figure <-ggarrange(edn, p1, RR, p2, Stj, p3, la1, p4, plm, p5, ncol=2, nrow=5,widths = c(5, 2))
+
+
+ggsave("figures/GPP/GPP_final_figure.png", GPP_final_figure,units="in", width=5, height=6, dpi=700)
+
+```
