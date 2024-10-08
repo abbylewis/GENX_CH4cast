@@ -1,0 +1,97 @@
+---
+title: "Load/format data for permt"
+author: "Abby Lewis"
+date: "2024-10-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+```
+
+```{r}
+source("../../R/qaqc.R")
+raw <- read_csv("../../Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_derived.csv", show_col_types = FALSE)
+raw2 <- read_csv("../../Raw_data/GENX_Flux_SD_Loggernet_2023-01-01_to_2023-11-15_derived.csv", show_col_types = FALSE)
+comb <- bind_rows(raw, raw2)
+
+#Load PAR and EVI
+par <- read_csv("../../processed_data/PAR_output.csv", show_col_types = FALSE)
+evi <- read_csv("../../processed_data/modeled_EVI.csv", show_col_types = FALSE) 
+
+#Need EVI/LUE/SOM that we don't currently have
+All_sites_master <- read.csv("All_sites_master.csv", header=TRUE) %>% 
+ dplyr::select(1:24) %>%
+  filter(site_char == "US_STJ")
+
+example_data <- All_sites_master %>%
+  filter(site_char == "US_STJ") %>%
+  group_by(DOY_disc) %>%
+  summarize(LUE = mean(LUE, na.rm = TRUE),
+            #EVI = mean(EVI, na.rm = T),
+            SOM_MEM_gC_m3 = 
+              mean(All_sites_master$SOM_MEM_gC_m3[All_sites_master$SOM_MEM_gC_m3 > 0], 
+                   na.rm = TRUE))
+
+target <- comb %>%
+  mutate(time2 = with_tz(time2, tzone = "America/New_York"),
+         time2 = as.Date(time2)) %>%
+  qaqc() %>%
+  rename(site_id = chamber_treatment) %>%
+  mutate(site = as.numeric(as.factor(site_id)),
+         Date = as.Date(time2),
+         DOY_disc = yday(Date)) %>%
+  group_by(site_id) %>%
+  mutate(DOY = yday(first(Date)) + 
+           as.numeric(difftime(Date, first(Date), units = "days")),
+         Year = year(Date),
+         TA_C = temp,
+         WTD_cm = -corrected_depth,
+         Wetland_age_years = 4000,
+         Salinity_daily_ave_ppt = salinity,
+         NO3_mg_L = 0,
+         LAI = NA_real_,
+         FPAR = 0) %>%
+  group_by(Date, site) %>%
+  summarize(across(where(is.numeric), \(x) mean(x, na.rm = TRUE))) %>%
+  left_join(par, by = "Date") %>%
+  rename(PAR_umol_m2_day = PAR) %>%
+  left_join(evi, by = "Date") %>%
+  left_join(example_data, by = "DOY_disc") %>%
+  ungroup() %>%
+  select(DOY, DOY_disc, Year, TA_C, WTD_cm, PAR_umol_m2_day, LAI, EVI, FPAR, LUE,
+         Wetland_age_years, Salinity_daily_ave_ppt, NO3_mg_L, SOM_MEM_gC_m3,
+         site) %>%
+  filter(!is.na(TA_C),
+         !is.na(WTD_cm),
+         !is.na(PAR_umol_m2_day),
+         !is.na(EVI)) %>%
+  as.data.frame()
+
+#Create CH4 validation dataset
+ch4_validation <- comb %>%
+  mutate(time2 = with_tz(time2, tzone = "America/New_York"),
+         time2 = as.Date(time2)) %>%
+  qaqc() %>%
+  rename(site_id = chamber_treatment) %>%
+  mutate(site = as.numeric(as.factor(site_id)),
+         Date = as.Date(time2),
+         DOY_disc = yday(Date)) %>%
+  group_by(site_id) %>%
+  mutate(DOY = yday(first(Date)) + 
+           as.numeric(difftime(Date, first(Date), units = "days")),
+         Year = year(Date)) %>%
+  group_by(Date, site) %>%
+  summarize(across(is.numeric, mean, na.rm = TRUE)) %>%
+  select(DOY, DOY_disc, Year, site, CH4_slope_umol_per_day) %>%
+  as.data.frame() %>%
+  mutate(CH4_slope_mgC_m2_d = CH4_slope_umol_per_day * 12.011 / 1000 / 0.196)
+         
+#Column descriptions are in PEPRMT_GPP_FINAL.R
+
+write_csv(ch4_validation, "ch4_validation.csv")
+write_csv(target, "peprmt_target.csv")
+```
+
