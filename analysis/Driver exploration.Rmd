@@ -16,25 +16,31 @@ library(rtide)
 
 drivers <- read_csv("../Raw_data/GENX_SD_Export_Waterlevel_2021-05-06_to_2022-12-30_derived_clean_btemps.csv", 
                     show_col_types = F)
+met <- read_csv("../processed_data/met_output.csv")
 ```
 
 How do we relate sensor height to tide height?
-- About an hour
-- High surge is from water blown from Chessapeake 
+- About an hour delay
+- High surge is from water blown from Chesapeake 
 
 
 ```{r}
+min <- as.Date("2021-08-01")
+max <- as.Date("2021-09-01")
+
 data <- rtide::tide_height(
   "Annapolis (US Naval Academy), Severn River, Maryland",
-  from = as.Date("2021-08-01"), to = as.Date("2021-09-01"),
+  from = min, to = max,
   minutes = 10L, tz = "UTC"
 )
 library(rtide)
 
 data %>%
-  ggplot(aes(x = DateTime, y = TideHeight)) +
-  geom_line() +
+  ggplot() +
+  geom_line(aes(x = DateTime, y = TideHeight)) +
+  geom_line(aes(x = `Date Time`, y = Prediction), data = tide_noaa, color = "blue")+
   scale_y_continuous(name = "Tide Height (m)") +
+  #geom_col(aes(x= as.POSIXct(Date), y = rain_cm_tot), data = met %>% filter(Date > min, Date < max)) +
   geom_line(data = drivers %>% filter(time2 > "2021-08-01", time2 < "2021-09-01"), aes(x = time2, y = corrected_depth/100), color = "red")
 
 data <- rtide::tide_height(
@@ -48,6 +54,8 @@ data %>%
   geom_line() +
   scale_y_continuous(name = "Tide Height (m)") +
   geom_line(data = drivers, aes(x = time2, y = corrected_depth/100), color = "red")
+
+tide_noaa <- read_csv("https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date=20210801&end_date=20210901&datum=MLLW&station=8575579&time_zone=GMT&units=metric&interval=hilo&format=csv")
 ```
 
 How do we relate soil temp to air temp?
