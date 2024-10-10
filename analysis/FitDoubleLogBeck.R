@@ -142,7 +142,7 @@ FitDoubleLogBeck <- structure(function(
     
     # compute standard errors with backup algorithm
     if (all(is.na(std.errors))) {
-      prior <- rbind(opt.df[1:5, -(1:2)], opt$par)
+      prior <- rbind(opt.df[1:5, -(1:3)], opt$par)
       v <- apply(prior, 2, var)
       std.errors <- sqrt(v * s2)
       message("Standard errors computed with backup algorithm.")

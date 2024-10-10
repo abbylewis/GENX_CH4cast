@@ -14,6 +14,7 @@ library(tidyverse)
 library(furrr) #For parallel processing
 source("FitDoubleLogBeck.R")
 source("FitDoubleLogElmore.R")
+source("calc_curve.R")
 
 #Load EVI data
 evi <- read_csv("../Raw_data/EVI/smithsonianenvironmentalresearchcenter_evi_series.csv")
@@ -37,13 +38,15 @@ Fit double log function
 ```{r}
 #Format and remove one grid cell that only has 3 data points
 evi_df <- evi %>%
+  mutate(id = paste(latitude, longitude, img_year, sep = "_")) %>%
+  group_by(id) %>%
   filter(n() > 50) %>%
-  mutate(id = paste(latitude, longitude, img_year, sep = "_"))
+  ungroup()
 
 #Set up parallel processing
 plan(multisession)
 #Set ids to process
-range <- 200:215
+range <- 1:length(unique(evi_df$id))
 #range <- c(898, 2994, 4951, 7024) #SERC
 fits_beck <- future_map(unique(evi_df$id)[range], 
                         ~ calc_curve(id_i = .x, 
@@ -52,12 +55,14 @@ fits_beck <- future_map(unique(evi_df$id)[range],
                         .progress = T) %>%
   bind_rows()
 
-fits_elmore <- future_map(unique(evi_df$id)[range], 
-                          ~ calc_curve(id_i = .x, 
-                                       df = evi_df,
-                                       method = "Elmore"), 
-                          .progress = T) %>%
-  bind_rows()
+write.csv(fits_beck, "fits_beck.csv")
+
+#fits_elmore <- future_map(unique(evi_df$id)[range], 
+#                          ~ calc_curve(id_i = .x, 
+#                                       df = evi_df,
+#                                       method = "Elmore"), 
+#                          .progress = T) %>%
+#  bind_rows()
 ```
 
 Generate predictions and plot
@@ -74,27 +79,29 @@ pred_df_beck <- data.frame(id = rep(unique(fits_beck$id), each = 365),
   left_join(evi_df %>% rename(doy = img_doy)) %>%
   mutate(method = "Beck")
 
-pred_df_elmore <- data.frame(id = rep(unique(fits_elmore$id), each = 365),
-                      doy = rep(1:365, length(unique(fits_elmore$id)))) %>%
-  left_join(fits_elmore %>%
-              pivot_wider(names_from = param_name, 
-                          values_from = c(param_value, stdError))) %>%
-  mutate(param_value_m3l = param_value_m3/param_value_m4,
-         param_value_m4l = 1/param_value_m4,
-         param_value_m5l = param_value_m5/param_value_m6,
-         param_value_m6l = 1/param_value_m6,
-         pred = param_value_m1 + (param_value_m2 - param_value_m7 * doy) * 
-           ((1/(1 + exp((param_value_m3l - doy)/param_value_m4l))) - 
-              (1/(1 + exp((param_value_m5l - doy)/param_value_m6l))))) %>%
-  left_join(evi_df %>% rename(doy = img_doy)) %>%
-  mutate(method = "Elmore")
+write.csv(pred_df_beck, "preds_beck.csv")
 
-pred_df_beck %>%
-  select(id, doy, pred, evi, method) %>%
-  full_join(pred_df_elmore %>% select(id, doy, pred, method)) %>%
-  ggplot(aes(x = doy, y = pred))+
-  geom_point(aes(y = evi)) +
-  geom_line(aes(color = method)) +
-  facet_wrap(~id)
+#pred_df_elmore <- data.frame(id = rep(unique(fits_elmore$id), each = 365),
+#                      doy = rep(1:365, length(unique(fits_elmore$id)))) %>%
+#  left_join(fits_elmore %>%
+#              pivot_wider(names_from = param_name, 
+#                          values_from = c(param_value, stdError))) %>%
+#  mutate(param_value_m3l = param_value_m3/param_value_m4,
+#         param_value_m4l = 1/param_value_m4,
+#         param_value_m5l = param_value_m5/param_value_m6,
+#         param_value_m6l = 1/param_value_m6,
+#         pred = param_value_m1 + (param_value_m2 - param_value_m7 * doy) * 
+#           ((1/(1 + exp((param_value_m3l - doy)/param_value_m4l))) - 
+#              (1/(1 + exp((param_value_m5l - doy)/param_value_m6l))))) %>%
+#  left_join(evi_df %>% rename(doy = img_doy)) %>%
+#  mutate(method = "Elmore")
+#
+#pred_df_beck %>%
+#  select(id, doy, pred, evi, method) %>%
+#  full_join(pred_df_elmore %>% select(id, doy, pred, method)) %>%
+#  ggplot(aes(x = doy, y = pred))+
+#  geom_point(aes(y = evi)) +
+#  geom_line(aes(color = method)) +
+#  facet_wrap(~id)
 ```
 
