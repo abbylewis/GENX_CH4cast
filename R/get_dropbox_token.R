@@ -53,7 +53,7 @@
 #'   # To use a stored token provide token location
 #'   drop_auth(rdstoken = "/path/to/tokenfile.RDS")
 #' }
-drop_auth <- function(new_user = FALSE,
+drop_auth <- function(new_user = T,
                       key = "mmhfsybffdom42w",
                       secret = "l8zeqqqgm1ne5z0",
                       cache = TRUE,

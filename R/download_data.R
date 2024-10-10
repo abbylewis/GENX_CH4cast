@@ -1,49 +1,62 @@
 #Source
 source("./R/drop_dir.R")
 source("./R/get_dropbox_token.R")
+library(tidyverse)
 
-#Load data
+#Identify all files
 files <- drop_dir(path = "GCREW_LOGGERNET_DATA")
 relevant_files <- files %>%
   filter(grepl("GENX_INSTRUMENT_FLUX_COMB", name))
+current <- drop_dir(path = "GCREW_LOGGERNET_DATA/current_data") %>%
+  filter(grepl("GENX_INSTRUMENT_FLUX_COMB", name),
+         !grepl("backup", name))
 
-all_data <- relevant_files 
+#Remove files that are already loaded
+already_loaded <- list.files("./Raw_data/dropbox_downloads")
+relevant_files <- relevant_files %>%
+  filter(!name %in% already_loaded)
 
-url <- "https://content.dropboxapi.com/2/files/download"
+#Load files
+load_file <- function(path_display){
+  url <- "https://content.dropboxapi.com/2/files/download"
+  name <- sub("/GCREW_LOGGERNET_DATA/", "", path_display)
+  if(grepl("current", name)) name <- "current.dat"
+  
+  httr::POST(
+    url = url,
+    httr::config(token = get_dropbox_token()),
+    httr::add_headers("Dropbox-API-Arg" = jsonlite::toJSON(
+      list(
+        path = path_display
+      ),
+      auto_unbox = TRUE
+    )),
+    httr::write_disk(paste0("./Raw_data/dropbox_downloads/", name), overwrite = T)
+  )
+}
 
-req <- httr::POST(
-  url = url,
-  httr::config(token = get_dropbox_token()),
-  httr::add_headers("Dropbox-API-Arg" = jsonlite::toJSON(
-    list(
-      path = "/GCREW_LOGGERNET_DATA/GENX_INSTRUMENT_FLUX_COMB_20241009025358.dat"
-    ),
-    auto_unbox = TRUE
-  )),
-  httr::write_disk("./Raw_data/test.dat", overwrite = T)
-)
+#Load current data
+new <- current$path_display %>%
+  map(load_file)
 
-data <- read_csv("https://www.dropbox.com/scl/fi/ce53uimlnducpgx4cflvh/GENX_INSTRUMENT_FLUX_COMB.dat?rlkey=543byau1gcwwfus8ylinrgsfb&st=2ppyowpl&dl=1", skip = 1) %>%
+if(nrow(relevant_files) == 0){
+  message("No new files to download")
+} else {
+  message("Downloading ", nrow(relevant_files), " files")
+  all_data <- relevant_files$path_display %>%
+    map(load_file)
+}
+
+data <- list.files("./Raw_data/dropbox_downloads", full.names = T) %>%
+  map(read_csv, show_col_types = F, skip = 1) %>%
+  bind_rows() %>%
   filter(!is.na(TIMESTAMP),
-         TIMESTAMP != "TS") %>%
-  mutate(TIMESTAMP = as_datetime(TIMESTAMP))
+         !TIMESTAMP == "TS") %>%
+  mutate(TIMESTAMP = as_datetime(TIMESTAMP)) %>%
+  distinct() %>%
+  filter(!duplicated(LGR_Time)) #I've spent some time looking into this. CH4 is also duplicated for these
 
-data2 <- read_csv("https://www.dropbox.com/scl/fi/64vrg3pbwzgr0fae9amel/GENX_INSTRUMENT_FLUX_COMB_20241009025358.dat?rlkey=hcnkcghvblke4nbj8b8v8kaud&st=uidx2v07&dl=1", skip = 1) %>%
-  filter(!is.na(TIMESTAMP),
-         TIMESTAMP != "TS") %>%
-  mutate(TIMESTAMP = as_datetime(TIMESTAMP))
-
-#file in current folder
-"https://www.dropbox.com/scl/fi/ce53uimlnducpgx4cflvh/GENX_INSTRUMENT_FLUX_COMB.dat?rlkey=543byau1gcwwfus8ylinrgsfb&st=n258tg8x&dl=0"
-#Larger folder
-"https://www.dropbox.com/scl/fo/9vn1x2dqpqxcndpv1jbu0/ANiYNxLB2mE28AIvGIChkFw?rlkey=da4ul7yzmndjfzlz20tdgbjmm&st=8teiwstw&dl=0"
-#Example file in larger folder
-"https://www.dropbox.com/scl/fi/64vrg3pbwzgr0fae9amel/GENX_INSTRUMENT_FLUX_COMB_20241009025358.dat?rlkey=hcnkcghvblke4nbj8b8v8kaud&st=uidx2v07&dl=0"
-
-#data <- read_csv("Raw_data/GENX_INSTRUMENT_FLUX_LGR1.dat", skip = 1) %>%
-#  filter(!is.na(TIMESTAMP),
-#         TIMESTAMP != "TS") %>%
-#  mutate(TIMESTAMP = as_datetime(TIMESTAMP))
+p <- read_csv("./Raw_data/dropbox_downloads/GENX_INSTRUMENT_FLUX_COMB_20240501020048.dat", show_col_types = F, skip = 1)
 
 #Create function to assign groups for separate readings
 group_fun <- function(MIU_VALVE) {
@@ -58,104 +71,77 @@ group_fun <- function(MIU_VALVE) {
   return(group)
 }
 
-#Calculate slopes
-slopes <- data %>%
+### Calculate slopes ###
+#Prep data
+index_cutoff <- 30 #Higher would be better, but in the summer we wouldn't have enough data to calculate fluxes
+filtered_data <- data %>%
   filter(!MIU_VALVE == 16) %>%
+  arrange(TIMESTAMP) %>%
   mutate(group = group_fun(MIU_VALVE)) %>%
   group_by(group, MIU_VALVE) %>%
   mutate(start = min(TIMESTAMP),
          change = as.numeric(difftime(TIMESTAMP, start, units = "days")),
-         index = row_number()) %>%
-  filter(index > 35) %>%
-  summarize(CH4_slope_ppm_per_day = lm(CH4_ppm ~ change)$coefficients[[2]],
-            air_temp = mean(GasT_C, na.rm = T),
-            CH4_slope_umol_per_day = CH4_slope_ppm_per_day * 265.8 / (0.08206*(air_temp + 273)),
-            CH4_R2 = summary(lm(CH4_ppm ~ change))$r.squared,
-            #CO2_slope = lm(CO2_ppm ~ change)$coefficients[[2]],
-            #CO2_R2 = summary(lm(CO2_ppm ~ change))$r.squared,
-            n = n(),
-            CH4_init = first(CH4_ppm))
+         index = row_number(),
+         n = sum(index > index_cutoff)) %>%
+  filter(index > index_cutoff,
+         n >= 5, #need at least 5 data points to calculate slope
+         n < 75 #probably some issue if this many measurements are taken
+         ) %>%
+  #Issues during this window (concs > 100000 ppm)
+  filter(TIMESTAMP > "2024-07-09 15:00:00" | TIMESTAMP < "2024-07-09 6:00:00")
 
-write.csv(slopes, "L0.csv", row.names = FALSE)
-
-
-#Optimize removed data
-calc_fits <- function(i){
-  data3 <- data %>%
-    filter(!MIU_VALVE == 16) %>%
-    mutate(group = group_fun(MIU_VALVE)) %>%
-    group_by(group, MIU_VALVE) %>%
-    mutate(start = min(TIMESTAMP),
-           change = as.numeric(difftime(TIMESTAMP, start, units = "days")),
-           index = row_number()) %>%
-    filter(index > i) %>%
-    summarize(CH4_R2 = summary(lm(CH4_ppm ~ change))$r.squared,
-              CH4_mse = mean(lm(CH4_ppm ~ change)$residuals^2)/n(),
-              #CO2_R2 = summary(lm(CO2_ppm ~ change))$r.squared
-              )
-  
-  out <- data3 %>%
-    group_by(MIU_VALVE) %>%
-    summarize(CH4_R2 = mean(CH4_R2),
-              CH4_mse = mean(CH4_mse),
-              #CO2_R2 = median(CO2_R2)
-              ) %>%
-    mutate(index = i)
-}
-
-fits <- map(15:35, calc_fits) |> 
-  bind_rows() 
-
-best_fits <- fits %>%
-  ungroup() %>%
-  filter(!is.na(CH4_mse)) %>%
-  pivot_longer(cols = c(CH4_mse
-                        #, CO2_R2
-                        ),
-               names_to = "variable", values_to = "value") %>%
-  group_by(MIU_VALVE, variable) %>%
-  filter(value == min(value))
-#Most of these look okay, but chamber 5 is optimizing to include the peak. 
-#Might get better with more than 3 years of data
-
-#Look at data.
-data %>%
-  filter(!MIU_VALVE == 16) %>%
-  mutate(group = group_fun(MIU_VALVE)) %>%
-  group_by(group, MIU_VALVE) %>%
-  mutate(start = min(TIMESTAMP),
-         change = as.numeric(difftime(TIMESTAMP, start, units = "days")),
-         index = row_number()) %>%
+#Look at data to confirm index is okay
+filtered_data %>%
   ggplot(aes(x = index, y = CH4_ppm, group = start)) +
   geom_line(alpha = 0.2)+
   facet_wrap(~MIU_VALVE)+
   theme(legend.position = "none")
 
-data2 %>%
-  filter(CH4_init < 2.5) %>%
-  ggplot(aes(x = CH4_init, y = CH4_slope, color = CH4_R2)) +
-  geom_point() +
-  geom_smooth() +
-  geom_vline(xintercept = 2.3)
+#Calculate slopes
+slopes <- filtered_data %>%
+  summarize(CH4_slope_ppm_per_day = lm(CH4_ppm ~ change)$coefficients[[2]],
+            air_temp = mean(GasT_C, na.rm = T),
+            CH4_slope_umol_per_day = CH4_slope_ppm_per_day * 265.8 / (0.08206*(air_temp + 273)),
+            CH4_R2 = summary(lm(CH4_ppm ~ change))$r.squared,
+            CH4_p = summary(lm(CH4_ppm ~ change))$coefficients[,4][2],
+            CH4_rmse = sqrt(mean(lm(CH4_ppm ~ change)$residuals^2)/n()),
+            #CO2_slope = lm(CO2_ppm ~ change)$coefficients[[2]],
+            #CO2_R2 = summary(lm(CO2_ppm ~ change))$r.squared,
+            CH4_init = first(CH4_ppm),
+            TIMESTAMP = unique(start),
+            n = unique(n))
 
-data2 %>%
-  ggplot(aes(x = CH4_init))+
-  geom_density()+
-  geom_vline(xintercept = 2.3)
+write.csv(slopes, "L0.csv", row.names = FALSE)
 
-data_grouped <- data %>%
-  filter(!MIU_VALVE == 16) %>%
-  mutate(group = group_fun(MIU_VALVE)) %>%
-  group_by(group, MIU_VALVE) %>%
-  mutate(start = min(TIMESTAMP),
-         change = as.numeric(difftime(TIMESTAMP, start, units = "days")),
-         index = row_number())
+### QAQC ###
 
-data_check <- data_grouped %>%
-  filter(group == 218)
-
-data_check %>%
-  ggplot(aes(x = index, y = CH4_ppm, group = start)) +
+#Remove the worst 1% of fits
+fit_cutoff <- quantile(slopes$CH4_rmse, 0.99)
+#These poor fits have extreme values
+slopes %>%
+  ggplot(aes(x = CH4_init, y = CH4_slope_umol_per_day, color = CH4_rmse > fit_cutoff)) +
   geom_point()
 
-p$sigma
+slopes_clean <- slopes %>%
+  filter(CH4_rmse < fit_cutoff,
+         CH4_init > 1,
+         CH4_init < 2.5)
+
+#R2 is not a good way to filter because this preferentially removes values near 0
+slopes_clean %>%
+  ggplot(aes(x = CH4_init, y = CH4_slope_umol_per_day, color = CH4_R2)) +
+  geom_point() +
+  geom_smooth()
+
+#High p-values are all close to 0 (good)
+slopes_clean %>%
+  ggplot(aes(x = CH4_init, y = CH4_slope_umol_per_day, color = CH4_p)) +
+  geom_point() +
+  geom_smooth()
+
+write.csv(slopes_clean, "L1_2024.csv", row.names = FALSE)
+
+slopes_clean %>%
+  ggplot(aes(x = TIMESTAMP, y = CH4_slope_umol_per_day)) +
+  geom_point() +
+  facet_wrap(~MIU_VALVE)
