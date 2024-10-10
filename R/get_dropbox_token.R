@@ -1,3 +1,5 @@
+#From https://rdrr.io/cran/rdrop2/src/R/drop_download.R
+
 # environment to store credentials
 .dstate <- new.env(parent = emptyenv())
 

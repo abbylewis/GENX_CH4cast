@@ -27,7 +27,7 @@ if(sites == "all"){
 horiz = 35
 step = 1
 #For testing
-site <- "c_1_amb"
+site <- "c_10_e4.5"
 var <- model_variables[1]
 forecast_date <- as.Date("2023-07-01")
 
@@ -86,81 +86,81 @@ h = as.numeric(forecast_date - max(site_target$datetime)+horiz)
 
 
 
-days <- data.frame(doy = seq(1,366, 1), site_id = site)
+#Wavelet decomposition
+dfs <- analyze_wavelets(target = site_target, site = site, var_name = var)
 
-# calculate the mean and standard deviation for each doy
-target_clim <- site_target %>%
-  mutate(doy = yday(datetime)) %>%
-  #Wrap around doys for rolling mean
-  mutate(dup = ifelse(doy <= window/2, 2, 1)) %>%
-  uncount(dup, .id = "dup") %>%
-  mutate(doy = ifelse(dup>1, doy + 365, doy)) %>%
-  mutate(dup = ifelse(doy >= 365- window/2, 2, 1)) %>%
-  uncount(dup, .id = "dup") %>%
-  mutate(doy = ifelse(dup>1, doy - 365, doy)) %>%
-  arrange(doy) %>%
-  #Calculate rolling mean
-  mutate(clim_mean = slider::slide_index_dbl(.x = get(!!var), 
-                                             .i = doy, 
-                                             .f = mean, 
-                                             na.rm = T,
-                                             .before = window/2,
-                                             .after = window/2),
-         clim_sd = slider::slide_index_dbl(.x = get(!!var), 
-                                           .i = doy, 
-                                           .f = sd, 
-                                           na.rm = T,
-                                           .before = window/2,
-                                           .after = window/2)) %>%
-  filter(doy >= 1 & doy <= 366) %>%
-  select(-any_of(c("dup", var))) %>%
-  full_join(days, by = c("doy", "site_id")) %>%
-  select(-datetime) %>%
-  distinct()
+# Fit arima model to each scale
+dfs_fit <- dfs %>%
+  group_by(site_id, name) %>%
+  nest() %>%
+  summarize(fit = map(data, ~auto.arima(.x$value)),
+            .groups = "drop")
 
-# what dates do we want a forecast of?
-forecast_dates <- c(site_target$datetime, (1:h)*step+max(site_target$datetime))
-forecast_doy <- yday(forecast_dates)
-forecast_dates_df <- tibble(datetime = forecast_dates,
-                            doy = forecast_doy)
-# Create forecast
-forecast <- target_clim %>%
-  mutate(doy = as.integer(doy)) %>%
-  filter(doy %in% forecast_doy) %>%
-  full_join(forecast_dates_df, by = c('doy')) %>%
-  arrange(site_id, datetime)
-
-#Check for sufficient data
-if(sum(!is.na(forecast$clim_mean)) == 0 | sum(!is.na(forecast$clim_sd)) == 0){
-  message(paste0("Insufficient historical observations at site ", site, 
-                 ". Skipping forecasts at this site."))
-  return()
+#Function to generate probabilistic forecasts for each scale
+pred_wavelet <- function(fit, h, npaths = 100){
+  out <- as.data.frame(forecast(fit, h = h, level=0.68)) #One SD
+  sim <- matrix(NA, nrow = npaths, ncol = h)
+  for (i in 1:npaths){
+    sim[i, ] <- simulate(fit, nsim = h, bootstrap = TRUE)
+  }
+  out <- as.data.frame(t(sim))
+  out$datetime <- (1:h)*step+max(site_target$datetime)
+  out <- out %>%
+    pivot_longer(cols = paste0("V", 1:npaths), names_to = "parameter", values_to = "prediction") %>%
+    mutate(parameter = as.numeric(sub("V", "", parameter)))
+  return(out)
 }
 
-# Interpolate
-combined <- forecast %>%
-  select(datetime, site_id, clim_mean, clim_sd) %>%
-  rename(mean = clim_mean,
-         sd = clim_sd) %>%
-  mutate(mu = imputeTS::na_interpolation(x = mean),
-         sigma = median(sd, na.rm = TRUE))
+# Forecast
+dfs_pred <- dfs_fit %>%
+  group_by(name) %>%
+  mutate(forecast = map(fit, pred_wavelet, h = h)) %>%
+  unnest(forecast) 
 
-#Now, use arima model on the residuals
-resids <- combined %>%
-  left_join(site_target, by = c("datetime", "site_id")) %>%
-  mutate(resid = CH4_slope_umol_per_day - mu)
-fit = auto.arima(resids$resid)
-forecast_raw <- as.data.frame(forecast(fit, h = h, level=0.68)) %>% #One SD
-  mutate(sigma = `Hi 68`-`Point Forecast`)  
+#Inverse wavelet transform
+run_inverse_wavelet <- function(data){
+  data <- ungroup(data) 
+  J = length(unique(data$name))
+  wave_recon <- list()
+  for(jj in 1:J){
+    wave_recon[[jj]] <- data %>%
+      filter(name == unique(data$name)[jj]) %>%
+      pull(prediction)
+  }
+  names(wave_recon) <- unique(data$name)
+  class(wave_recon) <- "modwt"
+  attr(wave_recon, "wavelet") <- "la8"
+  attr(wave_recon, "boundary") <- "periodic"
+  tryCatch(imodwt(wave_recon),
+    error = function(cond) {
+      message("error")
+      return(wave_recon)
+    },
+    warning = function(cond) {
+      message("Warning")
+      NULL
+    }
+  )
+  out <- imodwt(wave_recon)
+  #return(data.frame(prediction = out,
+  #                  datetime = unique(data$datetime)))
+  return(NULL)
+}
 
-#Compile into df
-arima_errors <- data.frame(mu_arima = as.numeric(forecast_raw$`Point Forecast`),
-                           sigma_arima = as.numeric(forecast_raw$sigma),
-                           datetime = (1:h)*step+max(site_target$datetime))
+forecast <- dfs_pred %>%
+  group_by(parameter) %>%
+  nest() %>%
+  mutate(prediction = map(data, run_inverse_wavelet)) %>%
+  unnest(prediction) %>%
+  mutate(project_id = "gcrew",
+         model_id = model_id,
+         site_id = site,
+         reference_datetime = forecast_date,
+         duration = "P1D",
+         family = "ensemble",
+         variable = var)%>%
+  select(project_id, model_id, datetime, reference_datetime, duration,
+         site_id, family, parameter, variable, prediction)
 
-#Combine
-final <- combined %>%
-  left_join(arima_errors, by = c("datetime")) %>%
-  filter(datetime >= forecast_date) %>%
-  mutate(mu_final = mu_arima + mu,
-         sigma_final = sqrt(sigma_arima^2 + sigma^2))
+data <- dfs_pred %>%
+  filter(parameter == 89)

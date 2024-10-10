@@ -1,3 +1,5 @@
+# From: https://rdrr.io/cran/rdrop2/src/R/drop_download.R
+
 #' List folder contents and associated metadata.
 #'
 #' Can be used to either see all items in a folder, or only items that have changed since a previous request was made.

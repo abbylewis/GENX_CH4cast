@@ -48,7 +48,7 @@ forecast_model <- function(site,
   site_target = site_target_raw |>
     complete(datetime = full_seq(datetime, 1), site_id)
 
-  h = as.numeric(forecast_date - max(site_target$datetime)+horiz)
+  h = as.numeric(forecast_date - max(site_target$datetime) + horiz)
   
   #Wavelet decomposition
   dfs <- analyze_wavelets(target = site_target, site = site, var_name = var)
