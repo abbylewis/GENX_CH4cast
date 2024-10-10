@@ -139,7 +139,12 @@ slopes_clean %>%
   geom_point() +
   geom_smooth()
 
-write.csv(slopes_clean, "L1_2024.csv", row.names = FALSE)
+metadata <- read_csv("Raw_data/chamber_metadata.csv", show_col_types = F)
+slopes_metadata <- metadata %>%
+  left_join(slopes_clean, by = c("miu_valve" = "MIU_VALVE")) %>%
+  rename(time2 = TIMESTAMP)
+
+write.csv(slopes_metadata, "L1_2024.csv", row.names = FALSE)
 
 slopes_clean %>%
   ggplot(aes(x = TIMESTAMP, y = CH4_slope_umol_per_day)) +

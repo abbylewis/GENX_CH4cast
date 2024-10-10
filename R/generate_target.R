@@ -3,8 +3,10 @@ source("R/qaqc.R")
 generate_target <- function(save = F){
   raw <- read_csv("Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_derived.csv", show_col_types = FALSE) 
   raw2 <- read_csv("Raw_data/GENX_Flux_SD_Loggernet_2023-01-01_to_2023-11-15_derived.csv", show_col_types = FALSE)
+  new <- read_csv("L1_2024.csv", show_col_types = FALSE)
   
-  comb <- bind_rows(raw, raw2)
+  comb <- bind_rows(raw, raw2) %>%
+    full_join(new)
   
   target <- comb %>%
     mutate(time2 = with_tz(time2, tzone = "America/New_York"),
