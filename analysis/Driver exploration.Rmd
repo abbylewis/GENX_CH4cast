@@ -33,7 +33,9 @@ data <- rtide::tide_height(
   from = min, to = max,
   minutes = 10L, tz = "UTC"
 )
-library(rtide)
+#library(rtide)
+
+tide_noaa <- read_csv("https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date=20210801&end_date=20210901&datum=MLLW&station=8575579&time_zone=GMT&units=metric&interval=hilo&format=csv")
 
 data %>%
   ggplot() +
@@ -42,6 +44,13 @@ data %>%
   scale_y_continuous(name = "Tide Height (m)") +
   #geom_col(aes(x= as.POSIXct(Date), y = rain_cm_tot), data = met %>% filter(Date > min, Date < max)) +
   geom_line(data = drivers %>% filter(time2 > "2021-08-01", time2 < "2021-09-01"), aes(x = time2, y = corrected_depth/100), color = "red")
+
+tide_noaa %>%
+  mutate(Date = as.Date(`Date Time`)) %>%
+  group_by(Date) %>%
+  mutate(Prediction = mean(Prediction, na.rm = TRUE)) %>%
+  ggplot(aes(x = Date, y = Prediction)) +
+  geom_point()
 
 data <- rtide::tide_height(
   "Annapolis (US Naval Academy), Severn River, Maryland",
@@ -54,8 +63,6 @@ data %>%
   geom_line() +
   scale_y_continuous(name = "Tide Height (m)") +
   geom_line(data = drivers, aes(x = time2, y = corrected_depth/100), color = "red")
-
-tide_noaa <- read_csv("https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date=20210801&end_date=20210901&datum=MLLW&station=8575579&time_zone=GMT&units=metric&interval=hilo&format=csv")
 ```
 
 How do we relate soil temp to air temp?

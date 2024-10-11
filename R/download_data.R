@@ -56,8 +56,6 @@ data <- list.files("./Raw_data/dropbox_downloads", full.names = T) %>%
   distinct() %>%
   filter(!duplicated(LGR_Time)) #I've spent some time looking into this. CH4 is also duplicated for these
 
-p <- read_csv("./Raw_data/dropbox_downloads/GENX_INSTRUMENT_FLUX_COMB_20240501020048.dat", show_col_types = F, skip = 1)
-
 #Create function to assign groups for separate readings
 group_fun <- function(MIU_VALVE) {
   group <- rep(1, length(MIU_VALVE))
