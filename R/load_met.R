@@ -1,4 +1,4 @@
-source("./R/convert_to_vera_met_P1D.R")
+#source("./R/convert_to_vera_met_P1D.R")
 
 #' load_met
 #' 
@@ -9,19 +9,21 @@ source("./R/convert_to_vera_met_P1D.R")
 #'
 #' @return no return. Exports historical and future met
 #'
-load_met <- function(forecast_date,
+load_met <- function(forecast_date = Sys.Date(),
                      forecast_days = 35) {
   
   #Specify variables
   variables <- c("relativehumidity_2m", 
                  "precipitation", 
                  "windspeed_10m", 
-                 "temperature_2m")
+                 "temperature_2m",
+                 "shortwave_radiation")
   
   variables_renamed <- c("RH_percent_mean", 
                          "Rain_mm_sum", 
                          "WindSpeed_ms_mean", 
-                         "AirTemp_C_mean")
+                         "AirTemp_C_mean",
+                         "ShortwaveRadiation_Wm2")
   
   #Load site info
   lat <- 38.87477
@@ -29,7 +31,7 @@ load_met <- function(forecast_date,
   
   #Weather predictions
   message("Loading weather predictions")
-  weather_pred <- RopenMeteo::get_ensemble_forecast(
+  weather_pred <- ropenmeteo::get_ensemble_forecast(
     latitude = lat,
     longitude = long,
     forecast_days = forecast_days, # days into the future
@@ -37,19 +39,19 @@ load_met <- function(forecast_date,
     model = "gfs_seamless", # this is the NOAA gefs ensemble model
     variables = variables) |> 
     # function to convert to EFI standard
-    RopenMeteo::convert_to_efi_standard() |>
+    #ropenmeteo::convert_to_efi_standard() |>
     # rename variables to match met station
     convert_to_vera_met_P1D() 
 
   message("Loading historical weather")
-  weather_hist <- RopenMeteo::get_historical_weather(
+  weather_hist <- ropenmeteo::get_historical_weather(
     latitude = lat,
     longitude = long,
     start_date = as.Date("2010-01-01"),
     end_date = as.Date(Sys.Date()),
     variables = variables) |> 
     # function to convert to EFI standard
-    RopenMeteo::convert_to_efi_standard() |>
+    #ropenmeteo::convert_to_efi_standard() |>
     # rename variables to match met station
     convert_to_vera_met_P1D() 
   
@@ -86,6 +88,7 @@ load_met <- function(forecast_date,
             row.names = F)
   
   write.csv(weather_hist %>%
+              dplyr::select(-unit) %>%
               pivot_wider(names_from = variable, values_from = prediction),
             paste0("./met_downloads/past_daily_",
                    forecast_date,".csv"),

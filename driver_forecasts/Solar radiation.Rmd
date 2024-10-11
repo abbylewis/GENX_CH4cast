@@ -1,0 +1,42 @@
+---
+title: "Solar radiation"
+author: "Abby Lewis"
+date: "2024-09-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+remotes::install_github("FLARE-forecast/ropenmeteo")
+source("../R/load_met.R")
+source("../R/convert_to_vera_met_P1D.R")
+```
+
+```{r}
+met <- read_csv("../processed_data/met_output.csv")
+today <- Sys.Date()
+load_met(today)
+
+hist_met <- read_csv(paste0("../met_downloads/past_daily_", today, ".csv"))
+
+all_met <- met %>%
+  left_join(hist_met, by = c("Date" = "datetime"))
+
+all_met %>%
+  ggplot(aes(y = par_den_c_avg, x = ShortwaveRadiation_Wm2)) +
+  geom_point(aes(color = par_den_c_avg > 1))+
+  geom_smooth(method = "lm", formula=y~x+0)
+
+all_met_fit <- all_met %>%
+  filter(par_den_c_avg > 1)
+mod <- lm(par_den_c_avg ~ ShortwaveRadiation_Wm2 + 0, data = all_met_fit)
+summary(mod) #R2 = 0.97
+
+predictions <- data.frame(datetime = all_met_fit$Date, 
+                          site_id = unique(all_met_fit$site_id),
+                          par_den_c_avg = mod$fitted.values)
+
+write_csv(predictions, "../met_downloads/past_daily_par.csv")
+```
+

@@ -1,0 +1,107 @@
+---
+title: "Solar radiation"
+author: "Abby Lewis"
+date: "2024-09-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(SWMPr)
+library(oce)
+#remotes::install_github("FLARE-forecast/ropenmeteo")
+source("../R/load_river_discharge.R")
+source("../R/fit_tides.R")
+source("../R/remove_tidal_signal.R")
+source("../R/convert_to_vera_met_P1D.R")
+```
+
+Workflow:
+First account for tides, and remove tidal signal from data
+Then account for river discharge
+
+To make this a forecast
+1. Get tide and river forecasts/hindcasts
+2. Fit tide model
+3. Fit discharge model
+4. Use discharge to predict tide-adjusted depth
+5. Convert dataset to 15-minute timestep with forecasted tides
+6. Use predicted tides to predict chamber depth
+7. Back to daily timestep
+
+Get tide and river forecasts/hindcasts
+
+```{r}
+drivers <- read_csv("../Raw_data/GENX_SD_Export_Waterlevel_2021-05-06_to_2022-12-30_derived_clean_btemps.csv", 
+                    show_col_types = F) %>%
+  mutate(Date = as.Date(time2))
+
+today <- Sys.Date()
+forecast_days = 35
+open_meteo_discharge <- load_river_discharge(today, forecast_days)
+
+start_date <- format(as.Date(min(drivers$time2)), "%Y%m%d")
+end_date <- format(as.Date(today+forecast_days), "%Y%m%d")
+tide_noaa <- read_csv(glue::glue("https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={start_date}&end_date={end_date}&datum=MLLW&station=8575579&time_zone=GMT&units=metric&interval=hilo&format=csv"))
+# note: not much of a correlation between depth and any of these individually
+
+drivers %>%
+  ggplot(aes(x = time2, y = corrected_depth, color = as.factor(chamber_treatment))) +
+  geom_line()
+```
+
+Fit a model to noaa tide data so we have continuous data
+
+```{r}
+mod <- fit_tides(tide_noaa)
+
+tide_noaa %>%
+  mutate(Mod_fit = predict(mod, newdata = tide_noaa$`Date Time`)) %>%
+  ggplot(aes(y = Prediction, x = Mod_fit, color = Type)) +
+  geom_abline(aes(intercept = 0, slope = 1)) +
+  geom_point()
+```
+
+Now we want to model depth independently of tides
+First, generate tide predictions that correspond to our data
+
+```{r}
+depth_without_tides <- remove_tidal_signal(drivers, mod, end_date = as.Date(today+forecast_days))
+
+depth_without_tides %>%
+  ggplot(aes(x = scaled_tide, y = corrected_depth)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = "lm")
+```
+
+
+Now correct for river discharge
+
+```{r}
+final <- fit_discharge(depth_without_tides, open_meteo_discharge)
+
+drivers_daily <- drivers %>%
+  group_by(Date) %>%
+  summarize(corrected_depth = mean(corrected_depth, na.rm = TRUE))
+
+drivers_daily %>%
+  left_join(final) %>%
+  ggplot(aes(x = final_pred, y = corrected_depth)) +
+  geom_point(alpha = 0.1) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_smooth(method = "lm")
+
+final %>%
+  left_join(drivers_daily) %>%
+  pivot_longer(cols = c(corrected_depth, final_pred), names_to = "Type", values_to = "Value") %>%
+  ggplot(aes(x = Date, y = Value, color = Type)) +
+  geom_line()
+
+final %>%
+  #filter(Date > today) %>%
+  ggplot(aes(x = Date, y = final_pred)) +
+  geom_point()
+```
+
+
