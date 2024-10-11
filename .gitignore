@@ -7,6 +7,7 @@ Raw_data/GENX_SD_Export_Waterlevel_2023-01-01_to_2023-12-31_derived_clean_btemps
 Raw_data/EVI
 Raw_data/dropbox_downloads
 Raw_data/dropbox_met
+Raw_data/dropbox_water_level
 figures
 analysis/scores.csv
 .httr-oauth

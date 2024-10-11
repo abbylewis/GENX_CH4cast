@@ -76,8 +76,8 @@ data %>%
   ggplot(aes(x = slrw_avg, y = par_den_c_avg, color = time2)) +
   geom_point()
 
-write.csv(met_output %>% rename(PAR = par_den_c_avg) %>% select(Date, PAR), 
-          "../processed_data/PAR_output.csv", row.names = FALSE)
+write.csv(met_output %>% rename(PAR = PAR_Den_C_Avg) %>% select(Date, PAR), 
+          "./processed_data/PAR_output.csv", row.names = FALSE)
 
 write.csv(met_output,
-          "../processed_data/met_output.csv", row.names = FALSE)
+          "./processed_data/met_output.csv", row.names = FALSE)
