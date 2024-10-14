@@ -8,10 +8,10 @@
 
 #About the model:
 #1. Originally PEPRMT (the Peatland Ecosystem Photosynthesis and Methane Transport) model 
-  #was parameterized for restored freshwater wetlands in the Sacramento-San Joaquin River Delta, CA USA
-  # Oikawa et al. 2017 https://doi.org/10.1002/2016JG003438
-  #Presented here is an updated version that works for tidal wetlands 
-  #and inhibits CH4 production in response to salinity and nitrate (Oikawa et al. 2023)
+#was parameterized for restored freshwater wetlands in the Sacramento-San Joaquin River Delta, CA USA
+# Oikawa et al. 2017 https://doi.org/10.1002/2016JG003438
+#Presented here is an updated version that works for tidal wetlands 
+#and inhibits CH4 production in response to salinity and nitrate (Oikawa et al. 2023)
 #2. All PEPRMT modules use the same input structure (data) however not all models use all variables in the structure;
 #3. All variables are at the daily time step.
 #4. Modules are run in succession, first GPP, then Reco and last CH4
@@ -24,7 +24,7 @@
 #See Oikawa et al. 2023 
 
 #2. Data: a data frame containing 18 variables described at start of function.
- 
+
 #3. Wetland_type
 # - "wetland_type == 1" corresponds to a "freshwater peatland"
 # - "wetland_type == 2" corresponds to a "tidal wetland" 
@@ -219,8 +219,8 @@ PEPRMT_CH4_FINAL <- function(theta,
       M_full[t]=(M1[t]+M2[t])#*fSal #total CH4 produced at this time step in gC m-3 soil day-1
       
       #---COMPUTE CH4 TRANSPORT---
-      #make sure WT_2_adj is never negative
-      if (WT_2_adj[t]<0) { WT_2_adj[t]=0 }
+      #make sure WT_2_adj is never negative or 0
+      if (WT_2_adj[t]<=0) { WT_2_adj[t]=0.001 }
       
       #now start ch4 transport loop
       if (t==1){
@@ -247,9 +247,8 @@ PEPRMT_CH4_FINAL <- function(theta,
           #subtract the moles of methane lost from the pools (soil and water) to the atm
           CH4water_store[t]=CH4water[t]-Hydro_flux[t]-Plant_flux[t]  #gC CH4 m-3 stored in the system
           
-          #If you start out the year with no water above the surface      
         } else {
-          
+          #If you start out the year with no water above the surface    
           # Gives CH4 concentration in water which is now less that 1 m3
           CH4water_0[t]=(M_full[t]*1)+(0.00001*WT_2_adj[t])/WT_2_adj[t]#gC CH4 m-3 - concentration in soil and water are the same
           
