@@ -56,6 +56,7 @@ data_raw <- list.files("./Raw_data/dropbox_downloads", full.names = T) %>%
   mutate(TIMESTAMP = as_datetime(TIMESTAMP)) %>%
   filter(!is.na(TIMESTAMP)) %>%
   distinct() 
+
 data <- data_raw %>%
   filter(is.na(LGR_Time) |
            !duplicated(LGR_Time) | 
@@ -124,6 +125,9 @@ slopes <- filtered_data %>%
 
 write.csv(slopes, "L0.csv", row.names = FALSE)
 
+slopes <- read_csv("L0.csv")%>%
+  filter(CH4_init < 4)
+
 ### QAQC ###
 
 #Remove the worst 1% of fits
@@ -133,7 +137,8 @@ slopes %>%
   ggplot(aes(x = CH4_init, y = CH4_slope_umol_per_day, color = CH4_rmse > fit_cutoff)) +
   geom_point() +
   geom_vline(xintercept = 1.5) +
-  geom_vline(xintercept = 2.5)
+  geom_vline(xintercept = 2.5) +
+  scale_y_continuous(trans = scales::pseudo_log_trans(base = 10))
 
 slopes_clean <- slopes %>%
   filter(CH4_rmse < fit_cutoff,
@@ -142,13 +147,15 @@ slopes_clean <- slopes %>%
 
 #R2 is not a good way to filter because this preferentially removes values near 0
 slopes_clean %>%
-  ggplot(aes(x = CH4_init, y = CH4_slope_umol_per_day, color = CH4_R2)) +
-  geom_point()
+  ggplot(aes(x = CH4_init, y = CH4_slope_umol_per_day, color = CH4_R2 > 0.7)) +
+  geom_point()+
+  scale_y_continuous(trans = scales::pseudo_log_trans(base = 10))
 
 #High p-values are all close to 0 (good)
 slopes_clean %>%
   ggplot(aes(x = CH4_init, y = CH4_slope_umol_per_day, color = CH4_p)) +
-  geom_point() 
+  geom_point(alpha = 0.1) +
+  scale_y_continuous(trans = scales::pseudo_log_trans(base = 10))
 
 metadata <- read_csv("Raw_data/chamber_metadata.csv", show_col_types = F)
 slopes_metadata <- metadata %>%

@@ -33,10 +33,23 @@ target %>%
   full_join(example) %>%
   pivot_longer(cols = -c(site_char, DOY_disc, DOY, site)) %>%
   filter(!is.na(value),
-         !grepl("GPP|CO2|FPAR|Reco", name)) %>%
+         !grepl("GPP|CO2|FPAR|Reco", name),
+         !value == 0 | !name == "SOM_MEM_gC_m3") %>%
   ggplot(aes(y = site_char, x = value)) +
   geom_boxplot()+
   facet_wrap(~name, scales = "free_x")
+
+ch4_validation %>%
+  mutate(site_char = "gcrew") %>%
+  full_join(example) %>%
+  mutate(ch4_mg_m2_day = ifelse(is.na(CH4_gC_m2_day), CH4_slope_mgC_m2_d, CH4_gC_m2_day * 1000),
+         type = ifelse(site_char %in% c("US_STJ", "US_LA1"), "High", "Low")) %>%
+  ggplot(aes(x = site_char, y = ch4_mg_m2_day)) +
+  geom_boxplot() +
+  #facet_grid2(cols = vars(type), scales = "free", independent = "y") + 
+  scale_y_continuous(trans = scales::pseudo_log_trans(base = 10))
+
+library(ggh4x)
 ```
 
 Run all modules
@@ -94,16 +107,24 @@ sens_results <- sens_vars %>%
 
 ch4_add <- data.frame(var_modif = sens_vars,
            site_char = "gcrew",
-           modif = "orig") %>%
+           modif = "data") %>%
   left_join(ch4_validation %>%
               mutate(site_char = "gcrew")) %>%
   rename(CH4_mod = CH4_slope_mgC_m2_d)
 
+ch4_orig <- data.frame(var_modif = sens_vars,
+           site_char = "gcrew",
+           modif = "orig") %>%
+  left_join(target_results %>%
+              mutate(site_char = "gcrew")) %>%
+  mutate(CH4_mod = CH4_mod * 1000)
+
 sens_results %>%
   mutate(CH4_mod = CH4_mod * 1000) %>%
   full_join(ch4_add) %>%
+  full_join(ch4_orig) %>%
   ggplot(aes(x = modif, y = CH4_mod)) +
   geom_boxplot() +
   facet_wrap(~var_modif, scales = "free_y") +
-  coord_cartesian(ylim = c(-50, 250))
+  coord_cartesian(ylim = c(-50, 300))
 ```

@@ -1,19 +1,14 @@
 source("R/qaqc.R")
 
 generate_target <- function(save = F){
-  raw <- read_csv("Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_derived.csv", show_col_types = FALSE) 
-  raw2 <- read_csv("Raw_data/GENX_Flux_SD_Loggernet_2023-01-01_to_2023-11-15_derived.csv", show_col_types = FALSE)
-  new <- read_csv("L1_2024.csv", show_col_types = FALSE)
+  data <- read_csv("L1.csv", show_col_types = FALSE)
   
-  comb <- bind_rows(raw, raw2) %>%
-    full_join(new)
-  
-  target <- comb %>%
+  target <- data %>%
     mutate(time2 = with_tz(time2, tzone = "America/New_York"),
            project_id = "gcrew",
            duration = "P1D",
            time2 = as.Date(time2)) %>%
-    qaqc() %>%
+    #qaqc() %>%
     rename(site_id = chamber_treatment,
            datetime = time2) %>%
     select(project_id, site_id, datetime, duration, CH4_slope_umol_per_day) %>%
@@ -24,7 +19,7 @@ generate_target <- function(save = F){
     summarise(observation = mean(observation, na.rm = TRUE), .groups = "drop")
   
   if(save){
-    write.csv(target, "L1.csv", row.names = FALSE)
+    write.csv(target, "L1_target.csv", row.names = FALSE)
   }
   return(target)
 }
