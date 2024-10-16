@@ -1,0 +1,68 @@
+#Source
+source("./R/drop_dir.R")
+source("./R/get_dropbox_token.R")
+library(tidyverse)
+
+#' download_new_data
+#'
+#' @description
+#' This function looks for data files on dropbox that are new or have been modified since we last loaded data
+#' 
+#' @return NULL
+#' @export
+#'
+#' @examples
+download_new_data <- function(){
+  #Identify all files
+  message("Looking for new data files on dropbox")
+  relevant_files <- drop_dir(path = "GCREW_LOGGERNET_DATA") %>%
+    filter(grepl("GENX_INSTRUMENT_FLUX_COMB", name) |
+             grepl("GENX_FLUX_", name) |
+             grepl("GENX_LGR_FLUX_", name))
+  current <- drop_dir(path = "GCREW_LOGGERNET_DATA/current_data") %>%
+    filter(grepl("GENX_INSTRUMENT_FLUX_COMB", name),
+           !grepl("backup", name))
+  
+  #Remove files that are already loaded and haven't been modified
+  already_loaded <- list.files("./Raw_data/dropbox_downloads")
+  loaded_file_info <- file.info(list.files("./Raw_data/dropbox_downloads", full.names = T)) %>%
+    mutate(name = basename(row.names(.))) %>%
+    select(name, mtime)
+  modified <- relevant_files %>%
+    select(name, server_modified) %>%
+    left_join(loaded_file_info, by = "name") %>%
+    filter(server_modified > mtime)
+  relevant_files <- relevant_files %>% #Only process files that are new or have been modified on dropbox
+    filter(!name %in% already_loaded | name %in% modified$name)
+  
+  #Load current data file
+  new <- current$path_display %>%
+    map(load_file)
+  
+  if(nrow(relevant_files) == 0){
+    message("No new files to download")
+  } else {
+    message("Downloading ", nrow(relevant_files), " files")
+    all_data <- relevant_files$path_display %>%
+      map(load_file)
+  }
+}
+
+#Load file - helper function
+load_file <- function(path_display){
+  url <- "https://content.dropboxapi.com/2/files/download"
+  name <- sub("/GCREW_LOGGERNET_DATA/", "", path_display)
+  if(grepl("current", name)) name <- "current.dat"
+  
+  httr::POST(
+    url = url,
+    httr::config(token = get_dropbox_token()),
+    httr::add_headers("Dropbox-API-Arg" = jsonlite::toJSON(
+      list(
+        path = path_display
+      ),
+      auto_unbox = TRUE
+    )),
+    httr::write_disk(paste0("./Raw_data/dropbox_downloads/", name), overwrite = T)
+  )
+}

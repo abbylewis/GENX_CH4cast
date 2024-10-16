@@ -1,0 +1,80 @@
+---
+title: "QAQC vis"
+author: "Abby Lewis"
+date: "2024-10-16"
+output: html_document
+---
+
+Basically the same as the automated QAQC function, but with visualizations
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+#Remove really crazy values
+slopes <- read_csv("../L0.csv", show_col_types = F) %>%
+  filter(CH4_init < 4)
+
+#Remove the worst 1% of fits
+fit_cutoff <- quantile(slopes$CH4_rmse, 0.99)
+#These poor fits have extreme values
+slopes %>%
+  ggplot(aes(x = CH4_init, y = CH4_slope_umol_per_day, color = CH4_rmse > fit_cutoff)) +
+  geom_point() +
+  geom_vline(xintercept = 1.5) +
+  geom_vline(xintercept = 2.5) +
+  scale_y_continuous(trans = scales::pseudo_log_trans(base = 10))
+
+slopes_clean <- slopes %>%
+  filter(CH4_rmse < fit_cutoff,
+         CH4_init > 1.5,
+         CH4_init < 2.5)
+
+#R2 is not a good way to filter because this preferentially removes values near 0
+slopes_clean %>%
+  ggplot(aes(x = CH4_init, y = CH4_slope_umol_per_day, color = CH4_R2 > 0.7)) +
+  geom_point()+
+  scale_y_continuous(trans = scales::pseudo_log_trans(base = 10))
+
+#High p-values are all close to 0 (good)
+slopes_clean %>%
+  ggplot(aes(x = CH4_init, y = CH4_slope_umol_per_day, color = CH4_p > 0.05)) +
+  geom_point(alpha = 0.1) +
+  scale_y_continuous(trans = scales::pseudo_log_trans(base = 10))
+
+metadata <- read_csv("Raw_data/chamber_metadata.csv", show_col_types = F)
+slopes_metadata <- metadata %>%
+  left_join(slopes_clean %>%
+              mutate(MIU_VALVE = as.numeric(MIU_VALVE)), 
+            by = c("miu_valve" = "MIU_VALVE")) %>%
+  rename(time2 = TIMESTAMP) %>%
+  filter(year(time2) >= 2021)
+
+write.csv(slopes_metadata, "L1.csv", row.names = FALSE)
+
+slopes_clean %>%
+  filter(year(TIMESTAMP) >= 2021) %>%
+  ggplot(aes(x = TIMESTAMP, y = CH4_slope_umol_per_day)) +
+  geom_point() +
+  facet_wrap(~MIU_VALVE)
+
+cleaned <- target %>%
+  
+  #No longer filtering by R2 (see download_data.R)
+  
+  #dplyr::mutate(
+  #  #Generally trust negative fluxes less than daytime fluxes
+  #  keep = ifelse(CH4_slope_umol_per_day < 0 & CH4_rsquared > 0.9, T, F),
+  #  keep = ifelse(CH4_slope_umol_per_day > 0 & CH4_rsquared > 0.75, T, keep),
+  #  #If CO2 is good, we should believe CH4
+  #  keep = ifelse(CH4_slope_umol_per_day > 0 & CO2_rsquared > 0.9, T, keep)) %>%
+  #dplyr::filter(keep) %>%
+  dplyr::mutate(CH4_slope_umol_per_day = dplyr::if_else((time2 > as.Date("2023-03-02") & 
+                                                           time2 < as.Date("2023-06-27")),
+                                                        NA,
+                                                        CH4_slope_umol_per_day)) #%>%
+#dplyr::select(-keep)
+```
+

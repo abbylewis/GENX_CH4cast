@@ -21,6 +21,9 @@ generate_tg_forecast <- function(forecast_date,
   }
   horiz = 35
   step = 1
+  chamber_levels = c("c_1_amb", "c_2_amb", "c_3_e0.75", "c_4_e1.5", "c_5_e2.25",
+                     "c_6_e2.25", "c_7_e3.0", "c_8_e3.75", "c_9_e3.75", "c_10_e4.5",
+                     "c_11_e5.25", "c_12_e6.0")
   
   ### Step 3: Get NOAA driver data (if needed)
   if(noaa){ #Some forecasts do not use any noaa driver data --> in that case skip download
@@ -97,10 +100,12 @@ generate_tg_forecast <- function(forecast_date,
   if(plot) {
     if(unique(forecast$family) == "ensemble"){
       p1 <- forecast %>%
+        mutate(site_id = factor(site_id, levels = chamber_levels)) %>%
         ggplot(aes(x = datetime, y = prediction)) +
         geom_vline(xintercept = forecast_date) +
         geom_line(aes(group = parameter)) +
         geom_point(data = target %>%
+                     mutate(site_id = factor(site_id, levels = chamber_levels)) %>%
                      filter(datetime >= forecast_date - 5 * step,
                             datetime <= forecast_date + horiz * step), 
                    aes(x = datetime, y = observation, alpha = datetime >= forecast_date), 
@@ -110,18 +115,21 @@ generate_tg_forecast <- function(forecast_date,
         theme(legend.position = "none")
     } else {
       p1 <- forecast %>%
+        mutate(site_id = factor(site_id, levels = chamber_levels)) %>%
         pivot_wider(names_from = "parameter", values_from = "prediction") %>%
         ggplot(aes(x = datetime)) +
         geom_vline(xintercept = forecast_date) +
         geom_line(aes(y = mu)) +
         geom_ribbon(aes(ymin = mu - sigma, ymax = mu + sigma), alpha = 0.3) +
         geom_point(data = target %>%
+                     mutate(site_id = factor(site_id, levels = chamber_levels)) %>%
                      filter(datetime >= forecast_date - 5 * step,
                             datetime <= forecast_date + horiz * step), 
                    aes(x = datetime, y = observation, alpha = datetime >= forecast_date)) +
         scale_alpha_manual(values = c(1, .5)) +
-        facet_grid(cols = vars(variable), rows = vars(site_id), scales = "free_y") +
-        theme(legend.position = "none")
+        facet_grid(cols = vars(variable), rows = vars(site_id)) +
+        theme(legend.position = "none") +
+        ylab("Flux (µmol/day)")
     }
     print(p1)
   }
