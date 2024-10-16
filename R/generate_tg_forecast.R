@@ -1,6 +1,5 @@
 source("./R/run_all_sites.R")
 source("./R/load_met.R")
-source("./R/generate_target.R")
 
 generate_tg_forecast <- function(forecast_date,
                                  forecast_model,
@@ -13,7 +12,7 @@ generate_tg_forecast <- function(forecast_date,
                                  plot = F) {
   
   ### Step 1: Download latest target data
-  target <- generate_target()
+  target <- read_csv("L1_target.csv", show_col_types = F)
   
   ### Step 2: Set forecast specifications
   if(sites == "all"){
@@ -102,34 +101,48 @@ generate_tg_forecast <- function(forecast_date,
       p1 <- forecast %>%
         mutate(site_id = factor(site_id, levels = chamber_levels)) %>%
         ggplot(aes(x = datetime, y = prediction)) +
+        geom_hline(yintercept = 0, color = "grey50") +
         geom_vline(xintercept = forecast_date) +
         geom_line(aes(group = parameter)) +
         geom_point(data = target %>%
                      mutate(site_id = factor(site_id, levels = chamber_levels)) %>%
-                     filter(datetime >= forecast_date - 5 * step,
+                     filter(datetime >= forecast_date - 35 * step,
                             datetime <= forecast_date + horiz * step), 
                    aes(x = datetime, y = observation, alpha = datetime >= forecast_date), 
                    color = "red") +
         scale_alpha_manual(values = c(1, .5)) +
-        facet_grid(cols = vars(variable), rows = vars(site_id), scales = "free_y") +
         theme(legend.position = "none")
+      if(length(model_variables) == 1) {
+        p1 <- p1 +
+          facet_wrap(~site_id)
+      } else {
+        p1 <- p1 +
+          facet_grid(rows = vars(variable), cols = vars(site_id))
+      }
     } else {
       p1 <- forecast %>%
         mutate(site_id = factor(site_id, levels = chamber_levels)) %>%
         pivot_wider(names_from = "parameter", values_from = "prediction") %>%
         ggplot(aes(x = datetime)) +
+        geom_hline(yintercept = 0, color = "grey50") +
         geom_vline(xintercept = forecast_date) +
         geom_line(aes(y = mu)) +
         geom_ribbon(aes(ymin = mu - sigma, ymax = mu + sigma), alpha = 0.3) +
         geom_point(data = target %>%
                      mutate(site_id = factor(site_id, levels = chamber_levels)) %>%
-                     filter(datetime >= forecast_date - 5 * step,
+                     filter(datetime >= forecast_date - 35 * step,
                             datetime <= forecast_date + horiz * step), 
                    aes(x = datetime, y = observation, alpha = datetime >= forecast_date)) +
         scale_alpha_manual(values = c(1, .5)) +
-        facet_grid(cols = vars(variable), rows = vars(site_id)) +
         theme(legend.position = "none") +
         ylab("Flux (µmol/day)")
+      if(length(model_variables) == 1) {
+        p1 <- p1 +
+          facet_wrap(~site_id)
+      } else {
+        p1 <- p1 +
+          facet_grid(rows = vars(variable), cols = vars(site_id))
+      }
     }
     print(p1)
   }

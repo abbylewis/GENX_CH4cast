@@ -1,10 +1,10 @@
 
 #Load new target data (optional)
 source("./R/generate_target.R")
-generate_target()
+#generate_target()
 
 #Change file path here to try a different model
-source("./models/cwae/forecast_model.R")
+source("./models/prophet/forecast_model.R")
 
 #Run remaining code and visualize forecasts
 source("./R/generate_tg_forecast.R")
