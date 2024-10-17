@@ -48,23 +48,14 @@ first identify the number of days of data per site, by recording the number of r
 # #load in the data, all sites in 1 spreadsheet
 EL_RR_De_data <- read.csv("All_param_sites_master_NO3_corr_20211206_GPP.csv", header=TRUE) %>% 
   dplyr::select(1:18) 
-summary(EL_RR_De_data)
+target <- read_csv("../peprmt_target.csv") %>%
+  as.data.frame()
+ch4_validation <- read_csv("../ch4_validation.csv") %>%
+  as.data.frame()
+
 str(EL_RR_De_data)
-
-target <- read_csv("peprmt_target.csv") %>%
-  as.data.frame()
-ch4_validation <- read_csv("ch4_validation.csv") %>%
-  as.data.frame()
+str(target)
 ```
-
-There are 873, 512, and 366, measures for Eden Landing, Rush Ranch, and St. Jones.  Let's convert the site to a numerical value, which will become a critical component for running PEPRMT.
-
-```{r echo=FALSE}
-#initial_data$site <- as.numeric(initial_data$site)
-EL_RR_De_data$site <- as.numeric(factor(EL_RR_De_data$site))
-summary(EL_RR_De_data)
-```
-
 
 Given that we have measures of error for Eden Landing, I must now generate more data for each column of the error data set. I'll build upon the Eden Landing data by extending it columns out. 
 

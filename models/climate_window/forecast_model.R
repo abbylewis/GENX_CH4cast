@@ -9,7 +9,7 @@ library(forecast)
 
 #### Step 1: Set model specifications
 model_id <- "climate_window"
-all_forecast_vars <- read_csv("forecast_variables.csv", show_col_types = FALSE)
+all_forecast_vars <- read_csv(here::here("forecast_variables.csv"), show_col_types = FALSE)
 model_variables <- all_forecast_vars$`"official" targets name`
 # Global parameters used in generate_tg_forecast()
 all_sites = F #Whether the model is /trained/ across all sites

@@ -1,6 +1,6 @@
 #Source
-source("./R/drop_dir.R")
-source("./R/get_dropbox_token.R")
+source(here::here("R","drop_dir.R"))
+source(here::here("R","get_dropbox_token.R"))
 library(tidyverse)
 
 #' download_new_data

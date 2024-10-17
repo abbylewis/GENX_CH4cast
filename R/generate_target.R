@@ -1,6 +1,6 @@
-source("R/qaqc.R")
-source("R/download_new_data.R")
-source("R/calculate_flux.R")
+source(here::here("R","qaqc.R"))
+source(here::here("R","download_new_data.R"))
+source(here::here("R","calculate_flux.R"))
 
 #' generate_target
 #'

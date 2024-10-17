@@ -1,5 +1,6 @@
-source("./R/run_all_sites.R")
-source("./R/load_met.R")
+here::i_am("README.md")
+source(here::here("R","run_all_sites.R"))
+source(here::here("R","load_met.R"))
 
 generate_tg_forecast <- function(forecast_date,
                                  forecast_model,
@@ -12,7 +13,7 @@ generate_tg_forecast <- function(forecast_date,
                                  plot = F) {
   
   ### Step 1: Download latest target data
-  target <- read_csv("L1_target.csv", show_col_types = F)
+  target <- read_csv(here::here("L1_target.csv"), show_col_types = F)
   
   ### Step 2: Set forecast specifications
   if(sites == "all"){
@@ -92,7 +93,7 @@ generate_tg_forecast <- function(forecast_date,
   
   # Write forecast to disk
   if(save){
-    forecast_file <- paste0("outputs/daily-", forecast_date, "-", model_id, ".csv.gz")
+    forecast_file <- paste0(here::here("outputs", paste0("daily-", forecast_date, "-", model_id, ".csv.gz")))
     write_csv(forecast, forecast_file)
   }
   

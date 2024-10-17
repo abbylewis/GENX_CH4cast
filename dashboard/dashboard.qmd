@@ -1,0 +1,44 @@
+---
+title: "GENX CH4cast"
+format: 
+  html:
+    page-layout: custom
+server: shiny
+---
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(shiny)
+#Optional: download new data
+source(here::here("R","generate_target.R"))
+#target <- generate_target()
+```
+
+```{r}
+#| panel: sidebar
+models <- list.files(here::here("models"))
+selectInput('model', 'Forecast model', models, selected = models[[1]])
+sliderInput('hist_data', 'Days of historical data to plot', 0,1000, value = 35)
+dateInput('forecast_date', 'Forecast date', 
+          value = Sys.Date(), 
+          min = "2022-01-01",
+          max = Sys.Date())
+```
+
+```{r}
+#| panel: fill
+plotOutput('plot1')
+```
+
+```{r}
+#| context: server
+source(here::here("R","generate_target.R"))
+source(here::here("R", "generate_tg_forecast.R"))
+source(here::here("R", "plot_shiny_forecast.R"))
+
+#Change file path here to try a different model
+output$plot1 <- renderPlot({
+  plot_shiny_forecast(input$forecast_date, input$model, input$hist_data)
+  })
+```
+
