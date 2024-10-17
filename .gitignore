@@ -11,3 +11,5 @@ Raw_data/dropbox_water_level
 figures
 analysis/scores.csv
 .httr-oauth
+/.quarto/
+/_site/
