@@ -15,7 +15,7 @@ qaqc <- function(L0_file = "L0.csv"){
            CH4_init < 2.5)
   
   #Load metadata for chambers
-  metadata <- read_csv("Raw_data/chamber_metadata.csv", show_col_types = F)
+  metadata <- read_csv(here::here("Raw_data","chamber_metadata.csv"), show_col_types = F)
   slopes_metadata <- metadata %>%
     left_join(slopes_clean %>%
                 mutate(MIU_VALVE = as.numeric(MIU_VALVE)), 
@@ -24,6 +24,6 @@ qaqc <- function(L0_file = "L0.csv"){
     filter(year(time2) >= 2021)
   
   #Output
-  write.csv(slopes_metadata, "L1.csv", row.names = FALSE)
+  write.csv(slopes_metadata, here::here("L1.csv"), row.names = FALSE)
   return(slopes_metadata)
 }

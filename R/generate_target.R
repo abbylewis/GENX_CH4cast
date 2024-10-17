@@ -28,7 +28,7 @@ generate_target <- function(save = T,
   }
   
   #Third- QAQC
-  data <- qaqc("L0.csv") #Running qaqc() is equivalent to reading in L1 file
+  data <- qaqc(here::here("L0.csv")) #Running qaqc() is equivalent to reading in L1 file
   
   #Format as target data
   target <- data %>%
@@ -45,7 +45,7 @@ generate_target <- function(save = T,
     group_by(project_id, site_id, datetime, duration, variable) %>%
     summarise(observation = mean(observation, na.rm = TRUE), .groups = "drop")
   
-  write.csv(target, "L1_target.csv", row.names = FALSE)
+  write.csv(target, here::here("L1_target.csv"), row.names = FALSE)
   return(target)
 }
 

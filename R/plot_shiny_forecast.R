@@ -45,8 +45,11 @@ plot_shiny_forecast <- function(forecast_date,
                  aes(x = datetime, y = observation, alpha = datetime >= forecast_date), 
                  color = "red") +
       scale_alpha_manual(values = c(1, .5)) +
-      theme(legend.position = "none") +
-        facet_wrap(~site_id)
+      theme(legend.position = "none",
+            axis.title.x = element_blank()) +
+      facet_wrap(~site_id) +
+      ggtitle(paste0("Forecasts for ", forecast_date),
+              paste0("Model: ", model_id))
   } else {
     p1 <- forecast %>%
       mutate(site_id = factor(site_id, levels = chamber_levels)) %>%
@@ -62,9 +65,12 @@ plot_shiny_forecast <- function(forecast_date,
                           datetime <= forecast_date + horiz * step), 
                  aes(x = datetime, y = observation, alpha = datetime >= forecast_date)) +
       scale_alpha_manual(values = c(1, .2)) +
-      theme(legend.position = "none") +
+      theme(legend.position = "none",
+            axis.title.x = element_blank()) +
       ylab("Flux (µmol/day)") +
-        facet_wrap(~site_id)
+      facet_wrap(~site_id) +
+      ggtitle(paste0("Forecasts for ", forecast_date),
+              paste0("Model: ", model_id))
   }
   
   return(p1)

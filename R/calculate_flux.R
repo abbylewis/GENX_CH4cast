@@ -12,9 +12,9 @@
 
 calculate_flux <- function(start_date = NULL,
                            end_date = NULL,
-                           modif_start_date = file.info("L0.csv")$mtime){
+                           modif_start_date = file.info(here::here("L0.csv"))$mtime){
   ### Load files ###
-  files <- list.files("./Raw_data/dropbox_downloads", full.names = T)
+  files <- list.files(here::here("Raw_data","dropbox_downloads"), full.names = T)
   #By default, only calculate slopes for files that have been modified/created since the last time we ran the script
   if(!is.null(modif_start_date)){
     files <- files[file.info(files)$mtime > modif_start_date]
@@ -32,7 +32,7 @@ calculate_flux <- function(start_date = NULL,
   
   if(length(files) == 0){
     message("No files to process")
-    return(read_csv("L0.csv", show_col_types = F))
+    return(read_csv(here::here("L0.csv"), show_col_types = F))
   }
   
   message(paste0("Calculating fluxes for ", length(files), " files"))
@@ -111,12 +111,12 @@ calculate_flux <- function(start_date = NULL,
               .groups = "drop")
   
   #Load previously calculated slopes
-  old_slopes <- read_csv("L0.csv", show_col_types = F) %>%
+  old_slopes <- read_csv(here::here("L0.csv"), show_col_types = F) %>%
     filter(!TIMESTAMP %in% slopes$TIMESTAMP)
   slopes_comb <- bind_rows(old_slopes, slopes)
   
   #Output
-  write.csv(slopes_comb, "L0.csv", row.names = FALSE)
+  write.csv(slopes_comb, here::here("L0.csv"), row.names = FALSE)
   return(slopes_comb)
 }
 

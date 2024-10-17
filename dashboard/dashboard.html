@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>GENX CH4cast</title>
+<title>GENX CH4cast Dashboard</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -39,27 +39,32 @@ ul.task-list li input[type="checkbox"] {
 
 <body class="fullcontent">
 
-<div class="page-layout-custom">  
-
-<header id="title-block-header" class="quarto-title-block default">
-<div class="quarto-title">
-<h1 class="title">GENX CH4cast</h1>
-</div>
-
-
-
-<div class="quarto-title-meta">
-
-    
-  
-    
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">GENX CH4cast Dashboard</h1>
+                      </div>
   </div>
+    
   
+  <div class="quarto-title-meta">
+
+      
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content quarto-banner-title-block" id="quarto-document-content">
 
 
-</header>
 
 
+
+<section id="forecast" class="level2">
+<h2 class="anchored" data-anchor-id="forecast">Forecast</h2>
 <div class="panel-grid layout-sidebar ms-md-0 layout-sidebar-left">
 <div class="cell panel-sidebar card bg-light p-2 g-col-24 g-col-lg-7">
 <div class="cell-output-display no-overflow-x">
@@ -70,7 +75,7 @@ ul.task-list li input[type="checkbox"] {
 <option value="climate_window">climate_window</option>
 <option value="climatology">climatology</option>
 <option value="cwae">cwae</option>
-<option value="ets">ets</option>
+<option value="ETS">ETS</option>
 <option value="persistence">persistence</option>
 <option value="prophet">prophet</option>
 <option value="RW">RW</option></select>
@@ -87,7 +92,7 @@ ul.task-list li input[type="checkbox"] {
 <div class="cell-output-display">
 <div id="forecast_date" class="shiny-date-input form-group shiny-input-container">
 <label class="control-label" id="forecast_date-label" for="forecast_date">Forecast date</label>
-<input type="text" class="form-control" aria-labelledby="forecast_date-label" title="Date format: yyyy-mm-dd" data-date-language="en" data-date-week-start="0" data-date-format="yyyy-mm-dd" data-date-start-view="month" data-min-date="2022-01-01" data-max-date="2024-10-16" data-initial-date="2024-10-16" data-date-autoclose="true" data-date-dates-disabled="null" data-date-days-of-week-disabled="null">
+<input type="text" class="form-control" aria-labelledby="forecast_date-label" title="Date format: yyyy-mm-dd" data-date-language="en" data-date-week-start="0" data-date-format="yyyy-mm-dd" data-date-start-view="month" data-min-date="2022-01-01" data-max-date="2024-10-17" data-initial-date="2024-10-17" data-date-autoclose="true" data-date-dates-disabled="null" data-date-days-of-week-disabled="null">
 </div>
 </div>
 </div>
@@ -101,15 +106,154 @@ ul.task-list li input[type="checkbox"] {
 </div>
 </div>
 </div>
+</section>
+<section id="raw-data" class="level2">
+<h2 class="anchored" data-anchor-id="raw-data">Raw data</h2>
+<div class="cell panel-input card bg-light p-2">
+<div class="cell-output-display">
+<h3 class="anchored">Which raw data file to plot</h3>
+</div>
+<div class="cell-output-display no-overflow-x">
+<div class="form-group shiny-input-container" style="width:100%;">
+<label class="control-label" id="raw_data_file-label" for="raw_data_file">Choose file name:</label>
+<div>
+<select id="raw_data_file" class="shiny-input-select"><option value="current.dat" selected="">current.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20241015005904.dat">GENX_INSTRUMENT_FLUX_COMB_20241015005904.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20241009025358.dat">GENX_INSTRUMENT_FLUX_COMB_20241009025358.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20241002020030.dat">GENX_INSTRUMENT_FLUX_COMB_20241002020030.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240918020037.dat">GENX_INSTRUMENT_FLUX_COMB_20240918020037.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240904020036.dat">GENX_INSTRUMENT_FLUX_COMB_20240904020036.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240821020045.dat">GENX_INSTRUMENT_FLUX_COMB_20240821020045.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240807020039.dat">GENX_INSTRUMENT_FLUX_COMB_20240807020039.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240724020046.dat">GENX_INSTRUMENT_FLUX_COMB_20240724020046.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240710020044.dat">GENX_INSTRUMENT_FLUX_COMB_20240710020044.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240626020047.dat">GENX_INSTRUMENT_FLUX_COMB_20240626020047.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240612020048.dat">GENX_INSTRUMENT_FLUX_COMB_20240612020048.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240529020052.dat">GENX_INSTRUMENT_FLUX_COMB_20240529020052.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240515020050.dat">GENX_INSTRUMENT_FLUX_COMB_20240515020050.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240501020048.dat">GENX_INSTRUMENT_FLUX_COMB_20240501020048.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240417020046.dat">GENX_INSTRUMENT_FLUX_COMB_20240417020046.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240403020045.dat">GENX_INSTRUMENT_FLUX_COMB_20240403020045.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240320020048.dat">GENX_INSTRUMENT_FLUX_COMB_20240320020048.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240306020331.dat">GENX_INSTRUMENT_FLUX_COMB_20240306020331.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240221020025.dat">GENX_INSTRUMENT_FLUX_COMB_20240221020025.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240207020104.dat">GENX_INSTRUMENT_FLUX_COMB_20240207020104.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240124020103.dat">GENX_INSTRUMENT_FLUX_COMB_20240124020103.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20240110020103.dat">GENX_INSTRUMENT_FLUX_COMB_20240110020103.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20231227020206.dat">GENX_INSTRUMENT_FLUX_COMB_20231227020206.dat</option>
+<option value="GENX_LGR_FLUX_20231211132528.dat">GENX_LGR_FLUX_20231211132528.dat</option>
+<option value="GENX_LGR_FLUX_20231129020057.dat">GENX_LGR_FLUX_20231129020057.dat</option>
+<option value="GENX_LGR_FLUX_20231115020050.dat">GENX_LGR_FLUX_20231115020050.dat</option>
+<option value="GENX_LGR_FLUX_20231101020057.dat">GENX_LGR_FLUX_20231101020057.dat</option>
+<option value="GENX_LGR_FLUX_20231018020051.dat">GENX_LGR_FLUX_20231018020051.dat</option>
+<option value="GENX_LGR_FLUX_20231004020052.dat">GENX_LGR_FLUX_20231004020052.dat</option>
+<option value="GENX_LGR_FLUX_20230920020053.dat">GENX_LGR_FLUX_20230920020053.dat</option>
+<option value="GENX_LGR_FLUX_20230906020046.dat">GENX_LGR_FLUX_20230906020046.dat</option>
+<option value="GENX_LGR_FLUX_20230823020100.dat">GENX_LGR_FLUX_20230823020100.dat</option>
+<option value="GENX_LGR_FLUX_20230809020056.dat">GENX_LGR_FLUX_20230809020056.dat</option>
+<option value="GENX_LGR_FLUX_20230726020058.dat">GENX_LGR_FLUX_20230726020058.dat</option>
+<option value="GENX_LGR_FLUX_20230712020047.dat">GENX_LGR_FLUX_20230712020047.dat</option>
+<option value="GENX_LGR_FLUX_20230628020047.dat">GENX_LGR_FLUX_20230628020047.dat</option>
+<option value="GENX_LGR_FLUX_20230614020050.dat">GENX_LGR_FLUX_20230614020050.dat</option>
+<option value="GENX_LGR_FLUX_20230531020048.dat">GENX_LGR_FLUX_20230531020048.dat</option>
+<option value="GENX_LGR_FLUX_20230517020106.dat">GENX_LGR_FLUX_20230517020106.dat</option>
+<option value="GENX_LGR_FLUX_20230503020046.dat">GENX_LGR_FLUX_20230503020046.dat</option>
+<option value="GENX_LGR_FLUX_20230419020042.dat">GENX_LGR_FLUX_20230419020042.dat</option>
+<option value="GENX_LGR_FLUX_20230405020045.dat">GENX_LGR_FLUX_20230405020045.dat</option>
+<option value="GENX_LGR_FLUX_20230322020011.dat">GENX_LGR_FLUX_20230322020011.dat</option>
+<option value="GENX_LGR_FLUX_20230308020039.dat">GENX_LGR_FLUX_20230308020039.dat</option>
+<option value="GENX_LGR_FLUX_20230222020035.dat">GENX_LGR_FLUX_20230222020035.dat</option>
+<option value="GENX_LGR_FLUX_20230208020036.dat">GENX_LGR_FLUX_20230208020036.dat</option>
+<option value="GENX_LGR_FLUX_20230125020032.dat">GENX_LGR_FLUX_20230125020032.dat</option>
+<option value="GENX_LGR_FLUX_20230111020020.dat">GENX_LGR_FLUX_20230111020020.dat</option>
+<option value="GENX_LGR_FLUX_20221228020037.dat">GENX_LGR_FLUX_20221228020037.dat</option>
+<option value="GENX_LGR_FLUX_20221214020034.dat">GENX_LGR_FLUX_20221214020034.dat</option>
+<option value="GENX_LGR_FLUX_20221130020038.dat">GENX_LGR_FLUX_20221130020038.dat</option>
+<option value="GENX_LGR_FLUX_20221116020037.dat">GENX_LGR_FLUX_20221116020037.dat</option>
+<option value="GENX_LGR_FLUX_20221102020037.dat">GENX_LGR_FLUX_20221102020037.dat</option>
+<option value="GENX_LGR_FLUX_20221019020032.dat">GENX_LGR_FLUX_20221019020032.dat</option>
+<option value="GENX_LGR_FLUX_20221005020009.dat">GENX_LGR_FLUX_20221005020009.dat</option>
+<option value="GENX_LGR_FLUX_20220921020009.dat">GENX_LGR_FLUX_20220921020009.dat</option>
+<option value="GENX_LGR_FLUX_20220907020007.dat">GENX_LGR_FLUX_20220907020007.dat</option>
+<option value="GENX_LGR_FLUX_20220824020007.dat">GENX_LGR_FLUX_20220824020007.dat</option>
+<option value="GENX_LGR_FLUX_20220810020007.dat">GENX_LGR_FLUX_20220810020007.dat</option>
+<option value="GENX_LGR_FLUX_20220727020008.dat">GENX_LGR_FLUX_20220727020008.dat</option>
+<option value="GENX_LGR_FLUX_20220713020008.dat">GENX_LGR_FLUX_20220713020008.dat</option>
+<option value="GENX_LGR_FLUX_20220629020007.dat">GENX_LGR_FLUX_20220629020007.dat</option>
+<option value="GENX_LGR_FLUX_20220615020008.dat">GENX_LGR_FLUX_20220615020008.dat</option>
+<option value="GENX_LGR_FLUX_20220601020008.dat">GENX_LGR_FLUX_20220601020008.dat</option>
+<option value="GENX_LGR_FLUX_20220518020007.dat">GENX_LGR_FLUX_20220518020007.dat</option>
+<option value="GENX_LGR_FLUX_20220504020005.dat">GENX_LGR_FLUX_20220504020005.dat</option>
+<option value="GENX_LGR_FLUX_20220420020007.dat">GENX_LGR_FLUX_20220420020007.dat</option>
+<option value="GENX_LGR_FLUX_20220406020007.dat">GENX_LGR_FLUX_20220406020007.dat</option>
+<option value="GENX_LGR_FLUX_20220323020007.dat">GENX_LGR_FLUX_20220323020007.dat</option>
+<option value="GENX_LGR_FLUX_20220309020006.dat">GENX_LGR_FLUX_20220309020006.dat</option>
+<option value="GENX_LGR_FLUX_20220223020007.dat">GENX_LGR_FLUX_20220223020007.dat</option>
+<option value="GENX_FLUX_20220209020007.dat">GENX_FLUX_20220209020007.dat</option>
+<option value="GENX_LGR_FLUX_20220209020007.dat">GENX_LGR_FLUX_20220209020007.dat</option>
+<option value="GENX_FLUX_20220126020008.dat">GENX_FLUX_20220126020008.dat</option>
+<option value="GENX_FLUX_20220112020006.dat">GENX_FLUX_20220112020006.dat</option>
+<option value="GENX_FLUX_20211229020006.dat">GENX_FLUX_20211229020006.dat</option>
+<option value="GENX_FLUX_20211215020005.dat">GENX_FLUX_20211215020005.dat</option>
+<option value="GENX_FLUX_20211201020007.dat">GENX_FLUX_20211201020007.dat</option>
+<option value="GENX_FLUX_20211117020007.dat">GENX_FLUX_20211117020007.dat</option>
+<option value="GENX_FLUX_20211103020007.dat">GENX_FLUX_20211103020007.dat</option>
+<option value="GENX_FLUX_20211020020006.dat">GENX_FLUX_20211020020006.dat</option>
+<option value="GENX_FLUX_20211006020007.dat">GENX_FLUX_20211006020007.dat</option>
+<option value="GENX_FLUX_20210922020007.dat">GENX_FLUX_20210922020007.dat</option>
+<option value="GENX_FLUX_20210908020006.dat">GENX_FLUX_20210908020006.dat</option>
+<option value="GENX_FLUX_20210825020006.dat">GENX_FLUX_20210825020006.dat</option>
+<option value="GENX_FLUX_20210811020006.dat">GENX_FLUX_20210811020006.dat</option>
+<option value="GENX_FLUX_20210728020005.dat">GENX_FLUX_20210728020005.dat</option>
+<option value="GENX_FLUX_20210715.dat">GENX_FLUX_20210715.dat</option>
+<option value="GENX_FLUX_20210630020005.dat">GENX_FLUX_20210630020005.dat</option>
+<option value="GENX_FLUX_20210616020006.dat">GENX_FLUX_20210616020006.dat</option>
+<option value="GENX_FLUX_20210602020004.dat">GENX_FLUX_20210602020004.dat</option>
+<option value="GENX_FLUX_20210519020004.dat">GENX_FLUX_20210519020004.dat</option></select>
+<script type="application/json" data-for="raw_data_file" data-nonempty="">{"plugins":["selectize-plugin-a11y"]}</script>
+</div>
+</div>
+</div>
+</div>
+<div class="panel-fill panel-grid">
+<div class="g-col-24">
+<div class="cell panel-fill">
+<div class="cell-output-display">
+<div class="shiny-plot-output html-fill-item" id="plot2" style="width:100%;height:400px;"></div>
+</div>
+</div>
+</div>
+</div>
 <p>
+<script type="application/shiny-prerendered" data-context="server-start">
+library(tidyverse)
+library(shiny)
+#Optional: download new data
+source(here::here("R","generate_target.R"))
+#target <- generate_target()
+
+models <- list.files(here::here("models"))
+
+file_options <- data.frame(files = list.files(here::here("Raw_data", "dropbox_downloads")))
+options_ordered <- file_options %>%
+  mutate(Date_num = str_extract(files, "\\d{8}"),
+         Date_date = as.Date(Date_num, format = "%Y%m%d"),
+         Date_date = ifelse(is.na(Date_date), Sys.Date(), Date_date)) %>%
+  arrange(desc(Date_date))
+</script>
+ 
 <script type="application/shiny-prerendered" data-context="server">
 source(here::here("R","generate_target.R"))
 source(here::here("R", "generate_tg_forecast.R"))
 source(here::here("R", "plot_shiny_forecast.R"))
+source(here::here("R", "plot_raw_data.R"))
 
 #Change file path here to try a different model
 output$plot1 <- renderPlot({
   plot_shiny_forecast(input$forecast_date, input$model, input$hist_data)
+  })
+output$plot2 <- renderPlot({
+  plot_raw_data(input$raw_data_file)
   })
 </script>
  
@@ -142,7 +286,7 @@ ojs_define <- function(..., .session = shiny::getDefaultReactiveDomain()) {
 </p>
 <!--html_preserve-->
 <script type="application/shiny-prerendered" data-context="dependencies">
-{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["selectize"]},{"type":"character","attributes":{},"value":["0.15.2"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/selectize"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/selectize.min.js","accessibility/js/selectize-plugin-a11y.min.js"]},{"type":"character","attributes":{},"value":["css/selectize.bootstrap3.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.9.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ionrangeslider-javascript"]},{"type":"character","attributes":{},"value":["2.3.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/ionrangeslider"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/ion.rangeSlider.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.9.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["strftime"]},{"type":"character","attributes":{},"value":["0.9.2"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/strftime"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["strftime-min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.9.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ionrangeslider-css"]},{"type":"character","attributes":{},"value":["2.3.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/ionrangeslider"]}]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["css/ion.rangeSlider.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.9.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["bootstrap-datepicker-js"]},{"type":"character","attributes":{},"value":["1.9.0"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/datepicker"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/bootstrap-datepicker.min.js"]},{"type":"NULL"},{"type":"character","attributes":{},"value":["<script>(function() {\n        var datepicker = $.fn.datepicker.noConflict();\n        $.fn.bsDatepicker = datepicker;\n      })();\n     <\/script>"]},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.9.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["bootstrap-datepicker-css"]},{"type":"character","attributes":{},"value":["1.9.0"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/datepicker"]}]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["css/bootstrap-datepicker3.min.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.9.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["htmltools-fill"]},{"type":"character","attributes":{},"value":["0.5.8.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["fill"]}]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["fill.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["htmltools"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.5.8.1"]}]}]}
+{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["selectize"]},{"type":"character","attributes":{},"value":["0.15.2"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/selectize"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/selectize.min.js","accessibility/js/selectize-plugin-a11y.min.js"]},{"type":"character","attributes":{},"value":["css/selectize.bootstrap3.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.9.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ionrangeslider-javascript"]},{"type":"character","attributes":{},"value":["2.3.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/ionrangeslider"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/ion.rangeSlider.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.9.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["strftime"]},{"type":"character","attributes":{},"value":["0.9.2"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/strftime"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["strftime-min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.9.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ionrangeslider-css"]},{"type":"character","attributes":{},"value":["2.3.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/ionrangeslider"]}]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["css/ion.rangeSlider.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.9.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["bootstrap-datepicker-js"]},{"type":"character","attributes":{},"value":["1.9.0"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/datepicker"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/bootstrap-datepicker.min.js"]},{"type":"NULL"},{"type":"character","attributes":{},"value":["<script>(function() {\n        var datepicker = $.fn.datepicker.noConflict();\n        $.fn.bsDatepicker = datepicker;\n      })();\n     <\/script>"]},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.9.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["bootstrap-datepicker-css"]},{"type":"character","attributes":{},"value":["1.9.0"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/datepicker"]}]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["css/bootstrap-datepicker3.min.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.9.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["htmltools-fill"]},{"type":"character","attributes":{},"value":["0.5.8.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["fill"]}]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["fill.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["htmltools"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.5.8.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["selectize"]},{"type":"character","attributes":{},"value":["0.15.2"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["www/shared/selectize"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/selectize.min.js","accessibility/js/selectize-plugin-a11y.min.js"]},{"type":"character","attributes":{},"value":["css/selectize.bootstrap3.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["shiny"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["1.9.1"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files","pkgVersion"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["htmltools-fill"]},{"type":"character","attributes":{},"value":["0.5.8.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["fill"]}]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["fill.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["htmltools"]},{"type":"logical","attributes":{},"value":[true]},{"type":"character","attributes":{},"value":["0.5.8.1"]}]}]}
 </script>
 <!--/html_preserve-->
 <!--html_preserve-->
@@ -150,8 +294,10 @@ ojs_define <- function(..., .session = shiny::getDefaultReactiveDomain()) {
 {"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["packages"]}},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["packages","version"]},"class":{"type":"character","attributes":{},"value":["data.frame"]},"row.names":{"type":"integer","attributes":{},"value":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67]}},"value":[{"type":"character","attributes":{},"value":["base","bslib","cachem","cli","colorspace","compiler","datasets","digest","dplyr","evaluate","fansi","fastmap","forcats","generics","ggplot2","glue","graphics","grDevices","grid","gtable","here","hms","htmltools","htmlwidgets","httpuv","jquerylib","jsonlite","knitr","later","lifecycle","lubridate","magrittr","memoise","methods","mime","munsell","pillar","pkgconfig","promises","purrr","R6","Rcpp","readr","rlang","rmarkdown","rprojroot","rstudioapi","sass","scales","shiny","stats","stringi","stringr","tibble","tidyr","tidyselect","tidyverse","timechange","tools","tzdb","utf8","utils","vctrs","withr","xfun","xtable","yaml"]},{"type":"character","attributes":{},"value":["4.4.1","0.8.0","1.1.0","3.6.3","2.1-1","4.4.1","4.4.1","0.6.37","1.1.4","1.0.0","1.0.6","1.2.0","1.0.0","0.1.3","3.5.1","1.8.0","4.4.1","4.4.1","4.4.1","0.3.5","1.0.1","1.1.3","0.5.8.1","1.6.4","1.6.15","0.1.4","1.8.9","1.48","1.3.2","1.0.4","1.9.3","2.0.3","2.0.1","4.4.1","0.12","0.5.1","1.9.0","2.0.3","1.3.0","1.0.2","2.5.1","1.0.13","2.1.5","1.1.4","2.28","2.0.4","0.16.0","0.4.9","1.3.0","1.9.1","4.4.1","1.8.4","1.5.1","3.2.1","1.3.1","1.2.1","2.0.0","0.3.0","4.4.1","0.4.0","1.2.4","4.4.1","0.6.5","3.0.1","0.48","1.8-4","2.3.10"]}]}]}
 </script>
 <!--/html_preserve-->
+</section>
 
-
+</main>
+<!-- /main column -->
 <script id="quarto-html-after-body" type="application/javascript">
 window.document.addEventListener("DOMContentLoaded", function (event) {
   const toggleBodyColorMode = (bsSheetEl) => {
@@ -572,7 +718,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
   }
 });
 </script>
-</div> <!-- /container fluid -->
+</div> <!-- /content -->
 
 
 

@@ -24,8 +24,8 @@ download_new_data <- function(){
            !grepl("backup", name))
   
   #Remove files that are already loaded and haven't been modified
-  already_loaded <- list.files("./Raw_data/dropbox_downloads")
-  loaded_file_info <- file.info(list.files("./Raw_data/dropbox_downloads", full.names = T)) %>%
+  already_loaded <- list.files(here::here("Raw_data","dropbox_downloads"))
+  loaded_file_info <- file.info(list.files(here::here("Raw_data","dropbox_downloads"), full.names = T)) %>%
     mutate(name = basename(row.names(.))) %>%
     select(name, mtime)
   modified <- relevant_files %>%
@@ -63,6 +63,6 @@ load_file <- function(path_display){
       ),
       auto_unbox = TRUE
     )),
-    httr::write_disk(paste0("./Raw_data/dropbox_downloads/", name), overwrite = T)
+    httr::write_disk(here::here("Raw_data","dropbox_downloads", name), overwrite = T)
   )
 }
