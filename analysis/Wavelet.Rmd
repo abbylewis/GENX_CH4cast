@@ -10,51 +10,29 @@ Methods from Ari's paper and this one https://agupubs.onlinelibrary.wiley.com/do
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
-source("../R/qaqc.R")
-
-raw <- read_csv("../Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_derived.csv", show_col_types = FALSE)
-raw2 <- read_csv("../Raw_data/GENX_Flux_SD_Loggernet_2023-01-01_to_2023-11-15_derived.csv", show_col_types = FALSE)
+#source("../R/qaqc.R")
+target <- read_csv("../L1_target.csv")
 met <- read_csv("../processed_data/met_output.csv")
 redox <- read_csv("../processed_data/REDOX_output.csv")
 
-ch4 <- bind_rows(raw, raw2) %>%
-  qaqc() %>%
-  mutate(time2 = as.Date(time2)) %>%
-  group_by(time2, chamber_treatment)  %>%
-  summarise(CH4_slope_umol_per_day = mean(CH4_slope_umol_per_day, na.rm = TRUE),
-            temp = mean(temp, na.rm = T),
-            therm10c = mean(therm10c, na.rm = T), 
-            corrected_depth = mean(corrected_depth, na.rm = T), 
-            salinity = mean(salinity, na.rm = T),
-            CO2_slope_mmol_per_day = mean(CO2_slope_mmol_per_day, na.rm = T)) %>%
-  mutate(CH4_slope_umol_per_day = ifelse(time2 > "2023-03-02" & time2 < "2023-06-27",
-                                         NA,
-                                         CH4_slope_umol_per_day)) %>%
-  left_join(met %>% rename(time2 = Date)) %>%
-  left_join(redox %>% rename(time2 = Date)) %>%
-  filter(!is.na(time2))
+ch4 <- target %>%
+  pivot_wider(names_from = variable, values_from = observation) %>%
+  left_join(met %>% rename(datetime = Date)) %>%
+  left_join(redox %>% rename(datetime = Date))
 
 mean_of_all <- ch4 %>%
-  group_by(time2) %>%
+  group_by(datetime) %>%
   summarise(across(where(is.numeric), mean, na.rm = TRUE)) %>%
-  mutate(chamber_treatment = "mean")
+  mutate(site_id = "mean")
 
 median_of_all <- ch4 %>%
-  group_by(time2) %>%
+  group_by(datetime) %>%
   summarise(across(where(is.numeric), median, na.rm = TRUE)) %>%
-  mutate(chamber_treatment = "median")
+  mutate(site_id = "median")
 
 ch4 <- ch4 %>%
   full_join(mean_of_all) %>%
   full_join(median_of_all)
-
-#Not loading driver data separately because it is already in the CH4 data file
-ch4 %>%
-  filter(time2 > "2022-12-01", time2 < "2023-02-01") %>%
-  ggplot(aes(x = time2, y = CH4_slope_umol_per_day)) +
-  #geom_line()+
-  geom_point(size = 0.2) +
-  facet_wrap(~chamber_treatment)
 
 chamber_levels = c("c_1_amb", "c_2_amb", "c_3_e0.75", "c_4_e1.5", "c_5_e2.25",
                    "c_6_e2.25", "c_7_e3.0", "c_8_e3.75", "c_9_e3.75", "c_10_e4.5",
@@ -73,14 +51,14 @@ library(waveslim)
 analyze_wavelets <- function(ch4 = contrib_data, treatment, var_name) {
   #Format data (dealing with irregularly spaced data)
   test_data <- ch4 %>%
-    filter(chamber_treatment == treatment) %>%
+    filter(site_id == treatment) %>%
     filter(!is.na(!!sym(var_name)))
   
   #Run wavelet transformation
   data <- zoo::na.approx(test_data[[var_name]])
   wavelet <- waveslim::modwt(data, "la8", n.levels = 9)
   
-  meshed <- data.frame(time2 = test_data$time2,
+  meshed <- data.frame(datetime = test_data$datetime,
                        data,
                        d_1 = wavelet[[1]],
                        d_2 = wavelet[[2]],
@@ -91,7 +69,7 @@ analyze_wavelets <- function(ch4 = contrib_data, treatment, var_name) {
                        d_64 = wavelet[[7]],
                        d_128 = wavelet[[8]],
                        d_256 = wavelet[[9]]) %>%
-    pivot_longer(cols = -c(data, time2)) %>%
+    pivot_longer(cols = -c(data, datetime)) %>%
     mutate(name = as.numeric(sub("d_", "", name)),
            name = paste0(name, " days"),
            name = factor(name, levels = c("1 days",
@@ -105,7 +83,7 @@ analyze_wavelets <- function(ch4 = contrib_data, treatment, var_name) {
                                           "256 days")))
   
   df <- meshed %>% 
-    mutate(chamber_treatment = treatment,
+    mutate(site_id = treatment,
            var_name = var_name)
   
   return(df)
@@ -113,27 +91,28 @@ analyze_wavelets <- function(ch4 = contrib_data, treatment, var_name) {
 
 #Apply across all treatments and sites
 grid <- ch4 %>%
-  pivot_longer(cols = -c(time2, chamber_treatment), names_to = "var_name", values_to = "value")
+  pivot_longer(cols = -c(datetime, site_id, project_id, duration), 
+               names_to = "var_name", values_to = "value")
 
 double_map <- function(treatment, ch4, var_name){
-  dfs <- map(unique(ch4$chamber_treatment), analyze_wavelets, ch4 = ch4, var_name = var_name) %>%
+  dfs <- map(unique(ch4$site_id), analyze_wavelets, ch4 = ch4, var_name = var_name) %>%
     bind_rows()
 }
 
-dfs <- map(unique(grid$var_name), double_map, ch4 = ch4, treatment = unique(ch4$chamber_treatment)) %>%
+dfs <- map(unique(grid$var_name), double_map, ch4 = ch4, treatment = unique(ch4$site_id)) %>%
   bind_rows()
 
 #Plot
 dfs %>%
-  group_by(name, chamber_treatment, var_name) %>%
+  group_by(name, site_id, var_name) %>%
   summarize(var = var(value)) %>%
-  group_by(chamber_treatment, var_name) %>%
+  group_by(site_id, var_name) %>%
   mutate(tot_var = sum(var))%>%
-  mutate(chamber_treatment = factor(chamber_treatment,
+  mutate(site_id = factor(site_id,
                                     levels = chamber_levels)) %>%
-  ggplot(aes(x = name, y = var/tot_var * 100, color = chamber_treatment)) +
-  geom_point(data = . %>% filter(!chamber_treatment %in% c("mean", "median"))) +
-  geom_line(aes(x = as.numeric(name)), data = . %>% filter(chamber_treatment %in% c("mean", "median"))) +
+  ggplot(aes(x = name, y = var/tot_var * 100, color = site_id)) +
+  geom_point(data = . %>% filter(!site_id %in% c("mean", "median"))) +
+  geom_line(aes(x = as.numeric(name)), data = . %>% filter(site_id %in% c("mean", "median"))) +
   labs(x = "Scale",
        y = "Percentage of total variance") +
   scale_color_viridis_d(name = "Site") +
@@ -176,34 +155,34 @@ discrete_scales <- dfs %>%
                                                           "128 days", 
                                                           "256 days"), 
                                               "Seasonal", NA)))) %>%
-  group_by(grouped_scale, chamber_treatment, time2, var_name) %>%
+  group_by(grouped_scale, site_id, datetime, var_name) %>%
   summarize(value = sum(value)) %>%
   pivot_wider(names_from = var_name, values_from = value) 
 
 #Separate explanatory variables
 discrete_scales_exp <- discrete_scales %>%
   dplyr::select(-CH4_slope_umol_per_day) %>%
-  pivot_longer(cols = -c(grouped_scale, chamber_treatment, time2), 
+  pivot_longer(cols = -c(grouped_scale, site_id, datetime), 
                names_to = "exp_var", values_to = "exp_var_value") %>%
   filter(!is.na(exp_var_value)) %>%
   rename(grouped_scale_exp = grouped_scale)
 
 #Calculate mutual information
 mut_infs <- discrete_scales %>%
-  dplyr::select(c(grouped_scale, chamber_treatment, time2, CH4_slope_umol_per_day)) %>%
-  left_join(discrete_scales_exp, by = c("chamber_treatment", "time2")) %>%
+  dplyr::select(c(grouped_scale, site_id, datetime, CH4_slope_umol_per_day)) %>%
+  left_join(discrete_scales_exp, by = c("site_id", "datetime")) %>%
   filter(!is.na(exp_var_value),
          !is.na(CH4_slope_umol_per_day)) %>%
-  group_by(chamber_treatment, grouped_scale, exp_var, grouped_scale_exp) %>%
+  group_by(site_id, grouped_scale, exp_var, grouped_scale_exp) %>%
   summarize(entropy_y = entropy(bin(CH4_slope_umol_per_day, 9)),
             mut_inf = MutInf(bin(exp_var_value, 9), bin(CH4_slope_umol_per_day, 9))/entropy_y)
 
 #Plot
 mut_infs %>%
-  mutate(chamber_treatment = factor(chamber_treatment,
+  mutate(site_id = factor(site_id,
                                     levels = chamber_levels),
          grouped_scale = paste0(grouped_scale, " (CH4)")) %>%
-  ggplot(aes(x = mut_inf, y = exp_var, color = chamber_treatment)) +
+  ggplot(aes(x = mut_inf, y = exp_var, color = site_id)) +
   geom_point() + 
   facet_grid(cols = vars(grouped_scale), rows = vars(grouped_scale_exp)) +
   ylab("Explanatory variable") +
@@ -212,17 +191,17 @@ mut_infs %>%
 
 for(scale in unique(discrete_scales$grouped_scale)) {
   plot <- discrete_scales %>%
-    dplyr::select(c(grouped_scale, chamber_treatment, time2, CH4_slope_umol_per_day)) %>%
-    left_join(discrete_scales_exp, by = c("chamber_treatment", "time2")) %>%
+    dplyr::select(c(grouped_scale, site_id, datetime, CH4_slope_umol_per_day)) %>%
+    left_join(discrete_scales_exp, by = c("site_id", "datetime")) %>%
     filter(!is.na(exp_var_value),
            !is.na(CH4_slope_umol_per_day),
            grouped_scale == scale,
            grouped_scale_exp == scale) %>%
-    group_by(exp_var, chamber_treatment) %>%
+    group_by(exp_var, site_id) %>%
     mutate(cor = cor(CH4_slope_umol_per_day, exp_var_value, method = "spearman")) %>%
     ggplot(aes(y = CH4_slope_umol_per_day, x = exp_var_value, color = abs(cor))) +
     geom_point() +
-    ggh4x::facet_grid2(rows = vars(exp_var), cols = vars(chamber_treatment), 
+    ggh4x::facet_grid2(rows = vars(exp_var), cols = vars(site_id), 
                        scales = "free", independent = "x") +
     scale_color_viridis_c() +
     theme(strip.text.y = element_text(angle = 0),
@@ -234,21 +213,21 @@ for(scale in unique(discrete_scales$grouped_scale)) {
 
 for(scale in unique(discrete_scales$grouped_scale)) {
   plot <- discrete_scales %>%
-    dplyr::select(c(grouped_scale, chamber_treatment, time2, CH4_slope_umol_per_day)) %>%
+    dplyr::select(c(grouped_scale, site_id, datetime, CH4_slope_umol_per_day)) %>%
     full_join(discrete_scales %>%
-                dplyr::select(c(grouped_scale, chamber_treatment, time2, CH4_slope_umol_per_day)) %>%
-                rename(chamber_treatment2 = chamber_treatment,
+                dplyr::select(c(grouped_scale, site_id, datetime, CH4_slope_umol_per_day)) %>%
+                rename(site_id2 = site_id,
                        CH4_slope_umol_per_day2 = CH4_slope_umol_per_day)) %>%
     filter(!is.na(CH4_slope_umol_per_day),
            !is.na(CH4_slope_umol_per_day2),
            grouped_scale == scale) %>%
-    group_by(chamber_treatment, chamber_treatment2) %>%
+    group_by(site_id, site_id2) %>%
     mutate(cor = cor(CH4_slope_umol_per_day, CH4_slope_umol_per_day2, method = "spearman"),
-           chamber_treatment = factor(chamber_treatment, levels = chamber_levels),
-           chamber_treatment2 = factor(chamber_treatment2, levels = chamber_levels)) %>%
+           site_id = factor(site_id, levels = chamber_levels),
+           site_id2 = factor(site_id2, levels = chamber_levels)) %>%
     ggplot(aes(y = CH4_slope_umol_per_day, x = CH4_slope_umol_per_day2, color = abs(cor))) +
     geom_point() +
-    ggh4x::facet_grid2(rows = vars(chamber_treatment2), cols = vars(chamber_treatment), 
+    ggh4x::facet_grid2(rows = vars(site_id2), cols = vars(site_id), 
                        scales = "free", independent = "all") +
     scale_color_viridis_c() +
     theme(strip.text.y = element_text(angle = 0),
@@ -261,27 +240,27 @@ for(scale in unique(discrete_scales$grouped_scale)) {
 discrete_scales %>%
   filter(grouped_scale == "Seasonal") %>%
   ungroup()%>%
-  select(time2, chamber_treatment, CH4_slope_umol_per_day, ws_ms_rm_avg) %>%
-  pivot_longer(cols = -c(time2, chamber_treatment), names_to = "var_name", values_to = "value") %>%
-  ggplot(aes(x = time2, y = value, color = chamber_treatment)) +
+  select(datetime, site_id, CH4_slope_umol_per_day, WS_ms_RM_Avg) %>%
+  pivot_longer(cols = -c(datetime, site_id), names_to = "var_name", values_to = "value") %>%
+  ggplot(aes(x = datetime, y = value, color = site_id)) +
   geom_line() +
-  facet_grid(rows = vars(var_name), cols = vars(chamber_treatment), scales = "free_y") 
+  facet_grid(rows = vars(var_name), cols = vars(site_id), scales = "free_y") 
 
 discrete_scales %>%
   filter(grouped_scale == "Seasonal") %>%
   ungroup()%>%
-  select(time2, chamber_treatment, CH4_slope_umol_per_day, therm10c) %>%
-  pivot_longer(cols = -c(time2, chamber_treatment), names_to = "var_name", values_to = "value") %>%
-  ggplot(aes(x = time2, y = value, color = chamber_treatment)) +
+  select(datetime, site_id, CH4_slope_umol_per_day, therm10c) %>%
+  pivot_longer(cols = -c(datetime, site_id), names_to = "var_name", values_to = "value") %>%
+  ggplot(aes(x = datetime, y = value, color = site_id)) +
   geom_line() +
-  facet_grid(rows = vars(var_name), cols = vars(chamber_treatment), scales = "free_y") 
+  facet_grid(rows = vars(var_name), cols = vars(site_id), scales = "free_y") 
 
 discrete_scales %>%
-  dplyr::select(c(grouped_scale, chamber_treatment, time2, CH4_slope_umol_per_day)) %>%
+  dplyr::select(c(grouped_scale, site_id, datetime, CH4_slope_umol_per_day)) %>%
   left_join(discrete_scales_exp %>% 
               pivot_wider(names_from = exp_var, 
                           values_from = exp_var_value), 
-            by = c("chamber_treatment", "time2")) %>%
+            by = c("site_id", "datetime")) %>%
   filter(grouped_scale == "Diel",
          grouped_scale_exp == "Seasonal") %>%
   ungroup() %>%
@@ -289,19 +268,21 @@ discrete_scales %>%
   geom_point(size = 0.2, alpha = 0.5) +
   geom_smooth(method = "lm") +
   scale_y_continuous(trans='pseudo_log') +
-  facet_grid(cols = vars(chamber_treatment), scales = "free_y") 
+  facet_grid(cols = vars(site_id), scales = "free_y") 
 
 mut_infs %>%
   filter(grouped_scale == "Diel") %>%
-  mutate(chamber_treatment = factor(chamber_treatment,
+  mutate(site_id = factor(site_id,
                                     levels = chamber_levels),
          grouped_scale = paste0(grouped_scale, " (CH4)")) %>%
-  ggplot(aes(x = mut_inf, y = exp_var, color = chamber_treatment)) +
+  ggplot(aes(x = mut_inf, y = exp_var, color = site_id)) +
   geom_point() + 
   facet_grid(cols = vars(grouped_scale), rows = vars(grouped_scale_exp)) +
   ylab("Explanatory variable") +
   xlab("Relative mutual information") +
   scale_color_viridis_d()
+
+plot
 ```
 
 With lags
@@ -310,14 +291,14 @@ With lags
 #Separate explanatory variables
 discrete_scales_exp <- discrete_scales %>%
   dplyr::select(-CH4_slope_umol_per_day) %>%
-  pivot_longer(cols = -c(grouped_scale, chamber_treatment, time2), 
+  pivot_longer(cols = -c(grouped_scale, site_id, datetime), 
                names_to = "exp_var", values_to = "exp_var_value") %>%
   filter(!is.na(exp_var_value)) %>%
   rename(grouped_scale_exp = grouped_scale)
 
 fill_lags <- function(all_lags, lag) {
   if(lag == 0 | nrow(all_lags) == 0) {
-    return(all_lags %>% filter(is.na(chamber_treatment))) #empty
+    return(all_lags %>% filter(is.na(site_id))) #empty
   }
   if(lag < 0){
     filled_lags <- all_lags %>%
@@ -337,34 +318,34 @@ fill_lags <- function(all_lags, lag) {
 output <- pmap(list(-200:0), 
               ~fill_lags(all_lags = discrete_scales_exp %>%
                            group_by(grouped_scale_exp, 
-                                    chamber_treatment, 
+                                    site_id, 
                                     exp_var) %>%
-                           arrange(time2),
+                           arrange(datetime),
                          .x),
               .progress = T) %>%
   bind_rows()
 
 #Calculate mutual information
 lagged_mut_infs <- discrete_scales %>%
-  dplyr::select(c(grouped_scale, chamber_treatment, time2, CH4_slope_umol_per_day)) %>%
-  left_join(output, by = c("chamber_treatment", "time2")) %>%
+  dplyr::select(c(grouped_scale, site_id, datetime, CH4_slope_umol_per_day)) %>%
+  left_join(output, by = c("site_id", "datetime")) %>%
   filter(!is.na(exp_var_value_lag),
          !is.na(CH4_slope_umol_per_day)) %>%
-  group_by(chamber_treatment, grouped_scale, exp_var, grouped_scale_exp, lag) %>%
+  group_by(site_id, grouped_scale, exp_var, grouped_scale_exp, lag) %>%
   summarize(entropy_y = entropy(bin(CH4_slope_umol_per_day, 9)),
             mut_inf = MutInf(bin(exp_var_value, 9), bin(CH4_slope_umol_per_day, 9))/entropy_y) 
 
 best_lagged_mut_infs <- lagged_mut_infs %>%
-  group_by(chamber_treatment, grouped_scale, exp_var, grouped_scale_exp) %>%
+  group_by(site_id, grouped_scale, exp_var, grouped_scale_exp) %>%
   filter(mut_inf == max(mut_inf, na.rm = T))
 
 #Plot
-for(site in unique(discrete_scales$chamber_treatment)){
+for(site in unique(discrete_scales$site_id)){
   plot <- best_lagged_mut_infs %>%
-    filter(chamber_treatment == site) %>%
+    filter(site_id == site) %>%
     ggplot(aes(x = mut_inf, y = exp_var, fill = lag)) +
     geom_col() + 
-    geom_col(data = mut_infs %>% filter(chamber_treatment == site), fill = "black")+
+    geom_col(data = mut_infs %>% filter(site_id == site), fill = "black")+
     facet_grid(cols = vars(grouped_scale), rows = vars(grouped_scale_exp)) +
     ylab("Explanatory variable") +
     xlab("Relative mutual information") +
@@ -376,11 +357,11 @@ for(site in unique(discrete_scales$chamber_treatment)){
 for(scale in unique(discrete_scales$grouped_scale)){
   plot <- lagged_mut_infs %>%
     filter(lag <= 0, lag >=-100) %>%
-    mutate(chamber_treatment = factor(chamber_treatment,
+    mutate(site_id = factor(site_id,
                                     levels = chamber_levels),
          grouped_scale = paste0(grouped_scale, " (CH4)")) %>%
     filter(grouped_scale_exp == scale) %>%
-    ggplot(aes(x = lag, y = mut_inf, color = chamber_treatment))+
+    ggplot(aes(x = lag, y = mut_inf, color = site_id))+
     geom_line()+
     scale_color_viridis_d()+
     facet_grid(rows = vars(exp_var), cols = vars(grouped_scale))+
