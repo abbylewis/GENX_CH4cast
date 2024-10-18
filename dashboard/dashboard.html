@@ -76,6 +76,7 @@ ul.task-list li input[type="checkbox"] {
 <option value="climatology">climatology</option>
 <option value="cwae">cwae</option>
 <option value="ETS">ETS</option>
+<option value="met_lm_step">met_lm_step</option>
 <option value="persistence">persistence</option>
 <option value="prophet">prophet</option>
 <option value="RW">RW</option></select>
@@ -248,13 +249,18 @@ source(here::here("R", "generate_tg_forecast.R"))
 source(here::here("R", "plot_shiny_forecast.R"))
 source(here::here("R", "plot_raw_data.R"))
 
-#Change file path here to try a different model
+#Code for plots
 output$plot1 <- renderPlot({
   plot_shiny_forecast(input$forecast_date, input$model, input$hist_data)
   })
 output$plot2 <- renderPlot({
   plot_raw_data(input$raw_data_file)
   })
+
+#Code for button - doesn't work because I need authentication
+#observeEvent(input$new_data, {
+#  target <- generate_target()
+#})
 </script>
  
 <script type="application/shiny-prerendered" data-context="server-extras">

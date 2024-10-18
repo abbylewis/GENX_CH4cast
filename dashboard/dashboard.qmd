@@ -48,6 +48,8 @@ plotOutput('plot1')
 #| panel: input
 h3("Which raw data file to plot")
 selectInput('raw_data_file', 'Choose file name:', options_ordered$files, selected = "current.dat", width = "100%")
+#br()
+#actionButton('new_data', 'Get newest data')
 ```
 
 ```{r}
@@ -62,12 +64,17 @@ source(here::here("R", "generate_tg_forecast.R"))
 source(here::here("R", "plot_shiny_forecast.R"))
 source(here::here("R", "plot_raw_data.R"))
 
-#Change file path here to try a different model
+#Code for plots
 output$plot1 <- renderPlot({
   plot_shiny_forecast(input$forecast_date, input$model, input$hist_data)
   })
 output$plot2 <- renderPlot({
   plot_raw_data(input$raw_data_file)
   })
+
+#Code for button - doesn't work because I need authentication
+#observeEvent(input$new_data, {
+#  target <- generate_target()
+#})
 ```
 

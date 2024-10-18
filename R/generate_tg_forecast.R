@@ -1,4 +1,3 @@
-here::i_am("README.md")
 source(here::here("R","run_all_sites.R"))
 source(here::here("R","load_met.R"))
 
@@ -29,22 +28,24 @@ generate_tg_forecast <- function(forecast_date,
   if(noaa){ #Some forecasts do not use any noaa driver data --> in that case skip download
     forecast_date <- as.Date(forecast_date)
     
-    #This function loads meteorology and harmonizes past/future predictions
-    load_met(forecast_date = forecast_date) 
-    
     #Identify available files
-    saved_met <- list.files(paste0("./met_downloads/"))
+    saved_met <- list.files(here::here("met_downloads"))
+    if(length(saved_met[grepl(forecast_date, saved_met)]) == 0){
+      #This function loads meteorology and harmonizes past/future predictions
+      met <- load_met(forecast_date = forecast_date) 
+      saved_met <- list.files(here::here("met_downloads"))
+    }
     saved_met_relevant <- saved_met[grepl(forecast_date, saved_met)]
 
     #Load forecasts
-    noaa_future_daily <- read_csv(paste0("./met_downloads/",
-                                         saved_met_relevant[grepl("future", saved_met_relevant)])) |> 
-      mutate(datetime = lubridate::as_date(datetime))
+    noaa_future_daily <- read_csv(here::here("met_downloads",
+                                             saved_met_relevant[grepl("future", saved_met_relevant)]),
+                                  show_col_types = F)
     
     # Load historical data
-    noaa_past_mean <- read_csv(paste0("./met_downloads/",
-                                         saved_met_relevant[grepl("past", saved_met_relevant)])) |> 
-      mutate(datetime = lubridate::as_date(datetime))
+    noaa_past_mean <- read_csv(here::here("met_downloads",
+                                         saved_met_relevant[grepl("past", saved_met_relevant)]),
+                               show_col_types = F)
     
   } else {
     forecast_date <- as.Date(forecast_date)
@@ -104,13 +105,12 @@ generate_tg_forecast <- function(forecast_date,
         ggplot(aes(x = datetime, y = prediction)) +
         geom_hline(yintercept = 0, color = "grey50") +
         geom_vline(xintercept = forecast_date) +
-        geom_line(aes(group = parameter)) +
+        geom_line(aes(group = parameter), alpha = 0.3) +
         geom_point(data = target %>%
                      mutate(site_id = factor(site_id, levels = chamber_levels)) %>%
                      filter(datetime >= forecast_date - 35 * step,
                             datetime <= forecast_date + horiz * step), 
-                   aes(x = datetime, y = observation, alpha = datetime >= forecast_date), 
-                   color = "red") +
+                   aes(x = datetime, y = observation, alpha = datetime >= forecast_date)) +
         scale_alpha_manual(values = c(1, .5)) +
         theme(legend.position = "none")
       if(length(model_variables) == 1) {

@@ -26,7 +26,7 @@ plot_shiny_forecast <- function(forecast_date,
     forecast_file <- here::here("outputs", paste0("daily-", forecast_date, "-", model_id, ".csv.gz"))
   }
   
-  forecast <- read_csv(forecast_file)
+  forecast <- read_csv(forecast_file, show_col_types = F)
   target <- read_csv(here::here("L1_target.csv"), show_col_types = F)
   horiz = 35
   step = 1
@@ -37,13 +37,12 @@ plot_shiny_forecast <- function(forecast_date,
       ggplot(aes(x = datetime, y = prediction)) +
       geom_hline(yintercept = 0, color = "grey50") +
       geom_vline(xintercept = forecast_date) +
-      geom_line(aes(group = parameter)) +
+      geom_line(aes(group = parameter), alpha = 0.3) +
       geom_point(data = target %>%
                    mutate(site_id = factor(site_id, levels = chamber_levels)) %>%
-                   dplyr::filter(datetime >= forecast_date - hist_data * step,
-                          datetime <= forecast_date + horiz * step), 
-                 aes(x = datetime, y = observation, alpha = datetime >= forecast_date), 
-                 color = "red") +
+                   dplyr::filter(datetime >= as.Date(forecast_date) - hist_data * step,
+                                 datetime <= as.Date(forecast_date) + horiz * step), 
+                 aes(x = datetime, y = observation, alpha = datetime >= forecast_date)) +
       scale_alpha_manual(values = c(1, .5)) +
       theme(legend.position = "none",
             axis.title.x = element_blank()) +
@@ -61,8 +60,8 @@ plot_shiny_forecast <- function(forecast_date,
       geom_ribbon(aes(ymin = mu - sigma, ymax = mu + sigma), alpha = 0.3) +
       geom_point(data = target %>%
                    mutate(site_id = factor(site_id, levels = chamber_levels)) %>%
-                   dplyr::filter(datetime >= forecast_date - hist_data * step,
-                          datetime <= forecast_date + horiz * step), 
+                   dplyr::filter(datetime >= as.Date(forecast_date) - hist_data * step,
+                                 datetime <= as.Date(forecast_date) + horiz * step), 
                  aes(x = datetime, y = observation, alpha = datetime >= forecast_date)) +
       scale_alpha_manual(values = c(1, .2)) +
       theme(legend.position = "none",

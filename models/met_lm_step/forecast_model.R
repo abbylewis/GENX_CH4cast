@@ -4,12 +4,12 @@
 
 #### Step 0: load packages
 library(tidyverse)
-source("./R/generate_target.R")
-source("./R/load_met.R")
+source(here::here("R","generate_target.R"))
+source(here::here("R","load_met.R"))
 
 #### Step 1: Set model specifications
-model_id <- "met.lm.step"
-all_forecast_vars <- read_csv("forecast_variables.csv", show_col_types = FALSE)
+model_id <- "met_lm_step"
+all_forecast_vars <- read_csv(here::here("forecast_variables.csv"), show_col_types = FALSE)
 model_variables <- all_forecast_vars$`"official" targets name`
 # Global parameters used in generate_tg_forecast()
 all_sites = F #Whether the model is /trained/ across all sites
@@ -40,7 +40,8 @@ forecast_model <- function(site,
   site_target <- site_target_raw |>
     tidyr::pivot_wider(names_from = "variable", values_from = "observation") |>
     dplyr::left_join(noaa_past_mean, 
-                     by = c("datetime"))
+                     by = c("datetime")) %>%
+    na.omit()
   
   if(!var %in% names(site_target) || sum(!is.na(site_target[var])) == 0){
     message(paste0("No target observations at site ",site,
@@ -67,14 +68,25 @@ forecast_model <- function(site,
     #  Get 30-day predicted temp ensemble at the site
     noaa_future <- noaa_future_daily 
     
+    new_data <- noaa_future |>
+      select(AirTemp_C_mean, RH_percent_mean, Rain_mm_sum, WindSpeed_ms_mean)
+    
+    preds <- predict(fit, new_data)
+    
     # use the linear model to forecast target variable for each ensemble member
     forecast <- noaa_future |> 
       mutate(site_id = site,
-             prediction = predict(fit, tibble(AirTemp_C_mean, 
-                                              RH_percent_mean, 
-                                              Rain_mm_sum, 
-                                              WindSpeed_ms_mean)), #THIS IS THE FORECAST STEP
-             variable = var)
+             prediction = predict(fit, 
+                                  tibble(AirTemp_C_mean, 
+                                         RH_percent_mean, 
+                                         Rain_mm_sum,
+                                         WindSpeed_ms_mean)), #THIS IS THE FORECAST STEP
+             variable = var) %>%
+      group_by(datetime, reference_datetime, site_id, variable) %>%
+      summarise(mu = mean(prediction, na.rm = T),
+                sigma = sqrt(sd(prediction, na.rm = T)^2 + sd(fit$residuals)^2),
+                .groups = "drop") %>%
+      pivot_longer(cols = c(mu, sigma), names_to = "parameter", values_to = "prediction")
     
     # Format results to EFI standard
     forecast <- forecast |>
@@ -82,7 +94,7 @@ forecast_model <- function(site,
              model_id = model_id,
              reference_datetime = forecast_date,
              duration = "P1D",
-             family = "ensemble") |>
+             family = "normal") |>
       select(project_id, model_id, datetime, reference_datetime, duration,
              site_id, family, parameter, variable, prediction)
   }

@@ -20,12 +20,12 @@ plot_raw_data <- function(filename){
     data_small <- data_raw %>%
       filter(is.na(LGR_Time) |
                !duplicated(LGR_Time) | 
-               !duplicated(CH4_ppm)) %>% #I've spent some time looking into this and there are some duplicated LGR rows
-      select(TIMESTAMP, CH4_ppm, CO2_ppm, MIU_VALVE, GasT_C)
+               !duplicated(CH4d_ppm)) %>% #I've spent some time looking into this and there are some duplicated LGR rows
+      select(TIMESTAMP, CH4d_ppm, CO2d_ppm, MIU_VALVE, GasT_C)
   } else {
     data_small <- data_raw %>%
       mutate(CO2_ppm = NA) %>%
-      select(TIMESTAMP, CH4_ppm, CO2_ppm, MIU_VALVE, GasT_C)
+      select(TIMESTAMP, CH4d_ppm, CO2d_ppm, MIU_VALVE, GasT_C)
   }
   rm(data_raw) #Save memory
   
@@ -34,8 +34,8 @@ plot_raw_data <- function(filename){
   index_cutoff <- 30 #Cutoff to use when we have plenty of data
   summer_index_cutoff <- 15 #Cutoff to use when there are < 35 measurements
   filtered_data_all <- data_small %>%
-    mutate(CH4_ppm = as.numeric(CH4_ppm),
-           CO2_ppm = as.numeric(CO2_ppm),
+    mutate(CH4d_ppm = as.numeric(CH4d_ppm),
+           CO2d_ppm = as.numeric(CO2d_ppm),
            GasT_C = as.numeric(GasT_C),
            MIU_VALVE = as.numeric(MIU_VALVE)) %>%
     filter(!MIU_VALVE == 16,
@@ -49,7 +49,7 @@ plot_raw_data <- function(filename){
            cutoff = ifelse(max(index) < 35, 
                            summer_index_cutoff,
                            index_cutoff),
-           n = sum(index > cutoff & !is.na(CH4_ppm))) %>%
+           n = sum(index > cutoff & !is.na(CH4d_ppm))) %>%
     #Issues during this window (concs > 100000 ppm)
     filter(TIMESTAMP > "2024-07-09 15:00:00" | TIMESTAMP < "2024-07-09 6:00:00") %>%
     mutate(Date = as.Date(TIMESTAMP))
@@ -60,7 +60,7 @@ plot_raw_data <- function(filename){
            MIU_VALVE = factor(MIU_VALVE,
                               levels = 1:12,
                               labels = chamber_levels)) %>%
-    ggplot(aes(x = index, y = CH4_ppm, group = start, color = Date)) +
+    ggplot(aes(x = index, y = CH4d_ppm, group = start, color = Date)) +
     geom_line()+
     scale_color_viridis_d()+
     facet_wrap(~MIU_VALVE)+

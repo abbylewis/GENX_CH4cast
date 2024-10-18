@@ -1,4 +1,4 @@
-#source("./R/convert_to_vera_met_P1D.R")
+source(here::here("R","convert_to_vera_met_P1D.R"))
 
 #' load_met
 #' 
@@ -79,19 +79,21 @@ load_met <- function(forecast_date = Sys.Date(),
   
   #Filter to the future
   weather_pred_export <- weather_pred_adjust %>%
+    select(-unit, -site_id) %>%
     filter(datetime >= forecast_date) %>%
-    pivot_wider(names_from = variable, values_from = prediction)
+    pivot_wider(names_from = variable, values_from = prediction) %>%
+    rename(parameter = ensemble)
   
   write.csv(weather_pred_export,
-            paste0("./met_downloads/future_daily_",
-                   forecast_date,".csv"),
+            here::here("met_downloads",
+                       paste0("future_daily_",forecast_date,".csv")),
             row.names = F)
   
   write.csv(weather_hist %>%
-              dplyr::select(-unit) %>%
+              dplyr::select(-unit, -site_id) %>%
               pivot_wider(names_from = variable, values_from = prediction),
-            paste0("./met_downloads/past_daily_",
-                   forecast_date,".csv"),
+            here::here("met_downloads",
+                       paste0("past_daily_",forecast_date,".csv")),
             row.names = F)
   return()
 }

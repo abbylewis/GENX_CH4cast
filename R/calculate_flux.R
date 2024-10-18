@@ -51,12 +51,12 @@ calculate_flux <- function(start_date = NULL,
     data_small <- data_raw %>%
       filter(is.na(LGR_Time) |
                !duplicated(LGR_Time) | 
-               !duplicated(CH4_ppm)) %>% #I've spent some time looking into this and there are some duplicated LGR rows
-      select(TIMESTAMP, CH4_ppm, CO2_ppm, MIU_VALVE, GasT_C)
+               !duplicated(CH4d_ppm)) %>% #I've spent some time looking into this and there are some duplicated LGR rows
+      select(TIMESTAMP, CH4d_ppm, CO2_ppm, MIU_VALVE, GasT_C)
   } else {
     data_small <- data_raw %>%
       mutate(CO2_ppm = NA) %>%
-      select(TIMESTAMP, CH4_ppm, CO2_ppm, MIU_VALVE, GasT_C)
+      select(TIMESTAMP, CH4d_ppm, CO2_ppm, MIU_VALVE, GasT_C)
   }
   rm(data_raw) #Save memory
   
@@ -65,7 +65,7 @@ calculate_flux <- function(start_date = NULL,
   index_cutoff <- 30 #Cutoff to use when we have plenty of data
   summer_index_cutoff <- 15 #Cutoff to use when there are < 35 measurements
   filtered_data <- data_small %>%
-    mutate(CH4_ppm = as.numeric(CH4_ppm),
+    mutate(CH4d_ppm = as.numeric(CH4d_ppm),
            CO2_ppm = as.numeric(CO2_ppm),
            GasT_C = as.numeric(GasT_C),
            MIU_VALVE = as.numeric(MIU_VALVE)) %>%
@@ -80,7 +80,7 @@ calculate_flux <- function(start_date = NULL,
            cutoff = ifelse(max(index) < 35, 
                            summer_index_cutoff,
                            index_cutoff),
-           n = sum(index > cutoff & !is.na(CH4_ppm))) %>%
+           n = sum(index > cutoff & !is.na(CH4d_ppm))) %>%
     filter(index > cutoff,
            n >= 5, #need at least 5 data points to calculate slope
            n < 200 #probably some issue if this many measurements are taken
@@ -90,22 +90,22 @@ calculate_flux <- function(start_date = NULL,
   
   #Look at data to confirm index is okay
   filtered_data %>%
-    ggplot(aes(x = index, y = CH4_ppm, group = start)) +
+    ggplot(aes(x = index, y = CH4d_ppm, group = start)) +
     geom_line(alpha = 0.2)+
     facet_wrap(~MIU_VALVE)+
     theme(legend.position = "none")
   
   #Run lm
   slopes <- filtered_data %>%
-    summarize(CH4_slope_ppm_per_day = lm(CH4_ppm ~ change)$coefficients[[2]],
+    summarize(CH4_slope_ppm_per_day = lm(CH4d_ppm ~ change)$coefficients[[2]],
               air_temp = mean(GasT_C, na.rm = T),
               CH4_slope_umol_per_day = CH4_slope_ppm_per_day * 265.8 / (0.08206*(air_temp + 273)),
-              CH4_R2 = summary(lm(CH4_ppm ~ change))$r.squared,
-              CH4_p = summary(lm(CH4_ppm ~ change))$coefficients[,4][2],
-              CH4_rmse = sqrt(mean(lm(CH4_ppm ~ change)$residuals^2)/n()),
+              CH4_R2 = summary(lm(CH4d_ppm ~ change))$r.squared,
+              CH4_p = summary(lm(CH4d_ppm ~ change))$coefficients[,4][2],
+              CH4_rmse = sqrt(mean(lm(CH4d_ppm ~ change)$residuals^2)/n()),
               #CO2_slope = lm(CO2_ppm ~ change)$coefficients[[2]],
               #CO2_R2 = summary(lm(CO2_ppm ~ change))$r.squared,
-              CH4_init = first(CH4_ppm),
+              CH4_init = first(CH4d_ppm),
               TIMESTAMP = unique(start),
               n = unique(n),
               .groups = "drop")
