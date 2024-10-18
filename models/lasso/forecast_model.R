@@ -1,14 +1,15 @@
-# met.lm.step model
+# lasso model
 # written by ASL
 
 
 #### Step 0: load packages
 library(tidyverse)
+library(glmnet)
 source(here::here("R","generate_target.R"))
 source(here::here("R","load_met.R"))
 
 #### Step 1: Set model specifications
-model_id <- "met_lm_step"
+model_id <- "lasso"
 all_forecast_vars <- read_csv(here::here("forecast_variables.csv"), show_col_types = FALSE)
 model_variables <- all_forecast_vars$`"official" targets name`
 # Global parameters used in generate_tg_forecast()
@@ -57,30 +58,37 @@ forecast_model <- function(site,
     return()
     
   } else {
-    # Fit linear model based on past data: target = m * air temp + b
-    all <- lm(get(var) ~ AirTemp_C_mean * 
-                RH_percent_mean * 
-                Rain_mm_sum *
-                WindSpeed_ms_mean, 
-              data = site_target) #complete model
-    fit <- step(all, trace=0) #trim model
+    data_matrix <- site_target |>
+      dplyr::select(AirTemp_C_mean, RH_percent_mean, Rain_mm_sum, WindSpeed_ms_mean) %>%
+      as.matrix()
+    y_var <- site_target[[var]]
+    #perform k-fold cross-validation to find optimal lambda value
+    cv_model <- cv.glmnet(data_matrix, y_var, alpha = 1)
+    best_lambda <- cv_model$lambda.min
+    
+    #Fit model
+    fit <- glmnet::glmnet(y = y_var,
+                          x = data_matrix,
+                          alpha = 1, 
+                          lambda = best_lambda)
+    fit$predicted <- predict(fit, s = best_lambda, newx = data_matrix)
     
     #  Get 30-day predicted temp ensemble at the site
-    noaa_future <- noaa_future_daily 
+    new_data <- noaa_future_daily |>
+      select(AirTemp_C_mean, RH_percent_mean, Rain_mm_sum, WindSpeed_ms_mean) %>%
+      as.matrix()
     
-    new_data <- noaa_future |>
-      select(AirTemp_C_mean, RH_percent_mean, Rain_mm_sum, WindSpeed_ms_mean)
+    preds <- predict(fit, new_data, s = best_lambda) #THIS IS THE FORECAST STEP
     
-    preds <- predict(fit, new_data) #THIS IS THE FORECAST STEP
-    
-    # use the linear model to forecast target variable for each ensemble member
-    forecast <- noaa_future |> 
+    # use model to forecast target variable for each ensemble member
+    forecast <- noaa_future_daily |> 
       mutate(site_id = site,
              prediction = preds, 
              variable = var) %>%
       group_by(datetime, reference_datetime, site_id, variable) %>%
       summarise(mu = mean(prediction, na.rm = T),
-                sigma = sqrt(sd(prediction, na.rm = T)^2 + sd(fit$residuals)^2),
+                sigma = sqrt(sd(prediction, na.rm = T)^2 + 
+                               sd(fit$predicted - site_target[[var]], na.rm = T)^2),
                 .groups = "drop") %>%
       pivot_longer(cols = c(mu, sigma), names_to = "parameter", values_to = "prediction")
     
@@ -95,3 +103,16 @@ forecast_model <- function(site,
              site_id, family, parameter, variable, prediction)
   }
 }
+
+x=matrix(rnorm(100*20),100,20)
+y=rnorm(100)
+g2=sample(1:2,100,replace=TRUE)
+g4=sample(1:4,100,replace=TRUE)
+fit1=glmnet(x,y)
+predict(fit1,newx=x[1:5,],s=c(0.01,0.005))
+predict(fit1,type="coef")
+fit2=glmnet(x,g2,family="binomial")
+predict(fit2,type="response",newx=x[2:5,])
+predict(fit2,type="nonzero")
+fit3=glmnet(x,g4,family="multinomial")
+predict(fit3,newx=x[1:3,],type="response",s=0.01)

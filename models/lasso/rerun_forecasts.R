@@ -1,4 +1,4 @@
-source("./Generate_forecasts/met_lm_step/forecast_model.R")
+source("./Generate_forecasts/lasso/forecast_model.R")
 source("./R/rerun_forecasts.R")
 source("./R/generate_tg_forecast.R")
 

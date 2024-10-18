@@ -1,14 +1,15 @@
-# met.lm.step model
+# randomForest model
 # written by ASL
 
 
 #### Step 0: load packages
 library(tidyverse)
+library(randomForest)
 source(here::here("R","generate_target.R"))
 source(here::here("R","load_met.R"))
 
 #### Step 1: Set model specifications
-model_id <- "met_lm_step"
+model_id <- "randomForest"
 all_forecast_vars <- read_csv(here::here("forecast_variables.csv"), show_col_types = FALSE)
 model_variables <- all_forecast_vars$`"official" targets name`
 # Global parameters used in generate_tg_forecast()
@@ -58,29 +59,29 @@ forecast_model <- function(site,
     
   } else {
     # Fit linear model based on past data: target = m * air temp + b
-    all <- lm(get(var) ~ AirTemp_C_mean * 
-                RH_percent_mean * 
-                Rain_mm_sum *
-                WindSpeed_ms_mean, 
-              data = site_target) #complete model
-    fit <- step(all, trace=0) #trim model
+    fit <- randomForest::randomForest(get(var) ~ 
+                                        AirTemp_C_mean * 
+                                        RH_percent_mean * 
+                                        Rain_mm_sum *
+                                        WindSpeed_ms_mean, 
+                                      data = site_target,
+                                      importance=TRUE)
     
     #  Get 30-day predicted temp ensemble at the site
-    noaa_future <- noaa_future_daily 
-    
-    new_data <- noaa_future |>
+    new_data <- noaa_future_daily |>
       select(AirTemp_C_mean, RH_percent_mean, Rain_mm_sum, WindSpeed_ms_mean)
     
     preds <- predict(fit, new_data) #THIS IS THE FORECAST STEP
     
     # use the linear model to forecast target variable for each ensemble member
-    forecast <- noaa_future |> 
+    forecast <- noaa_future_daily |> 
       mutate(site_id = site,
-             prediction = preds, 
+             prediction = preds,
              variable = var) %>%
       group_by(datetime, reference_datetime, site_id, variable) %>%
       summarise(mu = mean(prediction, na.rm = T),
-                sigma = sqrt(sd(prediction, na.rm = T)^2 + sd(fit$residuals)^2),
+                sigma = sqrt(sd(prediction, na.rm = T)^2 + 
+                               sd(fit$predicted - site_target[[var]], na.rm = T)^2),
                 .groups = "drop") %>%
       pivot_longer(cols = c(mu, sigma), names_to = "parameter", values_to = "prediction")
     

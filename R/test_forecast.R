@@ -4,7 +4,7 @@ source(here::here("R","generate_target.R"))
 #generate_target()
 
 #Change file path here to try a different model
-source(here::here("models","met_lm_step","forecast_model.R"))
+source(here::here("models","ridge","forecast_model.R"))
 
 #Run remaining code and visualize forecasts
 source(here::here("R","generate_tg_forecast.R"))
