@@ -89,7 +89,7 @@ scores_format %>%
              group = site_id)) +
   geom_smooth() +
   xlab("Forecast horizon (days)")+
-  facet_grid(rows = vars(model_id), cols = vars(year))+
+  facet_grid(cols = vars(model_id), rows = vars(year))+
   scale_color_viridis_c()
 
 ```

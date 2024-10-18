@@ -11,6 +11,7 @@ server: shiny
 
 library(tidyverse)
 library(shiny)
+library(plotly)
 #Optional: download new data
 source(here::here("R","generate_target.R"))
 #target <- generate_target()
@@ -23,7 +24,26 @@ options_ordered <- file_options %>%
          Date_date = as.Date(Date_num, format = "%Y%m%d"),
          Date_date = ifelse(is.na(Date_date), Sys.Date(), Date_date)) %>%
   arrange(desc(Date_date))
+
+source(here::here("R","generate_target.R"))
+source(here::here("R", "generate_tg_forecast.R"))
+source(here::here("R", "plot_shiny_forecast.R"))
+source(here::here("R", "plot_raw_data.R"))
+
+scores <- read_csv(here::here("analysis","scores.csv"), show_col_types = F)
+chamber_levels = c("c_1_amb", "c_2_amb", "c_3_e0.75", "c_4_e1.5", "c_5_e2.25",
+                     "c_6_e2.25", "c_7_e3.0", "c_8_e3.75", "c_9_e3.75", "c_10_e4.5",
+                     "c_11_e5.25", "c_12_e6.0")
+scores_format <- scores %>%
+      filter(horizon > 0) %>%
+      mutate(horizon = horizon/60/60/24) %>%
+      mutate(temp = sub(".+_e*", "", site_id),
+             temp = ifelse(temp == "amb", 0, temp),
+             temp = as.numeric(temp),
+             year = year(datetime))
 ```
+
+::: {.panel-tabset}
 
 ## Forecast
 
@@ -55,13 +75,25 @@ selectInput('raw_data_file', 'Choose file name:', options_ordered$files, selecte
 plotOutput('plot2')
 ```
 
+## Forecast performance
+```{r}
+#| panel: input
+selectInput('skill_metric', 
+            'Choose skill metric:', 
+            c("RMSE", "CRPS"), 
+            selected = "CRPS")
+```
+
+```{r}
+#| panel: fill
+#| page-layout: full
+shinycssloaders::withSpinner(plotlyOutput('plot3'))
+```
+
+:::
+
 ```{r}
 #| context: server
-source(here::here("R","generate_target.R"))
-source(here::here("R", "generate_tg_forecast.R"))
-source(here::here("R", "plot_shiny_forecast.R"))
-source(here::here("R", "plot_raw_data.R"))
-
 #Code for plots
 output$plot1 <- renderPlot({
   plot_shiny_forecast(input$forecast_date, input$model, input$hist_data)
@@ -69,5 +101,51 @@ output$plot1 <- renderPlot({
 output$plot2 <- renderPlot({
   plot_raw_data(input$raw_data_file)
   })
+output$plot3 <- renderPlotly({
+  if(input$skill_metric == "RMSE"){
+    p <- scores_format %>%
+      filter(!model_id == "RW",
+             horizon %in% c(1,7,30)) %>%
+      group_by(horizon, site_id, model_id, year) %>%
+      summarize(crps = mean(crps, na.rm = T)) %>%
+      mutate(temp = sub("amb", "e0", site_id),
+             temp = as.numeric(sub(".+_e", "", temp)),
+             horizon = paste0(horizon, " day ahead"),
+             horizon = factor(horizon,
+                              levels = c("1 day ahead",
+                                         "7 day ahead",
+                                         "30 day ahead"))) %>%
+      ggplot(aes(x = temp, 
+                 y = crps, color = model_id)) +
+      geom_point() +
+      xlab("Temperature treatment (ºC above ambient)")+
+      geom_smooth(se = F) +
+      scale_color_viridis_d()+
+      facet_grid(cols = vars(horizon), rows = vars(year), scales = "free_y")+
+      theme(legend.position = "bottom")
+    print(plotly::ggplotly(p))
+  } else {
+    p <- scores_format %>%
+      filter(!model_id == "RW",
+             horizon %in% c(1,7,30)) %>% #same as persistence for RMSE
+      group_by(horizon, site_id, model_id, year) %>%
+      summarize(rmse = Metrics::rmse(observation, mean)) %>%
+      mutate(temp = sub("amb", "e0", site_id),
+             temp = as.numeric(sub(".+_e", "", temp)),
+             horizon = paste0(horizon, " day ahead"),
+             horizon = factor(horizon,
+                              levels = c("1 day ahead",
+                                         "7 day ahead",
+                                         "30 day ahead"))) %>%
+      ggplot(aes(x = temp, 
+                 y = rmse, color = model_id)) +
+      geom_point() +
+      xlab("Temperature treatment (ºC above ambient)")+
+      geom_smooth(se = F) +
+      scale_color_viridis_d()+
+      facet_grid(cols = vars(horizon), rows = vars(year), scales = "free_y")+
+      theme(legend.position = "bottom")
+    print(plotly::ggplotly(p))
+  }
+})
 ```
-
