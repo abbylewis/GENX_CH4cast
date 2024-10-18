@@ -13,3 +13,4 @@ analysis/scores.csv
 .httr-oauth
 /.quarto/
 /_site/
+tokenfile.RDS

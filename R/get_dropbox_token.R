@@ -53,11 +53,11 @@
 #'   # To use a stored token provide token location
 #'   drop_auth(rdstoken = "/path/to/tokenfile.RDS")
 #' }
-drop_auth <- function(new_user = T,
+drop_auth <- function(new_user = F,
                       key = "mmhfsybffdom42w",
                       secret = "l8zeqqqgm1ne5z0",
                       cache = TRUE,
-                      rdstoken = NA) {
+                      rdstoken = here::here("tokenfile.RDS")) {
   
   # check if token file exists & use it
   if (new_user == FALSE &  !is.na(rdstoken)) {
@@ -88,7 +88,8 @@ drop_auth <- function(new_user = T,
     dropbox_app <- httr::oauth_app("dropbox", key, secret)
     
     # get the token
-    dropbox_token <- httr::oauth2.0_token(dropbox, dropbox_app, cache = cache)
+    dropbox_token <- httr::oauth2.0_token(dropbox, dropbox_app, cache = cache,
+                                          query_authorize_extra = list(token_access_type= "offline"))
     
     # make sure we got a token
     if (!inherits(dropbox_token, "Token2.0")) {

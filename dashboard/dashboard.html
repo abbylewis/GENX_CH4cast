@@ -76,9 +76,12 @@ ul.task-list li input[type="checkbox"] {
 <option value="climatology">climatology</option>
 <option value="cwae">cwae</option>
 <option value="ETS">ETS</option>
+<option value="lasso">lasso</option>
 <option value="met_lm_step">met_lm_step</option>
 <option value="persistence">persistence</option>
 <option value="prophet">prophet</option>
+<option value="randomForest">randomForest</option>
+<option value="ridge">ridge</option>
 <option value="RW">RW</option></select>
 <script type="application/json" data-for="model" data-nonempty="">{"plugins":["selectize-plugin-a11y"]}</script>
 </div>
@@ -215,6 +218,12 @@ ul.task-list li input[type="checkbox"] {
 </div>
 </div>
 </div>
+<div class="cell-output-display">
+<br>
+</div>
+<div class="cell-output-display">
+<button id="new_data" type="button" class="btn btn-default action-button">Get newest data</button>
+</div>
 </div>
 <div class="panel-fill panel-grid">
 <div class="g-col-24">
@@ -256,11 +265,25 @@ output$plot1 <- renderPlot({
 output$plot2 <- renderPlot({
   plot_raw_data(input$raw_data_file)
   })
+#Code for button
+observeEvent(input$new_data, {
+  cnds <- character(0)
+  withCallingHandlers(
+    target <- generate_target(),
+    message = function(cnd) {
+      cnds <<- c(cnds, conditionMessage(cnd))
+      showModal(
+        modalDialog(
+          title = "Downloading new data",
+          paste0(cnds, collapse = "br()")
+        ))
+    }
+  )
+})
 
-#Code for button - doesn't work because I need authentication
-#observeEvent(input$new_data, {
-#  target <- generate_target()
-#})
+output$data_loading_text <- renderText({
+  'paste0(cnd, sep = "\n")'
+})
 </script>
  
 <script type="application/shiny-prerendered" data-context="server-extras">
