@@ -35,12 +35,14 @@ chamber_levels = c("c_1_amb", "c_2_amb", "c_3_e0.75", "c_4_e1.5", "c_5_e2.25",
                      "c_6_e2.25", "c_7_e3.0", "c_8_e3.75", "c_9_e3.75", "c_10_e4.5",
                      "c_11_e5.25", "c_12_e6.0")
 scores_format <- scores %>%
-      filter(horizon > 0) %>%
+      filter(horizon > 0,
+             !model_id == "wavelet_arima") %>%
       mutate(horizon = horizon/60/60/24) %>%
       mutate(temp = sub(".+_e*", "", site_id),
              temp = ifelse(temp == "amb", 0, temp),
              temp = as.numeric(temp),
-             year = year(datetime))
+             year = year(datetime)) %>%
+  filter(year %in% c(2023,2024))
 ```
 
 ::: {.panel-tabset}
@@ -102,7 +104,7 @@ output$plot2 <- renderPlot({
   plot_raw_data(input$raw_data_file)
   })
 output$plot3 <- renderPlotly({
-  if(input$skill_metric == "RMSE"){
+  if(input$skill_metric == "CRPS"){
     p <- scores_format %>%
       filter(!model_id == "RW",
              horizon %in% c(1,7,30)) %>%
