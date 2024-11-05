@@ -1,4 +1,5 @@
 source(here::here("R","convert_to_vera_met_P1D.R"))
+source(here::here("R","get_ensemble_forecast.R"))
 
 #' load_met
 #' 
@@ -31,7 +32,8 @@ load_met <- function(forecast_date = Sys.Date(),
   
   #Weather predictions
   message("Loading weather predictions")
-  weather_pred <- ropenmeteo::get_ensemble_forecast(
+  weather_pred <- get_ensemble_forecast(
+    forecast_date = forecast_date,
     latitude = lat,
     longitude = long,
     forecast_days = forecast_days, # days into the future
@@ -48,7 +50,7 @@ load_met <- function(forecast_date = Sys.Date(),
     latitude = lat,
     longitude = long,
     start_date = as.Date("2010-01-01"),
-    end_date = as.Date(Sys.Date()),
+    end_date = as.Date(forecast_date),
     variables = variables) |> 
     # function to convert to EFI standard
     #ropenmeteo::convert_to_efi_standard() |>
@@ -70,7 +72,9 @@ load_met <- function(forecast_date = Sys.Date(),
   
   weather_pred_adjust <- weather_pred
   for(var in variables_renamed){
-    lm <- lm(future ~ hist, data = comparison_mod %>% filter(variable == var))
+    if(nrow(comparison_mod %>% filter(variable == var) >= 10)){
+      lm <- lm(future ~ hist, data = comparison_mod %>% filter(variable == var))
+    }
     weather_pred_adjust <- weather_pred_adjust %>%
       mutate(prediction = ifelse(variable == var, 
                              prediction - lm$coefficients[1] + (1-lm$coefficients[2]) * prediction, 
@@ -97,3 +101,4 @@ load_met <- function(forecast_date = Sys.Date(),
             row.names = F)
   return()
 }
+load_met(Sys.Date())
