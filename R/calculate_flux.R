@@ -12,7 +12,8 @@
 
 calculate_flux <- function(start_date = NULL,
                            end_date = NULL,
-                           modif_start_date = file.info(here::here("L0.csv"))$mtime){
+                           modif_start_date = file.info(here::here("L0.csv"))$mtime,
+                           reprocess = F){
   ### Load files ###
   files <- list.files(here::here("Raw_data","dropbox_downloads"), full.names = T)
   #By default, only calculate slopes for files that have been modified/created since the last time we ran the script
@@ -49,24 +50,22 @@ calculate_flux <- function(start_date = NULL,
   #Account for different formatting among files
   if("LGR_Time" %in% colnames(data_raw)){
     data_small <- data_raw %>%
-      filter(is.na(LGR_Time) |
-               !duplicated(LGR_Time) | 
+      filter(is.na(LGR_Time) | !duplicated(LGR_Time) | 
                !duplicated(CH4d_ppm)) %>% #I've spent some time looking into this and there are some duplicated LGR rows
-      select(TIMESTAMP, CH4d_ppm, CO2_ppm, MIU_VALVE, GasT_C)
+      select(TIMESTAMP, CH4d_ppm, CO2d_ppm, MIU_VALVE, GasT_C)
   } else {
-    data_small <- data_raw %>%
-      mutate(CO2_ppm = NA) %>%
-      select(TIMESTAMP, CH4d_ppm, CO2_ppm, MIU_VALVE, GasT_C)
+    data_small2 <- data_raw %>%
+      select(TIMESTAMP, CH4d_ppm, CO2d_ppm, MIU_VALVE, GasT_C)
   }
   rm(data_raw) #Save memory
   
   ### Calculate slopes ###
   #Prep data
-  index_cutoff <- 30 #Cutoff to use when we have plenty of data
-  summer_index_cutoff <- 15 #Cutoff to use when there are < 35 measurements
+  time_cutoff <- 300 #Cutoff to use when we have plenty of data (seconds)
+  summer_time_cutoff <- 200 #Cutoff to use when there are < 35 measurements (seconds)
   filtered_data <- data_small %>%
     mutate(CH4d_ppm = as.numeric(CH4d_ppm),
-           CO2_ppm = as.numeric(CO2_ppm),
+           CO2d_ppm = as.numeric(CO2d_ppm),
            GasT_C = as.numeric(GasT_C),
            MIU_VALVE = as.numeric(MIU_VALVE)) %>%
     filter(!MIU_VALVE == 16,
@@ -74,14 +73,17 @@ calculate_flux <- function(start_date = NULL,
     arrange(TIMESTAMP) %>%
     mutate(group = group_fun(MIU_VALVE)) %>%
     group_by(group, MIU_VALVE) %>%
+    filter(sum(!is.na(CH4d_ppm)) > 0) %>%
     mutate(start = min(TIMESTAMP),
            change = as.numeric(difftime(TIMESTAMP, start, units = "days")),
-           index = row_number(),
-           cutoff = ifelse(max(index) < 35, 
-                           summer_index_cutoff,
-                           index_cutoff),
-           n = sum(index > cutoff & !is.na(CH4d_ppm))) %>%
-    filter(index > cutoff,
+           change_s = as.numeric(difftime(TIMESTAMP, start, units = "secs")),
+           cutoff = ifelse(max(change_s) < 350, 
+                           summer_time_cutoff,
+                           time_cutoff),
+           n = sum(change_s > cutoff & !is.na(CH4d_ppm)),
+           max_s = change_s[which.max(CH4d_ppm)]) %>%
+    filter(change_s > cutoff,
+           change_s < 1000, #After ~15 min there is probably a problem
            n >= 5, #need at least 5 data points to calculate slope
            n < 200 #probably some issue if this many measurements are taken
     ) %>%
@@ -89,34 +91,72 @@ calculate_flux <- function(start_date = NULL,
     filter(TIMESTAMP > "2024-07-09 15:00:00" | TIMESTAMP < "2024-07-09 6:00:00")
   
   #Look at data to confirm index is okay
-  filtered_data %>%
-    ggplot(aes(x = index, y = CH4d_ppm, group = start)) +
+  data_small %>%
+    head(20000) %>%
+    mutate(group = group_fun(MIU_VALVE)) %>%
+    group_by(group, MIU_VALVE) %>%
+    mutate(start = min(TIMESTAMP),
+           change_s = as.numeric(difftime(TIMESTAMP, start, units = "secs"))) %>%
+    ggplot(aes(x = change_s, y = as.numeric(GasT_C), group = start)) +
     geom_line(alpha = 0.2)+
     facet_wrap(~MIU_VALVE)+
     theme(legend.position = "none")
   
   #Run lm
   slopes <- filtered_data %>%
-    summarize(CH4_slope_ppm_per_day = lm(CH4d_ppm ~ change)$coefficients[[2]],
-              air_temp = mean(GasT_C, na.rm = T),
-              CH4_slope_umol_per_day = CH4_slope_ppm_per_day * 265.8 / (0.08206*(air_temp + 273)),
-              CH4_R2 = summary(lm(CH4d_ppm ~ change))$r.squared,
-              CH4_p = summary(lm(CH4d_ppm ~ change))$coefficients[,4][2],
-              CH4_rmse = sqrt(mean(lm(CH4d_ppm ~ change)$residuals^2)/n()),
-              #CO2_slope = lm(CO2_ppm ~ change)$coefficients[[2]],
-              #CO2_R2 = summary(lm(CO2_ppm ~ change))$r.squared,
-              CH4_init = first(CH4d_ppm),
+    pivot_longer(c(CH4d_ppm, CO2d_ppm), names_to = "gas", values_to = "conc") %>%
+    group_by(gas, group, MIU_VALVE) %>%
+    filter(!is.na(conc)) %>%
+    summarize(slope_ppm_per_day = lm(conc ~ change)$coefficients[[2]],
+              Temp_init = first(GasT_C),
+              slope_umol_per_day = slope_ppm_per_day * 265.8 / (0.08206*(Temp_init + 273)),
+              R2 = summary(lm(conc ~ change))$r.squared,
+              p = summary(lm(conc ~ change))$coefficients[,4][2],
+              rmse = sqrt(mean(lm(conc ~ change)$residuals^2)/n()),
+              init = first(conc),
+              max_s = unique(max_s),
               TIMESTAMP = unique(start),
               n = unique(n),
-              .groups = "drop")
+              .groups = "drop") %>%
+    mutate(gas = ifelse(gas == "CH4d_ppm", "CH4", "CO2")) %>%
+    pivot_wider(names_from = gas, 
+                values_from = c(slope_ppm_per_day, slope_umol_per_day, R2, p, rmse, init),
+                names_glue = "{gas}_{.value}")
+  
+  for(year_i in unique(year(slopes$TIMESTAMP))){
+    p <- slopes %>%
+      mutate(MIU_VALVE = factor(MIU_VALVE, 
+                                levels = c(1,4,7,10,
+                                           3,6,9,12,
+                                           2,5,8,11))) %>%
+      filter(year(TIMESTAMP) == year_i) %>%
+      ggplot(aes(x = TIMESTAMP, y = max_s)) +
+      geom_point(alpha = 0.02)+
+      facet_wrap(~MIU_VALVE)+
+      ggtitle(year_i)+
+      xlab("Date")+
+      ylab("Time to peak (s)")+
+      theme_bw()
+    jpeg(here::here("figures", paste0("TimeToPeak_", year_i, ".jpeg")), width = 6, height = 5, units = "in", res = 300)
+    print(p)
+    dev.off()
+  }
   
   #Load previously calculated slopes
-  old_slopes <- read_csv(here::here("L0.csv"), show_col_types = F) %>%
-    filter(!TIMESTAMP %in% slopes$TIMESTAMP)
-  slopes_comb <- bind_rows(old_slopes, slopes)
+  if(!reprocess){
+    old_slopes <- read_csv(here::here("L0.csv"), show_col_types = F) %>%
+      filter(!TIMESTAMP %in% slopes$TIMESTAMP)
+    slopes_comb <- bind_rows(old_slopes, slopes)
+  } else {
+    slopes_comb <- slopes
+  }
   
   #Output
   write.csv(slopes_comb, here::here("L0.csv"), row.names = FALSE)
+  round_comb <- function(x){round(as.numeric(x), 2)}
+  write.csv(data_small %>%
+              mutate(across(c(CO2d_ppm, GasT_C), round_comb)),
+            here::here("processed_data","raw_small.csv"), row.names = FALSE)
   return(slopes_comb)
 }
 

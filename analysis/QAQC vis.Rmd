@@ -78,3 +78,75 @@ cleaned <- target %>%
 #dplyr::select(-keep)
 ```
 
+## Plot all data
+
+```{r}
+slopes <- read_csv(here::here("L0.csv")) %>%
+    dplyr::filter(TIMESTAMP <= as_datetime("2023-03-02") |
+                    TIMESTAMP >= as_datetime("2023-06-27"))
+
+plot_yearly_data <- function(year, slopes, gas) {
+  p <- slopes %>%
+    filter(year(TIMESTAMP) == year) %>%
+    ggplot(aes(x = as.Date(TIMESTAMP), y = get(!!gas), color = hour(TIMESTAMP))) +
+    geom_point(alpha = 0.2) +
+    scale_color_gradientn(colors = c("blue", "red", "blue")) +
+    facet_wrap(~MIU_VALVE) +
+    ylab(gas)+
+    scale_y_continuous(trans = "pseudo_log")+
+    scale_x_date(date_labels = "%b")+
+    theme(axis.title.x = element_blank())+
+    ggtitle(year)
+  print(p)
+}
+
+2021:2024 %>% 
+  map(plot_yearly_data, slopes = slopes, gas = "CO2_slope_ppm_per_day")
+2021:2024 %>% 
+  map(plot_yearly_data, slopes = slopes, gas = "CH4_slope_ppm_per_day")
+```
+
+## 2024
+
+Something is weird about the start of 2024, but I think what we are seeing is that data are /really good/.
+
+In chambers 2:4, summer 2024 data is wrong
+
+```{r}
+plot_yearly_data(2024, slopes, gas = "CO2_slope_ppm_per_day")
+plot_yearly_data(2024, slopes, gas = "CH4_slope_ppm_per_day")
+
+plotly::ggplotly(
+  slopes %>%
+    filter(year(TIMESTAMP) == 2024) %>%
+    mutate(hour = hour(TIMESTAMP)) %>%
+    ggplot(aes(x = hour, y = CO2_slope_ppm_per_day, color = as.factor(month(TIMESTAMP)))) +
+    facet_wrap(~MIU_VALVE)+
+    #geom_point(alpha = 0.1)+
+    geom_smooth(se = F)+
+    scale_y_continuous(trans = "pseudo_log")
+  )
+
+slopes %>%
+  filter(year(TIMESTAMP) == 2024,
+         month(TIMESTAMP) >3) %>%
+  mutate(hour = hour(TIMESTAMP)) %>%
+  ggplot(aes(x = hour, y = CO2_slope_ppm_per_day, color = as.factor(month(TIMESTAMP)))) +
+  facet_wrap(~MIU_VALVE)+
+  #geom_point(alpha = 0.1)+
+  geom_smooth(se = F)+
+  guides(color = guide_legend(title = "Month"))+
+  scale_y_continuous(trans = "pseudo_log")
+```
+
+```{r}
+slopes %>%
+  filter(year(TIMESTAMP) == 2021) %>%
+  mutate(hour = hour(TIMESTAMP)) %>%
+  ggplot(aes(x = hour, y = CO2_slope_ppm_per_day, color = as.factor(month(TIMESTAMP)))) +
+  facet_wrap(~MIU_VALVE)+
+  #geom_point(alpha = 0.1)+
+  geom_smooth(se = F)+
+  guides(color = guide_legend(title = "Month"))+
+  scale_y_continuous(trans = "pseudo_log")
+```

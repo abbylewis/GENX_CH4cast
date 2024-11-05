@@ -30,6 +30,12 @@ drivers <- read_csv("../processed_data/WaterLevel_output_15min.csv",
                     show_col_types = F) %>%
   mutate(Date = as.Date(time2))
 
+drivers %>%
+  mutate(Year = year(time2)) %>%
+  ggplot(aes(x = time2, y=corrected_depth)) +
+  geom_line()+
+  facet_wrap(~Year, scales = "free_x")
+
 today <- Sys.Date()
 forecast_days = 35
 open_meteo_discharge <- load_river_discharge(today, forecast_days)

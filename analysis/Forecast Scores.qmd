@@ -19,7 +19,7 @@ outputs <- outputs[file.info(outputs)$size > 29] #Filter out empty files
 forecasts <- read_csv(outputs, show_col_types = F)
   
 #L1
-observations <- read_csv("../L1.csv", show_col_types = F)
+observations <- read_csv("../L1_target.csv", show_col_types = F)
 ```
 
 ## Score forecasts
@@ -35,7 +35,8 @@ scores_format <- scores %>%
   mutate(temp = sub(".+_e*", "", site_id),
          temp = ifelse(temp == "amb", 0, temp),
          temp = as.numeric(temp),
-         year = year(datetime))
+         year = year(datetime)) %>%
+  filter(year %in% c(2023,2024))
 ```
 
 ## Generate plots

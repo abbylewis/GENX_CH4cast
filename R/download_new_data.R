@@ -14,11 +14,12 @@ library(tidyverse)
 #' @examples
 download_new_data <- function(){
   #Identify all files
+  #GENX flux vs GENX LGR in 2021
   message("Looking for new data files on dropbox")
   relevant_files <- drop_dir(path = "GCREW_LOGGERNET_DATA") %>%
     filter(grepl("GENX_INSTRUMENT_FLUX_COMB", name) |
              grepl("GENX_FLUX_", name) |
-             grepl("GENX_LGR_FLUX_", name))
+             grepl("GENX_LGR_", name))
   current <- drop_dir(path = "GCREW_LOGGERNET_DATA/current_data") %>%
     filter(grepl("GENX_INSTRUMENT_FLUX_COMB", name),
            !grepl("backup", name))
@@ -37,7 +38,7 @@ download_new_data <- function(){
   
   #Load current data file
   new <- current$path_display %>%
-    map(load_file)
+    map(load_file) #this function is further down in this script
   
   if(nrow(relevant_files) == 0){
     message("No new files to download")
