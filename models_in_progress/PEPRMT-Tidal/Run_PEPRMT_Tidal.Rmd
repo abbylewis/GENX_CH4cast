@@ -6,7 +6,6 @@ author: Patty Oikawa
 email: patty.oikawa@gmail.com
 ---
 
-
 Load packages
 
 ```{r setup, echo=FALSE, message=FALSE}
@@ -14,7 +13,7 @@ library(pacman)
 p_load(R.matlab, here, tidyverse, FME, Metrics, lubridate, gridExtra)
 source("run_PEPRMT.R")
 source("PEPRMT_GPP_FINAL.R")
-source("PEPRMT_CH4_FINAL.R")
+source("PEPRMT_CH4_FINAL_ASL2.R")
 source("PEPRMT_Reco_FINAL.R")
 ```
 
@@ -23,7 +22,8 @@ Load data
 ```{r}
 target <- read_csv("peprmt_target.csv") %>%
   as.data.frame() %>%
-  mutate(NO3_mg_L = 0.062) #Copied from US_PLM
+  mutate(NO3_mg_L = 0.062, #Copied from US_PLM
+         WTD_cm = -WTD_cm) #Switch this when you update Load/Format data.Rmd
 ch4_validation <- read_csv("ch4_validation.csv") %>%
   as.data.frame()
 example <- read_csv("All_sites_master.csv") 
@@ -45,7 +45,7 @@ ch4_validation %>%
   mutate(ch4_mg_m2_day = ifelse(is.na(CH4_gC_m2_day), CH4_slope_mgC_m2_d, CH4_gC_m2_day * 1000),
          type = ifelse(site_char %in% c("US_STJ", "US_LA1"), "High", "Low")) %>%
   ggplot(aes(x = site_char, y = ch4_mg_m2_day)) +
-  geom_boxplot() +
+  geom_boxplot() #+
   #facet_grid2(cols = vars(type), scales = "free", independent = "y") + 
   scale_y_continuous(trans = scales::pseudo_log_trans(base = 10))
 
@@ -55,7 +55,24 @@ library(ggh4x)
 Run all modules
 
 ```{r}
-target_results <- run_PEPRMT(target)
+target_results <- run_PEPRMT(as.data.frame(target))
+example_results <- run_PEPRMT(as.data.frame(example))
+
+for(site_x in 1:length(unique(example$site))){
+  site1 <- subset(example_results, site == site_x)
+  plot <- site1 %>%
+    complete(DOY = first(DOY):max(DOY)) %>%
+    ggplot(aes(DOY)) +
+    geom_line(aes(x = DOY, y = CH4_gC_m2_day, color = "observation"), 
+              data = example %>% filter(site == site_x) %>%
+                complete(DOY = first(DOY):max(DOY)))+
+    geom_line(aes(x = DOY, y = CH4_mod, color = "model"))+
+    labs(x = "", y=bquote('CH4 '~ (mgC ~ m^-2 ~ d^-1))) +
+    ## To make the plot look prettier
+    theme_bw(base_size = 12) +
+    ggtitle(unique(example$site_char)[site_x])
+  print(plot)
+}
 ```
 
 Plot
@@ -72,7 +89,8 @@ for(site_x in 1:length(unique(target$site))){
     geom_line(aes(x = DOY, y = CH4_mod*1000, color = "model"))+
     labs(x = "", y=bquote('CH4 '~ (mgC ~ m^-2 ~ d^-1))) +
     ## To make the plot look prettier
-    theme_bw(base_size = 12) 
+    theme_bw(base_size = 12) +
+    ggtitle(site_x)
   print(plot)
 }
 ```
@@ -84,17 +102,17 @@ sens_analysis <- function(var, target){
   message(var)
   # Up
   target_modif <- target %>%
-    mutate(!!var := !!sym(var) * 10)
+    mutate(!!var := !!sym(var) * 1.5)
   target_results_up <- run_PEPRMT(target_modif) %>%
     mutate(var_modif = var,
-           modif = "up 10x")
+           modif = "up 50%")
   
   # Down
   target_modif <- target %>%
-    mutate(!!var := !!sym(var) / 10)
+    mutate(!!var := !!sym(var) * 0.5)
   target_results_down <- run_PEPRMT(target_modif) %>%
     mutate(var_modif = var,
-           modif = "down 10x")
+           modif = "down 50%")
   
   bind_rows(target_results_up, target_results_down)
 }
@@ -126,5 +144,5 @@ sens_results %>%
   ggplot(aes(x = modif, y = CH4_mod)) +
   geom_boxplot() +
   facet_wrap(~var_modif, scales = "free_y") +
-  coord_cartesian(ylim = c(-50, 300))
+  coord_cartesian(ylim = c(-20, 50))
 ```

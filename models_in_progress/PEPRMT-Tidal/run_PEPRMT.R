@@ -29,11 +29,17 @@ run_PEPRMT <- function(target) {
   
   #Last, run CH4 module
   #Add modeled S1, S2 into data before running CH4 module (17th & 18th columns)
-  target[,17]<-target_results$S1
-  target[,18]<-target_results$S2
+  target$SOM_total <- target_results$S1
+  target$SOM_labile <-target_results$S2
   
-  CH4_theta<- c( 14.9025078, 0.4644174, 16.7845002, 0.4359649, 15.8857612,
-                 0.5120464, 486.4106939, 0.1020278 )
+  CH4_theta<- c( 14.9025078 + 67.1, #Ea_CH4_SOC kJ mol-1
+                 0.4644174 + 17, #kM_CH4_SOC
+                 86.7, #Ea_CH4_labile kJ mol-1- used to be 16.7845002 + 71.1
+                 0.4359649 + 23, #kM_Ch4labile
+                 15.8857612 + 75.4, #Ea_CH4_oxi
+                 0.5120464 + 23, #kM_CH4oxi
+                 100, #486.4106939, #kI_SO4
+                 0.2) #0.1020278 ) #kI_NO3
   CH4_mod_target <- PEPRMT_CH4_FINAL(CH4_theta,
                                      data = target,
                                      wetland_type=2)
@@ -44,6 +50,27 @@ run_PEPRMT <- function(target) {
                 rename(DOY = Time_2,
                        CH4_mod = pulse_emission_total),
               by = c("DOY", "site"))
+  
+  target %>%
+    group_by(site) %>%
+    mutate(EVI = (EVI - min(EVI)) * 40) %>%
+    ggplot(aes(x = DOY)) +
+    geom_line(aes(y = -V16, color = "GPP"))+
+    geom_line(aes(y = EVI, color = "EVI"))+
+    facet_wrap(~site)
+  
+  target_results %>%
+    complete(DOY, site) %>%
+    ggplot(aes(x = DOY)) +
+    ylab("Flux")+
+    geom_line(aes(y = Plant_flux_net, color = "Plant"))+
+    geom_line(aes(y = Hydro_flux, color = "Hydro"))+
+    facet_wrap(~site)
+  
+  target_results %>%
+    ggplot(aes(x = DOY, y = Hydro_flux)) +
+    geom_line()+
+    facet_wrap(~site)
   
   return(target_results)
 }

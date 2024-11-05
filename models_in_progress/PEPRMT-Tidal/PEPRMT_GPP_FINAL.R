@@ -113,8 +113,9 @@ PEPRMT_GPP_final <-  function(theta,data) {
     GPP <- unlist(NPP_FPAR_T)*-1 #stay as g C m-2 d-1 where negative values= uptake
     site <- rep(i,length(GPP))
     
-    w <- cbind(GPP,APAR_2,Time_2, site) %>%
+    w <- cbind(GPP, APAR_2, Time_2, site) %>%
       as.data.frame(.)
+    colnames(w) <- c('GPP', 'APAR', 'Time_2', 'site')
     # store d in a vector  
     outcome_lst[[i]] <- (w) 
     

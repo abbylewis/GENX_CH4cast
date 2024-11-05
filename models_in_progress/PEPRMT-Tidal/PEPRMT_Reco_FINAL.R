@@ -32,8 +32,8 @@
 # a data frame containing
 # 1.Reco_full: total amount of CO2 emitted by ecosystem respiration (including heterotrophic and autotrophic respiration).
 # 2.NEE_mod: Net ecosystem exchanged of CO2 (adding Reco with GPP predicted in GPP module)
-# 3.S1: amount of carbon stored in soil carbon pool 1, the labile pool
-# 4.S2: amount of carbon stored in soil carbon pool 2, the SOC pool
+# 3.S1: amount of carbon stored in soil carbon pool 1, the SOC pool
+# 4.S2: amount of carbon stored in soil carbon pool 2, the labile pool
 
 #units of output
 # 1.Reco_full: g C CO2 m^-2 day^-1
@@ -100,7 +100,7 @@ PEPRMT_Reco_FINAL <- function(theta,
     
     
     # #Static C allocation theme
-    NPPsum_avail_2 <- (c(GPP_2)*-1) #g C m-2 day-1 change to + numbers & give Reco access to GPP
+    NPPsum_avail_2 <- -GPP_2 #g C m-2 day-1 change to + numbers & give Reco access to GPP
     
     #Time Invariant
     R <- 8.314 #J K-1 mol-1

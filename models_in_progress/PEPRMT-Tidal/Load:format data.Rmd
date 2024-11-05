@@ -5,6 +5,13 @@ date: "2024-10-08"
 output: html_document
 ---
 
+
+NOTE: this script needs to be re-worked with new data format
+When you re-work things, also add in soil temp
+
+
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
@@ -13,7 +20,7 @@ library(lubridate)
 
 ```{r}
 source("../../R/qaqc.R")
-target_raw <- read_csv("../../L1_target.csv", show_col_types = FALSE)
+target_raw <- read_csv("../../L1.csv", show_col_types = FALSE)
 
 #Load PAR and EVI
 met <- read_csv("../../processed_data/met_output.csv", show_col_types = FALSE)
@@ -43,7 +50,7 @@ target <- target_raw %>%
            as.numeric(difftime(Date, first(Date), units = "days")),
          Year = year(Date),
          TA_C = temp,
-         WTD_cm = -corrected_depth,
+         WTD_cm = corrected_depth,
          Wetland_age_years = 4000,
          Salinity_daily_ave_ppt = salinity,
          NO3_mg_L = 0,

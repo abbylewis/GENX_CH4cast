@@ -123,7 +123,7 @@ PEPRMT_CH4_FINAL <- function(theta,
     S2_2 = d[,18] #Modeled labile C pool - use output from PEPRMT Reco model -cumulative grams C m-3
     
     WT_2_adj=(WT_2/100)+1
-    GPPmax=max(GPP_2*-1)
+    GPPmax=max(-GPP_2) #makes this positive
     
     #Time Invariant
     RT = R * (TA_2 + 274.15)#T in Kelvin-all units cancel out
@@ -164,6 +164,7 @@ PEPRMT_CH4_FINAL <- function(theta,
       
       #parameter for plant-mediated transport--function of GPP
       trans2[t]=((GPP_2[t]+(GPPmax))/GPPmax)
+      #These cases should never happen (would require negative GPP or GPP>max)
       if (trans2[t]<0) {trans2[t]=0}
       if (trans2[t]>1) {trans2[t]=1}
       
