@@ -1,0 +1,299 @@
+---
+title: "Run PEPRMT-Tidal"
+output: html_document
+date: "2023-10-19"
+author: Patty Oikawa
+email: patty.oikawa@gmail.com
+---
+
+Load packages
+
+```{r setup, echo=FALSE, message=FALSE}
+library(pacman)
+p_load(R.matlab, here, tidyverse, FME, Metrics, lubridate, gridExtra, rjags, coda)
+source("run_PEPRMT.R")
+source("PEPRMT_GPP_FINAL.R")
+source("PEPRMT_CH4_FINAL_ASL2.R")
+source("PEPRMT_Reco_FINAL.R")
+```
+
+Load data
+
+```{r}
+target <- read_csv("peprmt_target.csv") %>%
+  as.data.frame() %>%
+  mutate(NO3_mg_L = 0.062, #Copied from US_PLM
+         WTD_cm = -WTD_cm) #Switch this when you update Load/Format data.Rmd
+
+ch4_validation <- read_csv("ch4_validation.csv") %>%
+  as.data.frame()
+
+comb <- target %>%
+  left_join(ch4_validation) %>%
+  as.data.frame() %>%
+  arrange(site, Date)
+```
+
+Simplest toy model
+
+```{r}
+#Data
+y <- comb$CH4_slope_umol_per_day
+TA_C <- comb$TA_C
+site_i <- comb$site
+n <- nrow(comb)
+model.inits <- list(tau = 1, 
+                    intercept = 1, 
+                    temp_slope = 0)
+
+#JAGS specifications
+iterations <- 1000
+burnin <- floor(iterations/2)
+chains <- 2
+
+#Model
+cat("model
+    {
+
+    ### Define the priors
+    tau ~ dgamma(0.001, 0.001) #process error
+    intercept ~ dnorm(0, 0.001)
+    slope_mean ~ dnorm(0, 0.001)
+    slope_tau ~ dgamma(0.001, 0.001)
+    
+    for (site in 1:n_sites) {
+      slope_site[site] ~ dnorm(slope_mean, slope_tau)
+    }
+
+    ### Define the likelihood
+    for (i in 1:n) {
+      y[i] ~ dnorm(mu[i], tau)
+      mu[i] <- intercept + slope_site[site_i[i]] * TA_C[i]
+    }
+    
+    }", file="jags_model.txt")
+
+model.fit <- jags.model(file="jags_model.txt",
+                        data=list(n = n, 
+                                  y = y, 
+                                  TA_C = TA_C,
+                                  site_i = site_i,
+                                  n_sites = length(unique(site_i))
+                                  ),
+                        inits=model.inits, 
+                        n.chains = chains)
+
+model.samples <- coda.samples(
+  model.fit, 
+  c("intercept", "slope_mean", "slope_site"), 
+  n.iter=iterations)
+summary(window(model.samples, start = burnin))
+plot(model.samples, trace=FALSE, density = TRUE)
+
+output <- as.matrix(coda.samples(
+  model.fit, c("mu"), 
+  n.iter=iterations)) # extract the MCMC samples
+pred <- colMeans(output) # point estimates and the variance
+pred_interval <- apply(  # get 95% prediction intervals
+  output, 2, 
+  quantile, c(0.025, 0.975))
+
+# arrange in a dataframe
+df <- comb %>%
+  mutate(pred = pred, 
+         lpred = pred_interval[1,],
+         upred = pred_interval[2,])
+
+
+# plot the actual values, and predicted values and interval
+ggplot(df, aes(x = Date)) + 
+  geom_ribbon(aes(ymin = lpred, ymax = upred), alpha = 0.3, fill = "gray20") +
+  geom_point(aes(y = CH4_slope_umol_per_day, col = "Observed"), size = 0.5) +
+  geom_line(aes(y = pred, col = "Predicted"), linewidth = 0.5) +
+  scale_color_manual(values = c("Observed" = "red", "Predicted" = "#4B0055"), name = "") +
+  labs(y = "CH4_slope_umol_per_day", x = "Date") + 
+  theme_minimal()+
+  facet_wrap(~site)
+```
+
+Temp + autoregressive term
+
+```{r}
+#Data
+comb <- comb %>%
+  arrange(DOY)
+y <- comb$CH4_slope_umol_per_day
+TA_C <- comb$TA_C
+n <- nrow(comb)
+model.inits <- list(tau = 1, 
+                    intercept = 1, 
+                    temp_slope = 0,
+                    beta_autoreg = 0)
+
+#JAGS specifications
+iterations <- 1000
+burnin <- floor(iterations/2)
+chains <- 3
+
+#Model
+cat("model
+    {
+
+    ### Priors
+    tau_obs ~ dgamma(0.001, 0.001) #obs error
+    intercept ~ dnorm(0, 0.001)
+    beta_autoreg ~ dnorm(0, 0.001)
+    tau_proc ~ dgamma(0.001, 0.001) #process error
+    slope_mean ~ dnorm(0, 0.001)
+    slope_tau ~ dgamma(0.001, 0.001)
+    mu[1] ~ dnorm(0, 0.001) #Starting ch4
+    
+    for (site in 1:n_sites) {
+      slope_site[site] ~ dnorm(slope_mean, slope_tau)
+    }
+    
+    ### Process model
+    for (i in 2:n) {
+      y[i] ~ dnorm(mu[i], tau_obs) # Observation model
+      mu[i] ~ dnorm(mu_proc[i], tau_proc) 
+      mu_proc[i] <- intercept + 
+        slope_site[site_i[i]] * TA_C[i] + 
+        beta_autoreg * y[i-1]
+        
+    }
+    
+    }", file="jags_model.txt")
+
+model.fit <- jags.model(file="jags_model.txt",
+                        data=list(n = n, 
+                                  y = y, 
+                                  TA_C = TA_C,
+                                  site_i = site_i,
+                                  n_sites = length(unique(site_i))
+                                  ),
+                        inits=model.inits, 
+                        n.chains = chains)
+
+model.samples <- coda.samples(
+  model.fit, 
+  c("intercept", "slope_mean", "beta_autoreg", "tau_proc"), 
+  n.iter=iterations)
+summary(window(model.samples, start = burnin))
+plot(model.samples, trace=FALSE, density = TRUE)
+
+output <- as.matrix(coda.samples(
+  model.fit, c("mu"), 
+  n.iter=iterations)) # extract the MCMC samples
+pred <- colMeans(output) # point estimates and the variance
+pred_interval <- apply(  # get 95% prediction intervals
+  output, 2, 
+  quantile, c(0.025, 0.975))
+
+# arrange in a dataframe
+df <- comb %>%
+  mutate(pred = pred, 
+         lpred = pred_interval[1,],
+         upred = pred_interval[2,])
+
+
+# plot the actual values, and predicted values and interval
+ggplot(df, aes(x = Date)) + 
+  geom_ribbon(aes(ymin = lpred, ymax = upred), alpha = 0.3, fill = "gray20") +
+  geom_point(aes(y = CH4_slope_umol_per_day, col = "Observed"), size = 0.5) +
+  geom_line(aes(y = pred, col = "Predicted"), linewidth = 0.5) +
+  scale_color_manual(values = c("Observed" = "red", "Predicted" = "#4B0055"), name = "") +
+  labs(y = "CH4_slope_umol_per_day", x = "Date") + 
+  theme_minimal()+
+  facet_wrap(~site)
+```
+
+PEPRMT
+
+```{r}
+#Data
+comb <- comb %>%
+  arrange(DOY)
+y <- comb$CH4_slope_umol_per_day
+TA_C <- comb$TA_C
+n <- nrow(comb)
+model.inits <- list(tau = 1, 
+                    intercept = 1, 
+                    temp_slope = 0,
+                    beta_autoreg = 0)
+
+#JAGS specifications
+iterations <- 1000
+burnin <- floor(iterations/2)
+chains <- 3
+
+#Model
+cat("model
+    {
+
+    ### Priors
+    tau_obs ~ dgamma(0.001, 0.001) #obs error
+    intercept ~ dnorm(0, 0.001)
+    beta_autoreg ~ dnorm(0, 0.001)
+    tau_proc ~ dgamma(0.001, 0.001) #process error
+    slope_mean ~ dnorm(0, 0.001)
+    slope_tau ~ dgamma(0.001, 0.001)
+    mu[1] ~ dnorm(0, 0.001) #Starting ch4
+    
+    for (site in 1:n_sites) {
+      slope_site[site] ~ dnorm(slope_mean, slope_tau)
+    }
+    
+    ### Process model
+    for (i in 2:n) {
+      y[i] ~ dnorm(mu[i], tau_obs) # Observation model
+      mu[i] ~ dnorm(mu_proc[i], tau_proc) 
+      mu_proc[i] <- intercept + 
+        slope_site[site_i[i]] * TA_C[i] + 
+        beta_autoreg * y[i-1]
+        
+    }
+    
+    }", file="jags_model.txt")
+
+model.fit <- jags.model(file="jags_model.txt",
+                        data=list(n = n, 
+                                  y = y, 
+                                  TA_C = TA_C,
+                                  site_i = site_i,
+                                  n_sites = length(unique(site_i))
+                                  ),
+                        inits=model.inits, 
+                        n.chains = chains)
+
+model.samples <- coda.samples(
+  model.fit, 
+  c("intercept", "slope_mean", "beta_autoreg", "tau_proc"), 
+  n.iter=iterations)
+summary(window(model.samples, start = burnin))
+plot(model.samples, trace=FALSE, density = TRUE)
+
+output <- as.matrix(coda.samples(
+  model.fit, c("mu"), 
+  n.iter=iterations)) # extract the MCMC samples
+pred <- colMeans(output) # point estimates and the variance
+pred_interval <- apply(  # get 95% prediction intervals
+  output, 2, 
+  quantile, c(0.025, 0.975))
+
+# arrange in a dataframe
+df <- comb %>%
+  mutate(pred = pred, 
+         lpred = pred_interval[1,],
+         upred = pred_interval[2,])
+
+
+# plot the actual values, and predicted values and interval
+ggplot(df, aes(x = Date)) + 
+  geom_ribbon(aes(ymin = lpred, ymax = upred), alpha = 0.3, fill = "gray20") +
+  geom_point(aes(y = CH4_slope_umol_per_day, col = "Observed"), size = 0.5) +
+  geom_line(aes(y = pred, col = "Predicted"), linewidth = 0.5) +
+  scale_color_manual(values = c("Observed" = "red", "Predicted" = "#4B0055"), name = "") +
+  labs(y = "CH4_slope_umol_per_day", x = "Date") + 
+  theme_minimal()+
+  facet_wrap(~site)
+```
