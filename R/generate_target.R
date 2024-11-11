@@ -21,14 +21,15 @@ generate_target <- function(save = T,
   #Second- calculate fluxes for new data, re-generating the L0 file
   if(reprocess){
     L0 <- calculate_flux(start_date = "2021-01-01", 
-                         end_date = "2024-12-31",
-                         modif_start_date = NULL)
+                         end_date = Sys.Date()+1,
+                         modif_start_date = NULL,
+                         reprocess = reprocess)
   } else {
     L0 <- calculate_flux()
   }
   
   #Third- QAQC
-  data <- qaqc(here::here("L0.csv")) #Running qaqc() is equivalent to reading in L1 file
+  data <- qaqc(here::here("L0.csv")) #data is L1
   
   #Format as target data
   target <- data %>%
@@ -49,4 +50,4 @@ generate_target <- function(save = T,
   return(target)
 }
 
-#target <- generate_target(reprocess = F)
+#target <- generate_target(reprocess = T)

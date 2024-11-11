@@ -137,7 +137,7 @@ PEPRMT_Reco_FINAL <- function(theta,
         S1[t] <- C1_init[t] #substrate avail NOT affected by water avail-- SOM pool
         S2[t] <- C2_init + C2in[t]  # Ps C pool-- some initial Ps C lingering in soil + day 1 GPPavail
       } else {
-        S1[t] <- S1sol[t-1]+C1_init[t]
+        S1[t] <- S1sol[t-1]+ C1_init[t]
         S2[t] <- S2sol[t-1]+ C2in[t] #substrate availability based on Ps on time step previous
       }
       

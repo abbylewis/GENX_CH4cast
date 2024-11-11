@@ -59,7 +59,7 @@ met_output <- data %>%
   mutate(TIMESTAMP = with_tz(TIMESTAMP, tzone = "America/New_York"),
          Date = as.Date(TIMESTAMP)) %>%
   group_by(Date) %>%
-  select(Date, PAR_Den_C_Avg, Rain_cm_Tot, Barometric_Pressure_PB110B, RH, WS_ms_RM_Avg, SlrW_Avg) %>%
+  select(Date, AirTC_Avg, PAR_Den_C_Avg, Rain_cm_Tot, Barometric_Pressure_PB110B, RH, WS_ms_RM_Avg, SlrW_Avg) %>%
   mutate(across(everything(), as.numeric)) %>%
   mutate(Rain_cm_Tot = sum(Rain_cm_Tot, na.rm = TRUE)) %>% #Daily sums for rain
   summarize(across(is.numeric, mean, na.rm = TRUE))
@@ -81,3 +81,7 @@ write.csv(met_output %>% rename(PAR = PAR_Den_C_Avg) %>% select(Date, PAR),
 
 write.csv(met_output,
           "./processed_data/met_output.csv", row.names = FALSE)
+
+write.csv(data %>%
+            select(TIMESTAMP, AirTC_Avg, PAR_Den_C_Avg, Rain_cm_Tot, Barometric_Pressure_PB110B, RH, WS_ms_RM_Avg, SlrW_Avg),
+          "./processed_data/met_15min.csv", row.names = FALSE)
