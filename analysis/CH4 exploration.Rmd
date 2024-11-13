@@ -27,8 +27,7 @@ ch4 <- read_csv("../L1_target.csv", show_col_types = FALSE) %>%
          CH4_rsquared = 1) %>%
   pivot_wider(names_from = variable,
               values_from = observation) %>%
-  rename(CH4_slope_ppm_per_day = CH4_slope_umol_per_day) %>%
-  filter(abs(CH4_slope_ppm_per_day) < 1000)
+  rename(CH4_slope_ppm_per_day = CH4_slope_umol_per_day) 
 ```
 
 ## Initial plots

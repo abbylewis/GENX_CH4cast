@@ -13,7 +13,8 @@
 calculate_flux <- function(start_date = NULL,
                            end_date = NULL,
                            modif_start_date = file.info(here::here("L0.csv"))$mtime,
-                           reprocess = F){
+                           reprocess = F,
+                           plot = F){
   ### Load files ###
   files <- list.files(here::here("Raw_data","dropbox_downloads"), full.names = T)
   #By default, only calculate slopes for files that have been modified/created since the last time we ran the script
@@ -44,7 +45,8 @@ calculate_flux <- function(start_date = NULL,
     bind_rows() %>%
     filter(!TIMESTAMP == "TS") %>%
     mutate(TIMESTAMP = as_datetime(TIMESTAMP)) %>%
-    filter(!is.na(TIMESTAMP)) %>%
+    filter(!is.na(TIMESTAMP),
+           year(TIMESTAMP)>=2021) %>%
     distinct() 
   
   #Account for different formatting among files
@@ -75,7 +77,7 @@ calculate_flux <- function(start_date = NULL,
     mutate(Flag = "No issues")
   
   #Remove data as specified in maintenance log
-  googlesheets4::gs4_auth(cache = ".secrets", email = "aslewis@vt.edu") # Authenticate using token
+  googlesheets4::gs4_deauth()
   maint_log <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1-fcWU3TK936cR0kPvLTy6CUF_GTvHTwGbiAKDCIE05s/edit?gid=0#gid=0") %>%
     mutate(Start_time = as_datetime(Start_time),
            End_time = as_datetime(End_time))
@@ -110,39 +112,36 @@ calculate_flux <- function(start_date = NULL,
     group_by(miu_valve) %>%
     fill(time_s) %>%
     rename(cutoff = time_s)
-  filtered_data <- data_numeric %>%
+  
+  grouped_data <- data_numeric %>%
     mutate(date = as.Date(TIMESTAMP)) %>%
     left_join(peaks, by = c("MIU_VALVE" = "miu_valve", "date" = "start_date")) %>%
     #Group flux intervals
     arrange(TIMESTAMP) %>%
     mutate(group = group_fun(MIU_VALVE)) %>%
-    group_by(group, MIU_VALVE) %>%
-    #Make sure we have some data to calculate flux
-    filter(sum(!is.na(CH4d_ppm)) > 0) %>%
+    group_by(group, MIU_VALVE)  %>%
     #Record the amount of time from when chamber closed
     mutate(start = min(TIMESTAMP),
            change = as.numeric(difftime(TIMESTAMP, start, units = "days")),
            change_s = as.numeric(difftime(TIMESTAMP, start, units = "secs")),
            n = sum(change_s > cutoff & !is.na(CH4d_ppm)),
-           max_s = change_s[which.max(CH4d_ppm)]) %>%
-    #Filter earlier measurements
+           max_s = ifelse(sum(!is.na(CH4d_ppm) > 0),
+                          change_s[which.max(CH4d_ppm)],
+                          NA))
+  
+  #Save flags for data that will be removed in the next step
+  flags <- grouped_data %>%
+    ungroup() %>%
+    select(start, MIU_VALVE, Flag) %>%
+    distinct()
+  
+  filtered_data <- grouped_data %>%
+    #Remove earlier measurements
     filter(change_s > cutoff,
            change_s < 1000, #After ~15 min there is probably a problem
            n >= 5, #need at least 5 data points to calculate slope
            n < 200 #probably some issue if this many measurements are taken
     ) 
-  
-  #Look at data to confirm index is okay
-  data_numeric %>%
-    head(20000) %>%
-    mutate(group = group_fun(MIU_VALVE)) %>%
-    group_by(group, MIU_VALVE) %>%
-    mutate(start = min(TIMESTAMP),
-           change_s = as.numeric(difftime(TIMESTAMP, start, units = "secs"))) %>%
-    ggplot(aes(x = change_s, y = as.numeric(CO2d_ppm), group = start)) +
-    geom_line(alpha = 0.2)+
-    facet_wrap(~MIU_VALVE)+
-    theme(legend.position = "none")
   
   #Run lm
   slopes <- filtered_data %>%
@@ -166,25 +165,28 @@ calculate_flux <- function(start_date = NULL,
     mutate(gas = ifelse(gas == "CH4d_ppm", "CH4", "CO2")) %>%
     pivot_wider(names_from = gas, 
                 values_from = c(slope_ppm_per_day, R2, p, rmse, init, max, min),
-                names_glue = "{gas}_{.value}")
+                names_glue = "{gas}_{.value}") %>%
+    full_join(flags, by = c("TIMESTAMP" = "start", "MIU_VALVE"))
   
-  for(year_i in unique(year(slopes$TIMESTAMP))){
-    p <- slopes %>%
-      mutate(MIU_VALVE = factor(MIU_VALVE, 
-                                levels = c(1,4,7,10,
-                                           3,6,9,12,
-                                           2,5,8,11))) %>%
-      filter(year(TIMESTAMP) == year_i) %>%
-      ggplot(aes(x = TIMESTAMP, y = max_s)) +
-      geom_point(alpha = 0.02)+
-      facet_wrap(~MIU_VALVE)+
-      ggtitle(year_i)+
-      xlab("Date")+
-      ylab("Time to peak (s)")+
-      theme_bw()
-    jpeg(here::here("figures", paste0("TimeToPeak_", year_i, ".jpeg")), width = 6, height = 5, units = "in", res = 300)
-    print(p)
-    dev.off()
+  if(plot){
+    for(year_i in unique(year(slopes$TIMESTAMP))){
+      p <- slopes %>%
+        mutate(MIU_VALVE = factor(MIU_VALVE, 
+                                  levels = c(1,4,7,10,
+                                             3,6,9,12,
+                                             2,5,8,11))) %>%
+        filter(year(TIMESTAMP) == year_i) %>%
+        ggplot(aes(x = TIMESTAMP, y = max_s)) +
+        geom_point(alpha = 0.02)+
+        facet_wrap(~MIU_VALVE)+
+        ggtitle(year_i)+
+        xlab("Date")+
+        ylab("Time to peak (s)")+
+        theme_bw()
+      jpeg(here::here("figures", paste0("TimeToPeak_", year_i, ".jpeg")), width = 6, height = 5, units = "in", res = 300)
+      print(p)
+      dev.off()
+    }
   }
   
   if(!reprocess){

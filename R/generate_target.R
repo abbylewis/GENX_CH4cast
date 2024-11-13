@@ -13,23 +13,9 @@ source(here::here("R","calculate_flux.R"))
 #' @export
 #'
 #' @examples
-generate_target <- function(save = T, 
-                            reprocess = F){
-  #First - check for new data and download locally
-  download <- download_new_data()
-  
-  #Second- calculate fluxes for new data, re-generating the L0 file
-  if(reprocess){
-    L0 <- calculate_flux(start_date = "2021-01-01", 
-                         end_date = Sys.Date()+1,
-                         modif_start_date = NULL,
-                         reprocess = reprocess)
-  } else {
-    L0 <- calculate_flux()
-  }
-  
-  #Third- QAQC
-  data <- qaqc(here::here("L0.csv")) #data is L1
+generate_target <- function(){
+  data <- read_csv("https://raw.githubusercontent.com/abbylewis/GENX_flux_data/refs/heads/master/L1.csv",
+                   show_col_types = F)
   
   #Format as target data
   target <- data %>%
