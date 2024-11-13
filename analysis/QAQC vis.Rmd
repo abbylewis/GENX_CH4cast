@@ -410,119 +410,6 @@ slopes_filt %>%
   geom_line()
 ```
 
-Stuck closed
-
-```{r}
-chamber_temp <- read_csv(here::here("processed_data","chamber_temp_1min.csv"))
-metadata <- read_csv(here::here("Raw_data","chamber_metadata.csv"))
-#Start by visualizing a small subset of data
-temp_difs <- chamber_temp[210000:211000,] %>%
-  left_join(metadata) %>%
-  select(TIMESTAMP, AirTemp_C, miu_valve) %>%
-  rename(time_1min = TIMESTAMP,
-         miu_valve_bme = miu_valve) %>%
-  inner_join(slopes_filt %>%
-               mutate(time_slope = TIMESTAMP,
-                      time_1min = round_date(TIMESTAMP, unit="1 mins")) %>%
-               rename(miu_valve_flux = MIU_VALVE)) %>%
-  group_by(time_1min) %>%
-  mutate(z_temp = (AirTemp_C - mean(AirTemp_C, na.rm = T))/sd(AirTemp_C, na.rm = T))
-temp_difs %>%
-  ggplot(aes(x = time_1min, y = z_temp, color = miu_valve_bme == miu_valve_flux))+
-  facet_wrap(~miu_valve_bme)+
-  geom_point()+
-  theme(legend.position = "bottom")
-temp_difs %>%
-  ggplot(aes(x = time_1min, y = AirTemp_C, color = miu_valve_bme == miu_valve_flux))+
-  facet_wrap(~miu_valve_bme)+
-  geom_point()+
-  theme(legend.position = "bottom")
-
-#With all daytime data, calculate zscore
-temp_difs <- chamber_temp %>%
-  #Can only use daytime data for this
-  filter(hour(TIMESTAMP) > 10 & hour(TIMESTAMP) < 16) %>%
-  left_join(metadata) %>%
-  select(TIMESTAMP, AirTemp_C, miu_valve) %>%
-  rename(time_1min = TIMESTAMP,
-         miu_valve_bme = miu_valve) %>%
-  inner_join(slopes_filt %>%
-               mutate(time_slope = TIMESTAMP,
-                      time_1min = round_date(TIMESTAMP, unit="1 mins")) %>%
-               rename(miu_valve_flux = MIU_VALVE)) %>%
-  arrange(time_1min) %>%
-  group_by(time_1min) %>%
-  mutate(z_temp = (AirTemp_C - mean(AirTemp_C, na.rm = T)) /
-           sd(AirTemp_C, na.rm = T))
-
-#We're going to remove points with a zscore greater than 1 and low CO2 R2
-closed <- temp_difs %>%
-  filter(miu_valve_bme == miu_valve_flux) %>%
-  group_by(miu_valve_bme) %>%
-  mutate(closed = ifelse(z_temp > 2, T, F),
-         r2 = ifelse(CO2_R2 < 0.8, T, F))
-
-#summary stats
-closed %>%
-  group_by(closed) %>%
-  summarize(n = n(),
-            median_ch4_slope = median(CH4_slope_ppm_per_day, na.rm = T),
-            median_co2_slope = median(CO2_slope_ppm_per_day, na.rm = T),
-            median_ch4_init = median(CH4_init, na.rm = T),
-            median_ch4_r2 = median(CH4_R2, na.rm = T),
-            median_co2_r2 = median(CO2_R2, na.rm = T),
-            median_ch4_nrmse = median(CH4_nrmse, na.rm = T),
-            median_co2_nrmse = median(CO2_nrmse, na.rm = T))
-
-#Figure
-closed %>%
-  pivot_longer(c(r2, closed)) %>%
-  mutate(yday = yday(time_1min),
-         year = year(time_1min)) %>%
-  group_by(name, yday, year) %>%
-  summarize(n = sum(value)/n()) %>%
-  ggplot(aes(x = yday, y = n, color = name))+
-  geom_point()+
-  ylab("Proportion removed") +
-  ggh4x::facet_grid2(rows = vars(year), cols = vars(name), scales = "free_y", independent = "y")
-
-closed_final <- temp_difs %>%
-  filter(miu_valve_bme == miu_valve_flux) %>%
-  mutate(closed = ifelse(z_temp > 2, T, F),
-         date = as.Date(time_1min)) %>%
-  filter(!is.na(closed)) %>%
-  group_by(date, miu_valve_flux) %>%
-  summarize(closed = sum(closed)>=2) %>%
-  rename(MIU_VALVE = miu_valve_flux) %>%
-  left_join(slopes_filt %>%
-              mutate(date = as.Date(TIMESTAMP))) 
-
-closed_final %>%
-  group_by(closed) %>%
-  summarize(n = n(),
-            median_ch4_slope = median(abs(CH4_slope_ppm_per_day), na.rm = T),
-            median_co2_slope = median(abs(CO2_slope_ppm_per_day), na.rm = T),
-            median_ch4_init = median(CH4_init, na.rm = T),
-            median_ch4_r2 = median(CH4_R2, na.rm = T),
-            median_co2_r2 = median(CO2_R2, na.rm = T),
-            median_ch4_nrmse = median(CH4_nrmse, na.rm = T),
-            median_co2_nrmse = median(CO2_nrmse, na.rm = T))
-
-closed_final %>%
-  mutate(yday = yday(date),
-         year = year(date)) %>%
-  group_by(yday, year) %>%
-  mutate(prop = sum(closed)/n()) %>%
-  ggplot(aes(x = yday, y = prop, color = as.factor(year)))+
-  geom_line()+
-  geom_hline(yintercept = 1/12)
-
-closed_final %>%
-  ggplot(aes(x = CH4_init, color = closed))+
-  geom_density()+
-  scale_x_continuous(trans = "pseudo_log")
-```
-
 Stuck open
 
 ```{r}
@@ -554,7 +441,7 @@ temp_difs %>%
   geom_point()+
   theme(legend.position = "bottom")
 
-#With all daytime data, calculate zscore
+#With all daytime data, calculate quantile
 temp_difs <- chamber_temp %>%
   #Can only use daytime data for this
   filter(hour(TIMESTAMP) >= 8 & hour(TIMESTAMP) <= 12) %>%
@@ -569,10 +456,9 @@ temp_difs <- chamber_temp %>%
   arrange(miu_valve_bme, time_1min) %>%
   mutate(temp_change = lead(AirTemp_C) - AirTemp_C) %>%
   group_by(time_1min) %>%
-  mutate(temp_change_quantile = ecdf(temp_change)(temp_change),
-         temp_quantile = ecdf(AirTemp_C)(AirTemp_C)) 
+  mutate(temp_change_quantile = ecdf(temp_change)(temp_change)) 
 
-#We're going to remove points with a zscore greater than 1 and low CO2 R2
+#Set points to remove
 open <- temp_difs %>%
   filter(miu_valve_bme == miu_valve_flux) %>%
   group_by(miu_valve_bme) %>%

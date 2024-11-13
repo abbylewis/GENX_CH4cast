@@ -8,9 +8,11 @@ Raw_data/EVI
 Raw_data/dropbox_downloads
 Raw_data/dropbox_met
 Raw_data/dropbox_water_level
+processed_data/raw_small.csv
 figures
 analysis/scores.csv
 .httr-oauth
 /.quarto/
 /_site/
 tokenfile.RDS
+.secrets

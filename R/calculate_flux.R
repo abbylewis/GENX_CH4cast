@@ -54,50 +54,92 @@ calculate_flux <- function(start_date = NULL,
                !duplicated(CH4d_ppm)) %>% #I've spent some time looking into this and there are some duplicated LGR rows
       select(TIMESTAMP, CH4d_ppm, CO2d_ppm, MIU_VALVE, GasT_C)
   } else {
-    data_small2 <- data_raw %>%
+    #NOTE GENX_FLUX_20210602020004.dat has issues with timestamp
+    data_small <- data_raw %>%
       select(TIMESTAMP, CH4d_ppm, CO2d_ppm, MIU_VALVE, GasT_C)
   }
   rm(data_raw) #Save memory
   
   ### Calculate slopes ###
-  #Prep data
-  time_cutoff <- 300 #Cutoff to use when we have plenty of data (seconds)
-  summer_time_cutoff <- 200 #Cutoff to use when there are < 35 measurements (seconds)
-  filtered_data <- data_small %>%
+  #Format data
+  data_numeric <- data_small %>%
     mutate(CH4d_ppm = as.numeric(CH4d_ppm),
            CO2d_ppm = as.numeric(CO2d_ppm),
            GasT_C = as.numeric(GasT_C),
-           MIU_VALVE = as.numeric(MIU_VALVE)) %>%
-    filter(!MIU_VALVE == 16,
-           !is.na(MIU_VALVE)) %>%
+           MIU_VALVE = as.numeric(MIU_VALVE),
+           CH4d_ppm = ifelse(CH4d_ppm<=0, NA, CH4d_ppm),
+           CO2d_ppm = ifelse(CO2d_ppm<=0, NA, CO2d_ppm)) %>%
+    filter(!MIU_VALVE %in% c(0, 16),
+           !is.na(MIU_VALVE),
+           year(TIMESTAMP) > 2000) %>%
+    mutate(Flag = "No issues")
+  
+  #Remove data as specified in maintenance log
+  googlesheets4::gs4_auth(cache = ".secrets", email = "aslewis@vt.edu") # Authenticate using token
+  maint_log <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1-fcWU3TK936cR0kPvLTy6CUF_GTvHTwGbiAKDCIE05s/edit?gid=0#gid=0") %>%
+    mutate(Start_time = as_datetime(Start_time),
+           End_time = as_datetime(End_time))
+  for(i in 1:nrow(maint_log)){
+    data_numeric <- data_numeric %>%
+      mutate(Flag = ifelse(TIMESTAMP < maint_log$End_time[i] & 
+                             TIMESTAMP > maint_log$Start_time[i] &
+                             MIU_VALVE %in% eval(parse(text = maint_log$Chambers[i])),
+                           maint_log$Flag[i],
+                           Flag),
+             CH4d_ppm = ifelse(TIMESTAMP < maint_log$End_time[i] & 
+                                 TIMESTAMP > maint_log$Start_time[i] &
+                                 maint_log$Remove[i] == "y" &
+                                 MIU_VALVE %in% eval(parse(text = maint_log$Chambers[i])),
+                               NA,
+                               CH4d_ppm),
+             CO2d_ppm = ifelse(TIMESTAMP < maint_log$End_time[i] & 
+                                 TIMESTAMP > maint_log$Start_time[i] &
+                                 maint_log$Remove[i] == "y" &
+                                 MIU_VALVE %in% eval(parse(text = maint_log$Chambers[i])),
+                               NA,
+                               CO2d_ppm))
+  }
+  
+  #Remove first peak
+  #Visually identified thresholds
+  peaks <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1GTmdqDhUpxZ2dtGLe6tE0KyIE6kd_gqZV9r2jjKgyu0/edit?gid=0#gid=0") %>%
+    group_by(miu_valve) %>%
+    ungroup() %>%
+    complete(start_date = seq.Date(min(as.Date(start_date)), Sys.Date(), by = "1 day"),
+             miu_valve) %>%
+    group_by(miu_valve) %>%
+    fill(time_s) %>%
+    rename(cutoff = time_s)
+  filtered_data <- data_numeric %>%
+    mutate(date = as.Date(TIMESTAMP)) %>%
+    left_join(peaks, by = c("MIU_VALVE" = "miu_valve", "date" = "start_date")) %>%
+    #Group flux intervals
     arrange(TIMESTAMP) %>%
     mutate(group = group_fun(MIU_VALVE)) %>%
     group_by(group, MIU_VALVE) %>%
+    #Make sure we have some data to calculate flux
     filter(sum(!is.na(CH4d_ppm)) > 0) %>%
+    #Record the amount of time from when chamber closed
     mutate(start = min(TIMESTAMP),
            change = as.numeric(difftime(TIMESTAMP, start, units = "days")),
            change_s = as.numeric(difftime(TIMESTAMP, start, units = "secs")),
-           cutoff = ifelse(max(change_s) < 350, 
-                           summer_time_cutoff,
-                           time_cutoff),
            n = sum(change_s > cutoff & !is.na(CH4d_ppm)),
            max_s = change_s[which.max(CH4d_ppm)]) %>%
+    #Filter earlier measurements
     filter(change_s > cutoff,
            change_s < 1000, #After ~15 min there is probably a problem
            n >= 5, #need at least 5 data points to calculate slope
            n < 200 #probably some issue if this many measurements are taken
-    ) %>%
-    #Issues during this window (concs > 100000 ppm)
-    filter(TIMESTAMP > "2024-07-09 15:00:00" | TIMESTAMP < "2024-07-09 6:00:00")
+    ) 
   
   #Look at data to confirm index is okay
-  data_small %>%
+  data_numeric %>%
     head(20000) %>%
     mutate(group = group_fun(MIU_VALVE)) %>%
     group_by(group, MIU_VALVE) %>%
     mutate(start = min(TIMESTAMP),
            change_s = as.numeric(difftime(TIMESTAMP, start, units = "secs"))) %>%
-    ggplot(aes(x = change_s, y = as.numeric(GasT_C), group = start)) +
+    ggplot(aes(x = change_s, y = as.numeric(CO2d_ppm), group = start)) +
     geom_line(alpha = 0.2)+
     facet_wrap(~MIU_VALVE)+
     theme(legend.position = "none")
@@ -107,20 +149,23 @@ calculate_flux <- function(start_date = NULL,
     pivot_longer(c(CH4d_ppm, CO2d_ppm), names_to = "gas", values_to = "conc") %>%
     group_by(gas, group, MIU_VALVE) %>%
     filter(!is.na(conc)) %>%
-    summarize(slope_ppm_per_day = lm(conc ~ change)$coefficients[[2]],
+    summarize(model = list(lm(conc ~ change)),
+              slope_ppm_per_day = model[[1]]$coefficients[[2]],
               Temp_init = first(GasT_C),
-              slope_umol_per_day = slope_ppm_per_day * 265.8 / (0.08206*(Temp_init + 273)),
-              R2 = summary(lm(conc ~ change))$r.squared,
-              p = summary(lm(conc ~ change))$coefficients[,4][2],
-              rmse = sqrt(mean(lm(conc ~ change)$residuals^2)/n()),
+              R2 = summary(model[[1]])$r.squared,
+              p = summary(model[[1]])$coefficients[,4][2],
+              rmse = sqrt(mean(model[[1]]$residuals^2)),
+              max = max(conc),
+              min = min(conc),
               init = first(conc),
               max_s = unique(max_s),
               TIMESTAMP = unique(start),
               n = unique(n),
               .groups = "drop") %>%
+    select(-model) %>%
     mutate(gas = ifelse(gas == "CH4d_ppm", "CH4", "CO2")) %>%
     pivot_wider(names_from = gas, 
-                values_from = c(slope_ppm_per_day, slope_umol_per_day, R2, p, rmse, init),
+                values_from = c(slope_ppm_per_day, R2, p, rmse, init, max, min),
                 names_glue = "{gas}_{.value}")
   
   for(year_i in unique(year(slopes$TIMESTAMP))){
@@ -142,21 +187,22 @@ calculate_flux <- function(start_date = NULL,
     dev.off()
   }
   
-  #Load previously calculated slopes
   if(!reprocess){
+    #Load previously calculated slopes
     old_slopes <- read_csv(here::here("L0.csv"), show_col_types = F) %>%
       filter(!TIMESTAMP %in% slopes$TIMESTAMP)
     slopes_comb <- bind_rows(old_slopes, slopes)
   } else {
     slopes_comb <- slopes
+    #Whenever we reprocess everything, save the raw output for QAQC efforts
+    round_comb <- function(x){round(as.numeric(x), 2)}
+    write.csv(data_small %>%
+                mutate(across(c(CO2d_ppm, GasT_C), round_comb)),
+              here::here("processed_data","raw_small.csv"), row.names = FALSE)
   }
   
   #Output
-  write.csv(slopes_comb, here::here("L0.csv"), row.names = FALSE)
-  round_comb <- function(x){round(as.numeric(x), 2)}
-  write.csv(data_small %>%
-              mutate(across(c(CO2d_ppm, GasT_C), round_comb)),
-            here::here("processed_data","raw_small.csv"), row.names = FALSE)
+  write.csv(slopes_comb %>% select(-max_s), here::here("L0.csv"), row.names = FALSE)
   return(slopes_comb)
 }
 
@@ -172,3 +218,7 @@ group_fun <- function(MIU_VALVE) {
   }
   return(group)
 }
+#calculate_flux(start_date = "2021-01-01", 
+#               end_date = Sys.Date()+1,
+#               modif_start_date = NULL,
+#               reprocess = TRUE)

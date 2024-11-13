@@ -19,6 +19,16 @@ ch4 <- read_csv("../Raw_data/GENX_Flux_SD_Loggernet_2021-05-05_to_2022-12-31_der
          Temp = ifelse(Temp == "amb", 0, Temp),
          Temp = as.numeric(Temp),
          time2 = with_tz(time2, tzone = "America/New_York"))
+
+ch4 <- read_csv("../L1_target.csv", show_col_types = FALSE) %>%
+  mutate(date = as.Date(datetime),
+         plot_id = site_id,
+         chamber = site_id,
+         CH4_rsquared = 1) %>%
+  pivot_wider(names_from = variable,
+              values_from = observation) %>%
+  rename(CH4_slope_ppm_per_day = CH4_slope_umol_per_day) %>%
+  filter(abs(CH4_slope_ppm_per_day) < 1000)
 ```
 
 ## Initial plots
