@@ -1,0 +1,27 @@
+model
+    {
+
+    ### Priors
+    tau_obs ~ dgamma(0.001, 0.001) #obs error
+    intercept ~ dnorm(0, 0.001)
+    beta_autoreg ~ dnorm(0, 0.001)
+    tau_proc ~ dgamma(0.001, 0.001) #process error
+    slope_mean ~ dnorm(0, 0.001)
+    slope_tau ~ dgamma(0.001, 0.001)
+    mu[1] ~ dnorm(0, 0.001) #Starting ch4
+    
+    for (site in 1:n_sites) {
+      slope_site[site] ~ dnorm(slope_mean, slope_tau)
+    }
+    
+    ### Process model
+    for (i in 2:n) {
+      y[i] ~ dnorm(mu[i], tau_obs) # Observation model
+      mu[i] ~ dnorm(mu_proc[i], tau_proc) 
+      mu_proc[i] <- intercept + 
+        slope_site[site_i[i]] * TA_C[i] + 
+        beta_autoreg * y[i-1]
+        
+    }
+    
+    }
