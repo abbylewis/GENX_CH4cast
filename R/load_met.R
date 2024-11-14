@@ -101,4 +101,4 @@ load_met <- function(forecast_date = Sys.Date(),
             row.names = F)
   return()
 }
-load_met(Sys.Date())
+#load_met(Sys.Date())

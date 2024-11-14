@@ -17,16 +17,10 @@ convert_to_vera_met_P1D <- function(df){
     # rename variables to match met station
     mutate(variable = ifelse(variable == "temperature_2m",
                              "AirTemp_C_mean", variable),
-           prediction = ifelse(variable == "AirTemp_C_mean",
-                               prediction - 273.15, prediction), #Update units from K to C
            variable = ifelse(variable == "precipitation",
                              "Rain_mm_sum", variable),
-           prediction = ifelse(variable == "Rain_mm_sum",
-                               prediction * 60 * 60, prediction), #Update units from kg/m2/s to mm/d
            variable = ifelse(variable == "relativehumidity_2m",
                              "RH_percent_mean", variable),
-           prediction = ifelse(variable == "RH_percent_mean",
-                               prediction * 100, prediction), #Update units from proportion to %
            variable = ifelse(variable == "windspeed_10m",
                              "WindSpeed_ms_mean", variable),
            variable = ifelse(variable == "shortwave_radiation",

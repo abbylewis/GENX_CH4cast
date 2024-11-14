@@ -16,3 +16,4 @@ analysis/scores.csv
 /_site/
 tokenfile.RDS
 .secrets
+tokenfile.RDS.base64

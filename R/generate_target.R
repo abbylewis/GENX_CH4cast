@@ -1,7 +1,3 @@
-source(here::here("R","qaqc.R"))
-source(here::here("R","download_new_data.R"))
-source(here::here("R","calculate_flux.R"))
-
 #' generate_target
 #'
 #' @description
@@ -19,7 +15,7 @@ generate_target <- function(){
   
   #Format as target data
   target <- data %>%
-    mutate(time2 = with_tz(time2, tzone = "America/New_York"),
+    mutate(time2 = with_tz(TIMESTAMP, tzone = "America/New_York"),
            project_id = "gcrew",
            duration = "P1D",
            time2 = as.Date(time2)) %>%
@@ -36,4 +32,4 @@ generate_target <- function(){
   return(target)
 }
 
-#target <- generate_target(reprocess = T)
+#target <- generate_target()
