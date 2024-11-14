@@ -25,7 +25,6 @@ options_ordered <- file_options %>%
          Date_date = ifelse(is.na(Date_date), Sys.Date(), Date_date)) %>%
   arrange(desc(Date_date))
 
-source(here::here("R","generate_target.R"))
 source(here::here("R", "generate_tg_forecast.R"))
 source(here::here("R", "plot_shiny_forecast.R"))
 source(here::here("R", "plot_raw_data.R"))

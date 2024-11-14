@@ -98,7 +98,7 @@ ul.task-list li input[type="checkbox"] {
 <div class="cell-output-display">
 <div id="forecast_date" class="shiny-date-input form-group shiny-input-container">
 <label class="control-label" id="forecast_date-label" for="forecast_date">Forecast date</label>
-<input type="text" class="form-control" aria-labelledby="forecast_date-label" title="Date format: yyyy-mm-dd" data-date-language="en" data-date-week-start="0" data-date-format="yyyy-mm-dd" data-date-start-view="month" data-min-date="2022-01-01" data-max-date="2024-10-23" data-initial-date="2024-10-23" data-date-autoclose="true" data-date-dates-disabled="null" data-date-days-of-week-disabled="null">
+<input type="text" class="form-control" aria-labelledby="forecast_date-label" title="Date format: yyyy-mm-dd" data-date-language="en" data-date-week-start="0" data-date-format="yyyy-mm-dd" data-date-start-view="month" data-min-date="2022-01-01" data-max-date="2024-11-14" data-initial-date="2024-11-14" data-date-autoclose="true" data-date-dates-disabled="null" data-date-days-of-week-disabled="null">
 </div>
 </div>
 </div>
@@ -123,6 +123,8 @@ ul.task-list li input[type="checkbox"] {
 <label class="control-label" id="raw_data_file-label" for="raw_data_file">Choose file name:</label>
 <div>
 <select id="raw_data_file" class="shiny-input-select"><option value="current.dat" selected="">current.dat</option>
+<option value="GENX_LGR_04142021_20210505020005.dat">GENX_LGR_04142021_20210505020005.dat</option>
+<option value="GENX_INSTRUMENT_FLUX_COMB_20241101005906.dat">GENX_INSTRUMENT_FLUX_COMB_20241101005906.dat</option>
 <option value="GENX_INSTRUMENT_FLUX_COMB_20241015005904.dat">GENX_INSTRUMENT_FLUX_COMB_20241015005904.dat</option>
 <option value="GENX_INSTRUMENT_FLUX_COMB_20241009025358.dat">GENX_INSTRUMENT_FLUX_COMB_20241009025358.dat</option>
 <option value="GENX_INSTRUMENT_FLUX_COMB_20241002020030.dat">GENX_INSTRUMENT_FLUX_COMB_20241002020030.dat</option>
@@ -214,7 +216,9 @@ ul.task-list li input[type="checkbox"] {
 <option value="GENX_FLUX_20210630020005.dat">GENX_FLUX_20210630020005.dat</option>
 <option value="GENX_FLUX_20210616020006.dat">GENX_FLUX_20210616020006.dat</option>
 <option value="GENX_FLUX_20210602020004.dat">GENX_FLUX_20210602020004.dat</option>
-<option value="GENX_FLUX_20210519020004.dat">GENX_FLUX_20210519020004.dat</option></select>
+<option value="GENX_FLUX_20210519020004.dat">GENX_FLUX_20210519020004.dat</option>
+<option value="GENX_LGR_20210519020004.dat">GENX_LGR_20210519020004.dat</option>
+<option value="GENX_LGR_20210505124243.dat">GENX_LGR_20210505124243.dat</option></select>
 <script type="application/json" data-for="raw_data_file" data-nonempty="">{"plugins":["selectize-plugin-a11y"]}</script>
 </div>
 </div>
@@ -278,7 +282,6 @@ options_ordered <- file_options %>%
          Date_date = ifelse(is.na(Date_date), Sys.Date(), Date_date)) %>%
   arrange(desc(Date_date))
 
-source(here::here("R","generate_target.R"))
 source(here::here("R", "generate_tg_forecast.R"))
 source(here::here("R", "plot_shiny_forecast.R"))
 source(here::here("R", "plot_raw_data.R"))
