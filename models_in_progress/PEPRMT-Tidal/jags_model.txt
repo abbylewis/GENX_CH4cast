@@ -1,27 +1,120 @@
 model
     {
 
+    ### Constant
+    R = 8.314 #J K mol-1
+
     ### Priors
     tau_obs ~ dgamma(0.001, 0.001) #obs error
-    intercept ~ dnorm(0, 0.001)
-    beta_autoreg ~ dnorm(0, 0.001)
     tau_proc ~ dgamma(0.001, 0.001) #process error
-    slope_mean ~ dnorm(0, 0.001)
-    slope_tau ~ dgamma(0.001, 0.001)
-    mu[1] ~ dnorm(0, 0.001) #Starting ch4
     
-    for (site in 1:n_sites) {
-      slope_site[site] ~ dnorm(slope_mean, slope_tau)
-    }
+    #CH4 PARAMETERS
+    M_alpha1 = 6.2e13 # gC m-3 d-1 
+    Ea_CH4_SOC = (14.9025078 + 67.1) * 1000 #theta[1]*1000 #parameter in kJ mol-1 multiplied by 1000 = J mol-1
+    kM_CH4_SOC = 0.4644174 + 17 #theta[2] #g C m-3 
+  
+    #Labile C pool
+    M_alpha2 = 6.2e14 # gC m-3 d-1 
+    Ea_CH4_labile = 86.7 * 1000 #theta[3]*1000 #J mol-1#SOC pool
+    kM_CH4_labile = 0.4359649 + 23 #g C m-3 
+  
+    #CH4 oxidation parameters
+    M_alpha3 = 6.2e13 # gC m-3 d-1 
+    Ea_CH4_oxi = (15.8857612 + 75.4)*1000 #J mol-1
+    kM_CH4oxi = 0.5120464 + 23 #g C m-3 
+  
+    #Salinity sulfate parameters
+    kI_SO4 = 100 #mg L^-1 
+    kI_NO3 = 0.2 #mg L^-1 
+  
+    #Parameters for hydrodynamic flux
+    k_hydro_max = 0.04 #gas transfer velocity (m day-1)
+  
+    #Parameters for plant-mediated transport
+    k_plant = 0.24 #gas transfer velocity through plants(m d-1)
+    V_oxi_plant = 0.35 #percent oxidized during transport
+    
+    #Abby's new parameters
+    oxi_depth_sens = 10 #this parameter changes how sensitive oxidation is to depth below the soil surface
+    #lower = more sensitive
+    fract_outflow = 0.6 #When water level declines, 60% of the methane in that volume of water is exported
+    bottom_bound_m = 1
     
     ### Process model
-    for (i in 2:n) {
-      y[i] ~ dnorm(mu[i], tau_obs) # Observation model
-      mu[i] ~ dnorm(mu_proc[i], tau_proc) 
-      mu_proc[i] <- intercept + 
-        slope_site[site_i[i]] * TA_C[i] + 
-        beta_autoreg * y[i-1]
+    for (site in 1:n_sites){
+      ### Initial values
+      WTD_cm_adj_raw[ind[site]] = WTD_cm[ind[site]]/100 + bottom_bound_m #convert to m and adjust because we are modeling from 1m below the sediment to the atmosphere
+      WTD_cm_adj[ind[site]] = ifelse(WTD_cm_adj_raw[ind[site]] <= 0, 
+                                     0.000001, 
+                                     WTD_cm_adj_raw[ind[site]]) #make sure WTD_cm_adj is never negative or 0 (WTD < bottom bound)
+      CH4water_store[ind[site]] ~ dnorm(0, 0.001) #Starting ch4
+      mu[ind[site]] ~ dnorm(0, 0.001) #Starting mu
+    
+      for (t in (ind[site] + 1):(ind[site+1]-1)) {
+        y[t] ~ dnorm(mu[t], tau_obs) # Observation model
+        mu[t] ~ dnorm(mu_proc[t], tau_proc) 
         
+        #Time Invariant
+        WTD_cm_adj_raw[t] = WTD_cm[t]/100 + bottom_bound_m #convert to m and adjust because we are modeling from 1m below the sediment to the atmosphere
+        WTD_cm_adj[t] = ifelse(WTD_cm_adj_raw[t] <= 0, 0.000001, WTD_cm_adj_raw[t]) #make sure WTD_cm_adj is never negative or 0 (WTD < bottom bound)
+        RT[t] = R * (TA_C[t] + 274.15) #T in Kelvin-all units cancel out
+        Vmax_CH4_SOC[t] = M_alpha1 * exp(-Ea_CH4_SOC / RT[t]) #g C m-2 d-1 
+        Vmax_CH4_labile[t] = M_alpha2 * exp(-Ea_CH4_labile / RT[t]) #gC m-2 d-1 
+        Vmax_CH4oxi_raw[t] = M_alpha3 * exp(-Ea_CH4_oxi / RT[t]) #gC m-2 d-1 
+        k_hydro[t] = ifelse(WTD_cm_adj[t] > bottom_bound_m, k_hydro_max, 0) #if WTD is below soil surface, cut off diffusion
+        
+        #parameter for plant-mediated transport--function of GPP
+        GPP_fract[t] = (EVI[t] - min(EVI))/(max(EVI) - min(EVI))
+        
+        #Calculate sulfate from Salinity
+        conc_so4AV[t] = 0.074 * Salinity_daily_ave_ppt[t] * 1000
+        
+        ### Calculate CH4prod at each timestep from SOC pools
+        #CH4 from total SOC pool
+        CH4prod_SOC[t] = (Vmax_CH4_SOC[t] * (SOM_total[t] /(kM_CH4_SOC + SOM_total[t]))) * 
+          (kI_NO3 / (kI_NO3 + NO3_mg_L[t])) *
+          (kI_SO4 / (kI_SO4 + conc_so4AV[t])) #gC CH4 prod d-1 
+        #CH4 from labile SOC pool
+        CH4prod_labile[t] = (Vmax_CH4_labile[t] * (SOM_labile[t] /(kM_CH4_labile + SOM_labile[t])))  * 
+          (kI_NO3 / (kI_NO3 + NO3_mg_L[t])) *
+          (kI_SO4 / (kI_SO4 + conc_so4AV[t])) #gC CH4 prod d-1 
+        CH4prod[t] = CH4prod_SOC[t] + CH4prod_labile[t] #total CH4 produced at this time step in gC m-3 soil day-1
+        
+        CH4water_g_prev[t] = CH4water_store[t-1] * WTD_cm_adj[t-1]
+        #If water level decreased, assume some methane left with it
+        CH4_exported[t] = ifelse(WTD_cm_adj[t-1] > WTD_cm_adj[t], 
+                              CH4water_g_prev[t] * 
+                                ((WTD_cm_adj[t-1] - WTD_cm_adj[t]) / WTD_cm_adj[t-1]) * #fractional water loss
+                                fract_outflow, #fraction of methane exported
+                              0)
+          
+        #account for any changes in concentration of CH4 due to any change in WTD_cm_adj height
+        CH4water_init[t] = CH4water_g_prev[t] - CH4_exported[t] # gC
+        
+        #Total methane prior to oxidation 
+        # methane produced / water volume (gC CH4 m-3)
+        CH4water_pre_oxi[t] = (CH4prod[t] + CH4water_init[t]) / WTD_cm_adj[t]
+        Vmax_CH4oxi[t] = ifelse(WTD_cm_adj[t] > bottom_bound_m,
+                                  Vmax_CH4oxi_raw[t], #No oxidation when water is above the soil
+                                  Vmax_CH4oxi_raw[t] + Vmax_CH4oxi_raw[t] * (bottom_bound_m - WTD_cm_adj[t])) 
+        CH4_oxi[t] = ifelse(WTD_cm_adj[t] > bottom_bound_m,
+                          0, #No oxidation when water is above the soil
+                          Vmax_CH4oxi[t] * CH4water_pre_oxi[t] / (kM_CH4oxi + CH4water_pre_oxi[t]))  #gC CH4 m-3 Reaction velocity
+        
+        CH4water[t] = CH4water_pre_oxi[t] - CH4_oxi[t]  #gC CH4 m-3
+        
+        #based on the concentrations in the soil and water, calculate hydro and plant-mediated fluxes
+        Hydro_flux[t] = k_hydro[t] * CH4water[t]  #gC CH4 m-2 day-1  Hydrodynamic flux 
+        Plant_flux[t] = k_plant * CH4water[t] * GPP_fract[t]  #gC CH4 m-2 day-1  Bulk Plant mediated transport 
+        Plant_flux_net[t] = Plant_flux[t] * V_oxi_plant  #gC CH4 m-2 day-1  Plant mediated transport after oxidation
+        
+        #subtract the moles of methane lost from the pools (soil and water) to the atm
+        CH4water_store[t] = CH4water[t] - Hydro_flux[t] - Plant_flux[t]  #gC CH4 m-3 stored in the system
+        
+        # If you have water, then the CH4 should mix between the 2 layers and concentrations should be the same in water and soil
+      
+        mu_proc[t] = Plant_flux_net[t] + Hydro_flux[t]
+      }
     }
     
     }

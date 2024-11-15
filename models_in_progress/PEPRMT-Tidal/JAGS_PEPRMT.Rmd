@@ -1,9 +1,8 @@
 ---
-title: "Run PEPRMT-Tidal"
+title: "PEPRMT-Tidal JAGS"
 output: html_document
-date: "2023-10-19"
-author: Patty Oikawa
-email: patty.oikawa@gmail.com
+date: "2024-11-15"
+author: Abby Lewis
 ---
 
 Load packages
@@ -25,6 +24,39 @@ target <- read_csv("peprmt_target.csv") %>%
   mutate(NO3_mg_L = 0.062, #Copied from US_PLM
          WTD_cm = -WTD_cm) #Switch this when you update Load/Format data.Rmd
 
+#First run GPP Module
+GPP_theta <- c(0.7479271, 1.0497113, 149.4681710, 94.4532674 )
+GPP_mod_target <- PEPRMT_GPP_final(GPP_theta,
+                                   data = target)
+
+#Create a new dataset that included model results
+target_results <- target %>%
+  left_join(GPP_mod_target %>%
+              rename(GPP_mod = GPP,
+                     DOY = Time_2),
+            by = c("DOY", "site"))
+
+#Second run Reco Module
+#Add modeled GPP into data before running Reco module (16th column)
+target[,16]<-target_results$GPP_mod
+
+Reco_theta <- c(18.41329, 1487.65701, 11.65972, 61.29611 )
+Reco_mod_target <- PEPRMT_Reco_FINAL(Reco_theta,
+                                     data = target,
+                                     wetland_type=2)
+
+#Create a new dataset that included model results
+target_results<-target_results %>%
+  left_join(Reco_mod_target %>%
+              rename(DOY = Time_2,
+                     Reco_mod = Reco_full),
+            by = c("DOY", "site"))
+
+#Last, run CH4 module
+#Add modeled S1, S2 into data before running CH4 module (17th & 18th columns)
+target$SOM_total <- target_results$S1
+target$SOM_labile <-target_results$S2
+
 ch4_validation <- read_csv("ch4_validation.csv") %>%
   as.data.frame()
 
@@ -40,65 +72,46 @@ Temp + autoregressive term
 #Data
 comb <- comb %>%
   arrange(site, DOY)
+y <- comb$CH4_slope_umol_per_day
+TA_C <- comb$TA_C
+WTD_cm <- comb$WTD_cm
+EVI <- comb$EVI
+Salinity_daily_ave_ppt <- comb$Salinity_daily_ave_ppt
+NO3_mgL <- comb$NO3_mg_L
+SOM_MEM_gC_m3 <- comb$SOM_MEM_gC_m3
+SOM_labile <- comb$SOM_labile
+SOM_total <- comb$SOM_total
 ind <- comb %>%
   mutate(ind = row_number()) %>%
   filter(!site==lag(site)) %>%
   pull(ind) %>%
   c(1, ., nrow(comb)+1)
-y <- comb$CH4_slope_umol_per_day
-TA_C <- comb$TA_C
-n <- nrow(comb)
-model.inits <- list(tau_proc = 1, 
-                    intercept = 0, 
-                    slope_mean = 0,
-                    slope_tau = 1,
-                    beta_autoreg = 0)
+
+model.inits <- list(tau_obs = 1,
+                    tau_proc = 1)
 
 #JAGS specifications
 iterations <- 1000
 burnin <- floor(iterations/2)
 chains <- 3
 
-#Model
-cat("model
-    {
-
-    ### Priors
-    tau_obs ~ dgamma(0.001, 0.001) #obs error
-    intercept ~ dnorm(0, 0.001)
-    beta_autoreg ~ dnorm(0, 0.001)
-    tau_proc ~ dgamma(0.001, 0.001) #process error
-    slope_mean ~ dnorm(0, 0.001)
-    slope_tau ~ dgamma(0.001, 0.001)
-    
-    for (site in 1:n_sites) {
-      slope_site[site] ~ dnorm(slope_mean, slope_tau)
-      mu[ind[site]] ~ dnorm(0, 0.001) #Starting ch4
-    
-      ### Process model
-      for (t in (ind[site] + 1):(ind[site+1]-1)) {
-        y[t] ~ dnorm(mu[t], tau_obs) # Observation model
-        mu[t] ~ dnorm(mu_proc[t], tau_proc) 
-        
-        mu_proc[t] <- intercept + slope_site[site_i[t]] * 
-        TA_C[t] + beta_autoreg * y[t-1]
-      }
-    }
-    }", file="jags_model_test.txt")
-
-model.fit <- jags.model(file="jags_model_test.txt",
+model.fit <- jags.model(file="jags_model.txt",
                         data=list(y = y, 
-                                  TA_C = TA_C,
-                                  site_i = site_i,
+                                  n_sites = length(unique(site_i)),
                                   ind = ind,
-                                  n_sites = length(unique(site_i))
-                                  ),
+                                  TA_C = TA_C,
+                                  WTD_cm = WTD_cm,
+                                  EVI = EVI,
+                                  Salinity_daily_ave_ppt = Salinity_daily_ave_ppt,
+                                  NO3_mg_L = NO3_mgL,
+                                  SOM_labile = SOM_labile,
+                                  SOM_total = SOM_total),
                         inits=model.inits, 
                         n.chains = chains)
 
 model.samples <- coda.samples(
   model.fit, 
-  c("intercept", "slope_mean", "beta_autoreg", "tau_proc"), 
+  c("tau_proc", "tau_obs"), 
   n.iter=iterations)
 summary(window(model.samples, start = burnin))
 plot(model.samples, trace=FALSE, density = TRUE)
