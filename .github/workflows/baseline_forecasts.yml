@@ -22,19 +22,19 @@ jobs:
     - name: Run climate_window
       run: |
         R -e 'utils::install.packages("here")'
-        Rscript ./climate_window/run_forecast.R
+        Rscript ./models/climate_window/run_forecast.R
         
     - name: Run climatology
       run: |
-        Rscript ./climatology/run_forecast.R
+        Rscript ./models/climatology/run_forecast.R
         
     - name: Run persistence
       run: |
-        Rscript ./persistence/run_forecast.R
+        Rscript ./models/persistence/run_forecast.R
         
     - name: Run RW
       run: |
-        Rscript ./RW/run_forecast.R
+        Rscript ./models/RW/run_forecast.R
         
     - name: Commit and push
       run: |
@@ -42,4 +42,5 @@ jobs:
         git config --global user.email 'aslewis@vt.edu'
         git add .
         git commit -m "Automated ML forecasts" || echo "No changes to commit"
+        git pull
         git push

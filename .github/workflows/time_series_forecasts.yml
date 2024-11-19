@@ -22,19 +22,19 @@ jobs:
     - name: Run auto.arima
       run: |
         R -e 'utils::install.packages("here")'
-        Rscript ./auto.arima/run_forecast.R
+        Rscript ./models/auto.arima/run_forecast.R
   
     - name: Run ETS
       run: |
-        Rscript ./ETS/run_forecast.R
+        Rscript ./models/ETS/run_forecast.R
 
     - name: Run prophet
       run: |
-        Rscript ./prophet/run_forecast.R
+        Rscript ./models/prophet/run_forecast.R
    
     - name: Run cwae
       run: |
-        Rscript ./cwae/run_forecast.R
+        Rscript ./models/cwae/run_forecast.R
     
     - name: Commit and push
       run: |
@@ -42,4 +42,5 @@ jobs:
         git config --global user.email 'aslewis@vt.edu'
         git add .
         git commit -m "Automated time series forecasts" || echo "No changes to commit"
+        git pull
         git push
