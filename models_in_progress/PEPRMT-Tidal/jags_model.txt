@@ -1,17 +1,50 @@
 model
     {
 
-    ### Constant
+    ### Constants
+    
+    #GPP
+    vcopt = 1.0
+    R_t = 0.00831 #KJ mol-1 K-1
+    T_opt = 25 + 274.15 #(K); our Temp opt for Ps is 25C
+    
+    #CH4/Reco
     R = 8.314 #J K mol-1
+    
+    
 
     ### Priors
+    
+    #CH4
     tau_obs ~ dgamma(0.001, 0.001) #obs error
     tau_proc ~ dgamma(0.001, 0.001) #process error
     
-    #CH4 PARAMETERS
+    
+    
+    ### Parameters
+    
+    #Reco
+    #SOM
+    alpha1 <- 3e3 #g C m-2 d-1
+    ea1 <- 18.41329*1000 #J mol-1
+    km1 <- 1487.65701 # g C m-3
+    
+    #LABILE
+    alpha2 <- 3e3 #g C m-2 d-1 --SET AS CONSTANT
+    ea2 <- 11.65972*1000 #J mol-1
+    km2 <- 61.29611 # g C m-3
+    
+    #Empirical parameters used to compute inhibition of Reco when WTD is high
+    a1 <- 0.00033
+    a2 <- 0.0014
+    a3 <- 0.75
+    
+    #CH4
     M_alpha1 = 6.2e13 # gC m-3 d-1 
     Ea_CH4_SOC = (14.9025078 + 67.1) * 1000 #theta[1]*1000 #parameter in kJ mol-1 multiplied by 1000 = J mol-1
     kM_CH4_SOC = 0.4644174 + 17 #theta[2] #g C m-3 
+    Ha = 149.4681710 + 30 #activation energy for general crop plant (KJ mol-1)
+    Hd = 94.4532674 + 100 #(KJ mol-1)
   
     #Labile C pool
     M_alpha2 = 6.2e14 # gC m-3 d-1 
@@ -40,9 +73,13 @@ model
     fract_outflow = 0.6 #When water level declines, 60% of the methane in that volume of water is exported
     bottom_bound_m = 1
     
+    
+    
     ### Process model
     for (site in 1:n_sites){
+    
       ### Initial values
+      C2_init[ind[site]] = 0 #initialize labile C pool-set to 0 g C m-3 initially
       WTD_cm_adj_raw[ind[site]] = WTD_cm[ind[site]]/100 + bottom_bound_m #convert to m and adjust because we are modeling from 1m below the sediment to the atmosphere
       WTD_cm_adj[ind[site]] = ifelse(WTD_cm_adj_raw[ind[site]] <= 0, 
                                      0.000001, 
@@ -50,14 +87,152 @@ model
       CH4water_store[ind[site]] ~ dnorm(0, 0.001) #Starting ch4
       mu[ind[site]] ~ dnorm(0, 0.001) #Starting mu
     
+    
       for (t in (ind[site] + 1):(ind[site+1]-1)) {
+      
+        ###### GPP ######
+        
+        fPAR_2[t] = 0.7479271 + 1.0497113 * EVI[t]
+        APAR_2[t] = fPAR_2[t] * PAR_umol_m2_day[t] #umol m-2 daily average
+        AirT_K[t] = TA_C[t] + 274.15 #C to Kelvin
+        
+        exponent1[t] = (Ha * (AirT_K[t] - T_opt)) / (AirT_K[t] * R_t * T_opt)
+        exponent2[t] = (Hd * (AirT_K[t] - T_opt)) / (AirT_K[t] * R_t * T_opt)
+        top[t] = Hd * exp(exponent1[t])  
+        bottom[t] = Hd - (Ha * (1 - exp(exponent2[t])))
+        vct[t] = vcopt * (top[t] / bottom[t])
+        
+        NPP_FPAR_T[t] = vct[t] * APAR_2[t] * LUE[t] #umol m-2 d-1* gC/umol == g C m-2 d-1
+        GPP[t] = -NPP_FPAR_T[t] #stay as g C m-2 d-1 where negative values= uptake
+      
+        ###### Reco ######
+        
+        # #Static C allocation theme
+        NPPsum_avail_2[t] <- -GPP[t] #g C m-2 day-1 change to + numbers & give Reco access to GPP
+    
+        #Time Invariant
+        RT[t] = R * (TA_C[t] + 274.15) #T in Kelvin-all units cancel out
+        Vmax1[1] <- alpha1 * exp(-ea1/RT[t]) #g C m-2 d-1 SOM
+        Vmax2[1] <- alpha2 * exp(-ea2/RT[t]) #g C m-2 d-1 labile
+        
+        #C allocation
+        #only 50% of GPP is available 
+        C2in[t] <- NPPsum_avail_2[t]*0.5 # gC m-2 d-1
+        
+        C1_init[t] <- SOM_2[t] #"decomposed" Organic matter all the soil organic matter in top meter from MEM inclusive of current year
+        
+        
+        
+        
+        
+        ## Start working here
+        
+        
+        
+        
+        
+        
+        
+        
+        #if (t == 1 | site_change[t]>0 #if beginning of model or switch sites, start C1 pool over
+        if (t == 1) {
+          S1[t] <- C1_init[t] #substrate avail NOT affected by water avail-- SOM pool
+          S2[t] <- C2_init + C2in[t]  # Ps C pool-- some initial Ps C lingering in soil + day 1 GPPavail
+        } else {
+          S1[t] <- S1sol[t-1]+ C1_init[t]
+          S2[t] <- S2sol[t-1]+ C2in[t] #substrate availability based on Ps on time step previous
+        }
+        
+        #Empirical factor for increased availability of SOC during the first 3 yrs following restoration
+        if (wetland_age_2[t]<1) {
+          percent_available[t] <- 0.6
+        } else {
+          percent_available[t] <- 1 #for peatlands was 20% now 100% is available 
+        }
+        
+        S1[t] = S1[t]*percent_available[t]  #SOM pool
+        
+        
+        #following Davidson and using multiple eq for diff substrate pools
+        R1[t] <- Vmax1[t] * S1[t]/(km1 + S1[t]) #g C m2 d-1 Reaction velocity
+        R2[t] <- Vmax2[t] * S2[t] /(km2 + S2[t]) #g C m2 d-1   
+        if (R1[t]<0) {R1[t]=0}
+        
+        if (R2[t]<0) {R2[t]=0}
+        
+        
+        #Reco is reduced by 25% when WT is at or above soil surface
+        #--McNicol Silver 2015
+        #   a1 <- 0.00033
+        #   a2 <- 0.0014
+        #   a3 <- 0.75
+        #   WT_ex <- c(-30, -20, -10, 0)
+        #   percent_red_ex <- c(1, 0.85, 0.77, 0.75)
+        
+        #   plot(percent_red_ex ~ WT_ex)
+        
+        # insert logic tree here for freshwater peatland or tidal wetland switch
+        #Reduce Reco when WTD is high--not applied to Tidal sites
+        if(wetland_type == "1"){
+          percent_reduction[t] <- (a1*WT_2[t]^2) - (a2*WT_2[t]) + a3
+          if (WT_2[t]>5) {percent_reduction[t] <- 0.75}
+          if (percent_reduction[t]>1.25) {percent_reduction[t] <- 1.25}
+          if (percent_reduction[t]<0.75) {percent_reduction[t] <- 0.75}
+          
+          R1[t] <- R1[t]*percent_reduction[t] #g C m2 d-1  Reaction velocity
+          R2[t] <- R2[t]*percent_reduction[t] #g C m2 d-1 
+        } else {}
+        
+        #Empirical factor for elevated Reco during the first 3 yrs following restoration
+        if (wetland_age_2[t]<4) {
+          percent_enhancement[t] <- 1.2
+        } else {
+          percent_enhancement[t] <- 1
+        }
+        
+        R1[t] = R1[t]*percent_enhancement[t] #umol m2 sec Reaction velocity
+        R2[t] = R2[t]*percent_enhancement[t] #umol m2 sec
+        
+        if (t==1) {
+          S1sol[t] = C1_init[t] - (R1[t]) #accounts for depletion of C sources in soil due to Reco and methane production
+          S2sol[t] = (C2_init+C2in[t]) - (R2[t])
+        } else {
+          S1sol[t] = S1[t] - R1[t]
+          S2sol[t] = S2[t] - R2[t]
+        }
+        
+        if (S1sol[t]<0) {S1sol[t] <- 0}
+        if (S2sol[t]<0) {S2sol[t] <- 0}
+        
+        ###########EDITED OUT IN CURRENT VERSION############
+        #in autumn time or season 6, labile PS C pool empties into SOM
+        # if (Season_drop_2[t]>5) {
+        #   S1sol[t] = S1sol[t]+(0.2*S2sol[t]) #move part of labile C into SOM pool--mimicing plant matter dying
+        #   S2sol[t] = S2sol[t]-(0.2*S2sol[t])
+        # }
+        # 
+        # #in winter time or season 1, labile PS C pool empties into SOM
+        # if (Season_drop_2[t]<2) {
+        #   S1sol[t] = S1sol[t]+(S2sol[t]) #move entire labile C into SOM pool--mimicing plant matter dying
+        #   S2sol[t] = 0
+        # }
+        ########################################
+        
+        Reco_1[t] <- R1[t] + R2[t] 
+        Reco_full[t] <- (R1[t]) + (R2[t]) #umol m2 d-1
+      }
+      
+      NEE_mod <- GPP_2 + Reco_1 #umol m-2 d-1
+      
+      
+        ###### CH4 ######
+        
         y[t] ~ dnorm(mu[t], tau_obs) # Observation model
         mu[t] ~ dnorm(mu_proc[t], tau_proc) 
         
         #Time Invariant
         WTD_cm_adj_raw[t] = WTD_cm[t]/100 + bottom_bound_m #convert to m and adjust because we are modeling from 1m below the sediment to the atmosphere
         WTD_cm_adj[t] = ifelse(WTD_cm_adj_raw[t] <= 0, 0.000001, WTD_cm_adj_raw[t]) #make sure WTD_cm_adj is never negative or 0 (WTD < bottom bound)
-        RT[t] = R * (TA_C[t] + 274.15) #T in Kelvin-all units cancel out
         Vmax_CH4_SOC[t] = M_alpha1 * exp(-Ea_CH4_SOC / RT[t]) #g C m-2 d-1 
         Vmax_CH4_labile[t] = M_alpha2 * exp(-Ea_CH4_labile / RT[t]) #gC m-2 d-1 
         Vmax_CH4oxi_raw[t] = M_alpha3 * exp(-Ea_CH4_oxi / RT[t]) #gC m-2 d-1 
