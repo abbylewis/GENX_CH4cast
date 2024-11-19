@@ -18,24 +18,24 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+	  
       - name: Run climate_window
         run: |
           R -e 'utils::install.packages("here")'
           Rscript ./climate_window/run_forecast.R
-	
+	  
       - name: Run climatology
         run: |
           Rscript ./climatology/run_forecast.R
-
+	  
       - name: Run persistence
         run: |
           Rscript ./persistence/run_forecast.R
-
+	  
       - name: Run RW
         run: |
           Rscript ./RW/run_forecast.R
-        
+	  
       - name: Commit and push
         run: |
           git config --global user.name 'abbylewis'
