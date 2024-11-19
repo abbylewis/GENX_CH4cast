@@ -19,9 +19,12 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Load packages
+      run: |
+        Rscript ./packages.R
+
     - name: Run lasso
       run: |
-        R -e 'utils::install.packages("here")'
         Rscript ./models/lasso/run_forecast.R
   
     - name: Run randomForest

@@ -18,10 +18,13 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+
+    - name: Load packages
+      run: |
+        Rscript ./packages.R
     
     - name: Run auto.arima
       run: |
-        R -e 'utils::install.packages("here")'
         Rscript ./models/auto.arima/run_forecast.R
   
     - name: Run ETS
