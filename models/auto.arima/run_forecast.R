@@ -1,4 +1,4 @@
-source("./models/ARIMA/forecast_model.R")
+source("./models/auto.arima/forecast_model.R")
 source("./R/generate_tg_forecast.R")
 
 tryCatch({
