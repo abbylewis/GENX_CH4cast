@@ -44,6 +44,6 @@ jobs:
         git config --global user.name 'abbylewis'
         git config --global user.email 'aslewis@vt.edu'
         git add .
-        git commit -m "Automated ML forecasts" || echo "No changes to commit"
+        git commit -m "Automated baseline forecasts" || echo "No changes to commit"
         git pull
         git push
