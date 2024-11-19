@@ -22,6 +22,7 @@ jobs:
     - name: Run lasso
       run: |
         R -e 'utils::install.packages("here")'
+        R -e 'utils::install.packages("glmnet")'
         Rscript ./models/lasso/run_forecast.R
   
     - name: Run randomForest
