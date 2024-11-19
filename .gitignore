@@ -5,15 +5,10 @@
 Raw_data/GENX_SD_Export_Waterlevel_2021-05-06_to_2022-12-30_derived_clean_btemps.csv
 Raw_data/GENX_SD_Export_Waterlevel_2023-01-01_to_2023-12-31_derived_clean_btemps.csv
 Raw_data/EVI
-Raw_data/dropbox_downloads
 Raw_data/dropbox_met
 Raw_data/dropbox_water_level
 processed_data/raw_small.csv
 figures
 analysis/scores.csv
-.httr-oauth
 /.quarto/
 /_site/
-tokenfile.RDS
-.secrets
-tokenfile.RDS.base64

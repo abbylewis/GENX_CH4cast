@@ -1,0 +1,45 @@
+on:
+  workflow_dispatch:
+  schedule:
+  - cron: "0 10 * * *"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: rocker/tidyverse:4.2
+    permissions:
+      contents: write
+    
+    steps:
+      - run: git config --system --add safe.directory '*'
+      
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run lasso
+        run: |
+          R -e 'utils::install.packages("here")'
+          Rscript ./lasso/run_forecast.R
+	
+      - name: Run randomForest
+        run: |
+          Rscript ./randomForest/run_forecast.R
+
+      - name: Run ridge
+        run: |
+          Rscript ./ridge/run_forecast.R
+
+      - name: Run met_lm_step
+        run: |
+          Rscript ./met_lm_step/run_forecast.R
+        
+      - name: Commit and push
+        run: |
+          git config --global user.name 'abbylewis'
+          git config --global user.email 'aslewis@vt.edu'
+          git add .
+          git commit -m "Automated ML forecasts" || echo "No changes to commit"
+          git push
