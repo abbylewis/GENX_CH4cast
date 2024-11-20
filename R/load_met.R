@@ -1,5 +1,6 @@
 source(here::here("R","convert_to_vera_met_P1D.R"))
 source(here::here("R","get_ensemble_forecast.R"))
+source(here::here("R","get_historical_weather.R"))
 
 #' load_met
 #' 
@@ -40,20 +41,16 @@ load_met <- function(forecast_date = Sys.Date(),
     past_days = 92, # past days that can be used for model fitting
     model = "gfs_seamless", # this is the NOAA gefs ensemble model
     variables = variables) |> 
-    # function to convert to EFI standard
-    #ropenmeteo::convert_to_efi_standard() |>
     # rename variables to match met station
     convert_to_vera_met_P1D() 
 
   message("Loading historical weather")
-  weather_hist <- ropenmeteo::get_historical_weather(
+  weather_hist <- get_historical_weather(
     latitude = lat,
     longitude = long,
     start_date = as.Date("2010-01-01"),
     end_date = as.Date(forecast_date),
     variables = variables) |> 
-    # function to convert to EFI standard
-    #ropenmeteo::convert_to_efi_standard() |>
     # rename variables to match met station
     convert_to_vera_met_P1D() 
   
