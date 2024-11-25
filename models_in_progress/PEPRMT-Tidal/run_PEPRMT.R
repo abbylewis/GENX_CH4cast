@@ -1,4 +1,5 @@
 run_PEPRMT <- function(target) {
+  target <- data.frame(target)
   #First run GPP Module
   GPP_theta <- c(0.7479271, 1.0497113, 149.4681710, 94.4532674 )
   GPP_mod_target <- PEPRMT_GPP_final(GPP_theta,

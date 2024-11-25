@@ -1,7 +1,7 @@
 model
     {
 
-    ### Constants
+    #### Constants ####
     
     #GPP
     vcopt = 1.0
@@ -13,7 +13,7 @@ model
     
     
 
-    ### Priors
+    #### Priors ####
     
     #CH4
     tau_obs ~ dgamma(0.001, 0.001) #obs error
@@ -21,23 +21,23 @@ model
     
     
     
-    ### Parameters
+    #### Parameters ####
     
     #Reco
     #SOM
-    alpha1 <- 3e3 #g C m-2 d-1
-    ea1 <- 18.41329*1000 #J mol-1
-    km1 <- 1487.65701 # g C m-3
+    alpha1 = 3e3 #g C m-2 d-1
+    ea1 = 18.41329*1000 #J mol-1
+    km1 = 1487.65701 # g C m-3
     
     #LABILE
-    alpha2 <- 3e3 #g C m-2 d-1 --SET AS CONSTANT
-    ea2 <- 11.65972*1000 #J mol-1
-    km2 <- 61.29611 # g C m-3
+    alpha2 = 3e3 #g C m-2 d-1 --SET AS CONSTANT
+    ea2 = 11.65972*1000 #J mol-1
+    km2 = 61.29611 # g C m-3
     
     #Empirical parameters used to compute inhibition of Reco when WTD is high
-    a1 <- 0.00033
-    a2 <- 0.0014
-    a3 <- 0.75
+    a1 = 0.00033
+    a2 = 0.0014
+    a3 = 0.75
     
     #CH4
     M_alpha1 = 6.2e13 # gC m-3 d-1 
@@ -75,7 +75,7 @@ model
     
     
     
-    ### Process model
+    #### Process model ####
     for (site in 1:n_sites){
     
       ### Initial values
@@ -86,7 +86,10 @@ model
                                      WTD_cm_adj_raw[ind[site]]) #make sure WTD_cm_adj is never negative or 0 (WTD < bottom bound)
       CH4water_store[ind[site]] ~ dnorm(0, 0.001) #Starting ch4
       mu[ind[site]] ~ dnorm(0, 0.001) #Starting mu
-    
+      SOM_total[ind[site]] = C1_init[ind[site]] #substrate avail NOT affected by water avail-- SOM pool
+      SOM_labile[ind[site]] = C2_init + C2in[ind[site]]  # Ps C pool-- some initial Ps C lingering in soil + day 1 GPPavail
+      S1sol[ind[site]] = C1_init[ind[site]] - (R1[ind[site]])
+      S2sol[ind[site]] = C2_init[ind[site]] + C2in[ind[site]] - (R2[ind[site]])
     
       for (t in (ind[site] + 1):(ind[site+1]-1)) {
       
@@ -105,124 +108,48 @@ model
         NPP_FPAR_T[t] = vct[t] * APAR_2[t] * LUE[t] #umol m-2 d-1* gC/umol == g C m-2 d-1
         GPP[t] = -NPP_FPAR_T[t] #stay as g C m-2 d-1 where negative values= uptake
       
+      
         ###### Reco ######
         
         # #Static C allocation theme
-        NPPsum_avail_2[t] <- -GPP[t] #g C m-2 day-1 change to + numbers & give Reco access to GPP
+        NPPsum_avail_2[t] = -GPP[t] #g C m-2 day-1 change to + numbers & give Reco access to GPP
     
         #Time Invariant
         RT[t] = R * (TA_C[t] + 274.15) #T in Kelvin-all units cancel out
-        Vmax1[1] <- alpha1 * exp(-ea1/RT[t]) #g C m-2 d-1 SOM
-        Vmax2[1] <- alpha2 * exp(-ea2/RT[t]) #g C m-2 d-1 labile
+        Vmax1[t] = alpha1 * exp(-ea1/RT[t]) #g C m-2 d-1 SOM
+        Vmax2[t] = alpha2 * exp(-ea2/RT[t]) #g C m-2 d-1 labile
         
         #C allocation
         #only 50% of GPP is available 
-        C2in[t] <- NPPsum_avail_2[t]*0.5 # gC m-2 d-1
+        C2in[t] = NPPsum_avail_2[t]*0.5 # gC m-2 d-1
         
-        C1_init[t] <- SOM_2[t] #"decomposed" Organic matter all the soil organic matter in top meter from MEM inclusive of current year
+        C1_init[t] = SOM_MEM_gC_m3[t] #"decomposed" Organic matter all the soil organic matter in top meter from MEM inclusive of current year
         
-        
-        
-        
-        
-        ## Start working here
-        
-        
-        
-        
-        
-        
-        
-        
-        #if (t == 1 | site_change[t]>0 #if beginning of model or switch sites, start C1 pool over
-        if (t == 1) {
-          S1[t] <- C1_init[t] #substrate avail NOT affected by water avail-- SOM pool
-          S2[t] <- C2_init + C2in[t]  # Ps C pool-- some initial Ps C lingering in soil + day 1 GPPavail
-        } else {
-          S1[t] <- S1sol[t-1]+ C1_init[t]
-          S2[t] <- S2sol[t-1]+ C2in[t] #substrate availability based on Ps on time step previous
-        }
+        SOM_total[t] = (S1sol[t-1] + C1_init[t]) * percent_available[t]
+        SOM_labile[t] = S2sol[t-1]+ C2in[t] #substrate availability based on Ps on time step previous
         
         #Empirical factor for increased availability of SOC during the first 3 yrs following restoration
-        if (wetland_age_2[t]<1) {
-          percent_available[t] <- 0.6
-        } else {
-          percent_available[t] <- 1 #for peatlands was 20% now 100% is available 
-        }
-        
-        S1[t] = S1[t]*percent_available[t]  #SOM pool
-        
-        
-        #following Davidson and using multiple eq for diff substrate pools
-        R1[t] <- Vmax1[t] * S1[t]/(km1 + S1[t]) #g C m2 d-1 Reaction velocity
-        R2[t] <- Vmax2[t] * S2[t] /(km2 + S2[t]) #g C m2 d-1   
-        if (R1[t]<0) {R1[t]=0}
-        
-        if (R2[t]<0) {R2[t]=0}
-        
-        
-        #Reco is reduced by 25% when WT is at or above soil surface
-        #--McNicol Silver 2015
-        #   a1 <- 0.00033
-        #   a2 <- 0.0014
-        #   a3 <- 0.75
-        #   WT_ex <- c(-30, -20, -10, 0)
-        #   percent_red_ex <- c(1, 0.85, 0.77, 0.75)
-        
-        #   plot(percent_red_ex ~ WT_ex)
-        
-        # insert logic tree here for freshwater peatland or tidal wetland switch
-        #Reduce Reco when WTD is high--not applied to Tidal sites
-        if(wetland_type == "1"){
-          percent_reduction[t] <- (a1*WT_2[t]^2) - (a2*WT_2[t]) + a3
-          if (WT_2[t]>5) {percent_reduction[t] <- 0.75}
-          if (percent_reduction[t]>1.25) {percent_reduction[t] <- 1.25}
-          if (percent_reduction[t]<0.75) {percent_reduction[t] <- 0.75}
-          
-          R1[t] <- R1[t]*percent_reduction[t] #g C m2 d-1  Reaction velocity
-          R2[t] <- R2[t]*percent_reduction[t] #g C m2 d-1 
-        } else {}
+        percent_available[t] = ifelse(Wetland_age_years[t]<1,
+                                       0.6,
+                                       1) #for peatlands was 20% now 100% is available 
         
         #Empirical factor for elevated Reco during the first 3 yrs following restoration
-        if (wetland_age_2[t]<4) {
-          percent_enhancement[t] <- 1.2
-        } else {
-          percent_enhancement[t] <- 1
-        }
+        percent_enhancement[t] = ifelse(Wetland_age_years[t]<4, 1.2, 1)
         
-        R1[t] = R1[t]*percent_enhancement[t] #umol m2 sec Reaction velocity
-        R2[t] = R2[t]*percent_enhancement[t] #umol m2 sec
+        #following Davidson and using multiple eq for diff substrate pools
+        R1[t] = max(c(Vmax1[t] * SOM_total[t]/(km1 + SOM_total[t]) * percent_enhancement[t], #umol m2 sec Reaction velocity
+                     0)) #g C m2 d-1 Reaction velocity
         
-        if (t==1) {
-          S1sol[t] = C1_init[t] - (R1[t]) #accounts for depletion of C sources in soil due to Reco and methane production
-          S2sol[t] = (C2_init+C2in[t]) - (R2[t])
-        } else {
-          S1sol[t] = S1[t] - R1[t]
-          S2sol[t] = S2[t] - R2[t]
-        }
+        R2[t] = max(c(Vmax2[t] * SOM_labile[t] /(km2 + SOM_labile[t]) *percent_enhancement[t],
+                     0)) #g C m2 d-1 
         
-        if (S1sol[t]<0) {S1sol[t] <- 0}
-        if (S2sol[t]<0) {S2sol[t] <- 0}
+        S1sol[t] = max(SOM_total[t] - R1[t], 0)
+        S2sol[t] = max(SOM_labile[t] - R2[t], 0)
         
-        ###########EDITED OUT IN CURRENT VERSION############
-        #in autumn time or season 6, labile PS C pool empties into SOM
-        # if (Season_drop_2[t]>5) {
-        #   S1sol[t] = S1sol[t]+(0.2*S2sol[t]) #move part of labile C into SOM pool--mimicing plant matter dying
-        #   S2sol[t] = S2sol[t]-(0.2*S2sol[t])
-        # }
-        # 
-        # #in winter time or season 1, labile PS C pool empties into SOM
-        # if (Season_drop_2[t]<2) {
-        #   S1sol[t] = S1sol[t]+(S2sol[t]) #move entire labile C into SOM pool--mimicing plant matter dying
-        #   S2sol[t] = 0
-        # }
-        ########################################
+        Reco_1[t] = R1[t] + R2[t] 
+        Reco_full[t] = R1[t] + R2[t] #umol m2 d-1
         
-        Reco_1[t] <- R1[t] + R2[t] 
-        Reco_full[t] <- (R1[t]) + (R2[t]) #umol m2 d-1
-      }
-      
-      NEE_mod <- GPP_2 + Reco_1 #umol m-2 d-1
+        NEE_mod[t] = GPP[t] + Reco_1[t] #umol m-2 d-1
       
       
         ###### CH4 ######

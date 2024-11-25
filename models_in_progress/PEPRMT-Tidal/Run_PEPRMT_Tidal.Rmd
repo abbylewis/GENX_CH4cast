@@ -13,7 +13,7 @@ library(pacman)
 p_load(R.matlab, here, tidyverse, FME, Metrics, lubridate, gridExtra)
 source("run_PEPRMT.R")
 source("PEPRMT_GPP_FINAL.R")
-source("PEPRMT_CH4_FINAL_ASL2.R")
+source("PEPRMT_CH4_FINAL_ASL.R")
 source("PEPRMT_Reco_FINAL.R")
 ```
 
@@ -23,7 +23,11 @@ Load data
 target <- read_csv("peprmt_target.csv") %>%
   as.data.frame() %>%
   mutate(NO3_mg_L = 0.062, #Copied from US_PLM
-         WTD_cm = -WTD_cm) #Switch this when you update Load/Format data.Rmd
+         WTD_cm = -WTD_cm) %>% #Switch this when you update Load/Format data.Rmd
+  group_by(site) %>%
+  mutate(SOM_MEM_gC_m3 = ifelse(DOY == min(DOY),
+                                SOM_MEM_gC_m3,
+                                0))
 ch4_validation <- read_csv("ch4_validation.csv") %>%
   as.data.frame()
 example <- read_csv("All_sites_master.csv") 
@@ -45,7 +49,7 @@ ch4_validation %>%
   mutate(ch4_mg_m2_day = ifelse(is.na(CH4_gC_m2_day), CH4_slope_mgC_m2_d, CH4_gC_m2_day * 1000),
          type = ifelse(site_char %in% c("US_STJ", "US_LA1"), "High", "Low")) %>%
   ggplot(aes(x = site_char, y = ch4_mg_m2_day)) +
-  geom_boxplot() #+
+  geom_boxplot() +
   #facet_grid2(cols = vars(type), scales = "free", independent = "y") + 
   scale_y_continuous(trans = scales::pseudo_log_trans(base = 10))
 

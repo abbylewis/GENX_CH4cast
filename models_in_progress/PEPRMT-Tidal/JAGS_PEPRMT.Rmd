@@ -22,40 +22,11 @@ Load data
 target <- read_csv("peprmt_target.csv") %>%
   as.data.frame() %>%
   mutate(NO3_mg_L = 0.062, #Copied from US_PLM
-         WTD_cm = -WTD_cm) #Switch this when you update Load/Format data.Rmd
-
-#First run GPP Module
-GPP_theta <- c(0.7479271, 1.0497113, 149.4681710, 94.4532674 )
-GPP_mod_target <- PEPRMT_GPP_final(GPP_theta,
-                                   data = target)
-
-#Create a new dataset that included model results
-target_results <- target %>%
-  left_join(GPP_mod_target %>%
-              rename(GPP_mod = GPP,
-                     DOY = Time_2),
-            by = c("DOY", "site"))
-
-#Second run Reco Module
-#Add modeled GPP into data before running Reco module (16th column)
-target[,16]<-target_results$GPP_mod
-
-Reco_theta <- c(18.41329, 1487.65701, 11.65972, 61.29611 )
-Reco_mod_target <- PEPRMT_Reco_FINAL(Reco_theta,
-                                     data = target,
-                                     wetland_type=2)
-
-#Create a new dataset that included model results
-target_results<-target_results %>%
-  left_join(Reco_mod_target %>%
-              rename(DOY = Time_2,
-                     Reco_mod = Reco_full),
-            by = c("DOY", "site"))
-
-#Last, run CH4 module
-#Add modeled S1, S2 into data before running CH4 module (17th & 18th columns)
-target$SOM_total <- target_results$S1
-target$SOM_labile <-target_results$S2
+         WTD_cm = -WTD_cm) %>% #Switch this when you update Load/Format data.Rmd
+  group_by(site) %>%
+  mutate(SOM_MEM_gC_m3 = ifelse(DOY == min(DOY),
+                                SOM_MEM_gC_m3,
+                                0))
 
 ch4_validation <- read_csv("ch4_validation.csv") %>%
   as.data.frame()
@@ -66,7 +37,7 @@ comb <- target %>%
   arrange(site, Date)
 ```
 
-Temp + autoregressive term
+Full model
 
 ```{r}
 #Data
@@ -100,6 +71,8 @@ model.fit <- jags.model(file="jags_model.txt",
                                   LUE = comb$LUE,
                                   Salinity_daily_ave_ppt = comb$Salinity_daily_ave_ppt,
                                   NO3_mg_L = comb$NO3_mg_L,
+                                  SOM_MEM_gC_m3 = comb$SOM_MEM_gC_m3,
+                                  Wetland_age_years = comb$Wetland_age_years,
                                   PAR_umol_m2_day = comb$PAR_umol_m2_day,
                                   SOM_labile = SOM_labile,
                                   SOM_total = SOM_total),
