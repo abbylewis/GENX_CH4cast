@@ -29,7 +29,7 @@ megacube_extract <- function(dates = Sys.Date() - 1L,
                   ) 
   #Need all horizons to compute daily mean/sum because of rain
   
-  message(nrow(gribs), " files to process")
+  message(nrow(gribs), " urls to process")
 
   ## don't make cube too big to fit in memory or try more urls than `ulimit -n`
   max_open_files <- as.integer(system("ulimit -n", intern=TRUE))

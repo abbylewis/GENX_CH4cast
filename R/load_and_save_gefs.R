@@ -1,24 +1,4 @@
 
-
-
-
-
-#########
-
-#DELETE THIS FILE
-
-#########
-
-
-
-
-
-
-
-
-
-
-
 library(tidyverse)
 source(here::here("R", "megacube_extract.R"))
 source(here::here("R", "gefs-methods.R"))
@@ -26,7 +6,7 @@ target <- read_csv(here::here("L1_target.csv"), show_col_types = F)
 
 #remember you need to deal with time zones
 
-load_hist_gefs <- function(date){
+load_and_save_gefs <- function(date){
   sites <- sf::st_as_sf(read.csv(here::here("Raw_data","site_gefs.csv")),
                                 coords=c("longitude", "latitude"),
                                 crs = 4326) |>

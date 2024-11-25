@@ -1,5 +1,8 @@
 source(here::here("R","run_all_sites.R"))
-source(here::here("R","load_met.R"))
+source(here::here("R","load_hist_weather.R"))
+source(here::here("R","load_and_save_gefs.R"))
+source(here::here("R","generate_target.R"))
+library(tidyverse)
 
 generate_tg_forecast <- function(forecast_date,
                                  forecast_model,
@@ -12,7 +15,7 @@ generate_tg_forecast <- function(forecast_date,
                                  plot = F) {
   
   ### Step 1: Download latest target data
-  target <- read_csv(here::here("L1_target.csv"), show_col_types = F)
+  target <- generate_target()
   
   ### Step 2: Set forecast specifications
   if(sites == "all"){
@@ -32,20 +35,22 @@ generate_tg_forecast <- function(forecast_date,
     saved_met <- list.files(here::here("met_downloads"))
     if(length(saved_met[grepl(forecast_date, saved_met)]) == 0){
       #This function loads meteorology and harmonizes past/future predictions
-      met <- load_met(forecast_date = forecast_date) 
-      saved_met <- list.files(here::here("met_downloads"))
+      met <- load_and_save_gefs(date = forecast_date) 
+      past <- load_hist_weather() #refresh historical data
     }
-    saved_met_relevant <- saved_met[grepl(forecast_date, saved_met)]
 
     #Load forecasts
     noaa_future_daily <- read_csv(here::here("met_downloads",
-                                             saved_met_relevant[grepl("future", saved_met_relevant)]),
-                                  show_col_types = F)
+                                             paste0("future_daily_",forecast_date,".csv")),
+                                  show_col_types = F) %>%
+      pivot_wider(names_from = "variable", values_from = "prediction")
     
     # Load historical data
     noaa_past_mean <- read_csv(here::here("met_downloads",
-                                         saved_met_relevant[grepl("past", saved_met_relevant)]),
-                               show_col_types = F)
+                                         "past_daily_current.csv"),
+                               show_col_types = F) %>%
+      filter(datetime <= forecast_date) %>%
+      pivot_wider(names_from = "variable", values_from = "prediction")
     
   } else {
     forecast_date <- as.Date(forecast_date)
