@@ -1,19 +1,7 @@
-plot_raw_data <- function(filename){
+plot_raw_data <- function(filename, data_raw){
   chamber_levels = c("c_1_amb", "c_2_amb", "c_3_e0.75", "c_4_e1.5", "c_5_e2.25",
                      "c_6_e2.25", "c_7_e3.0", "c_8_e3.75", "c_9_e3.75", "c_10_e4.5",
                      "c_11_e5.25", "c_12_e6.0")
-  
-  ### Load files ###
-  files <- here::here("Raw_data","dropbox_downloads",filename)
-  
-  #Load data
-  data_raw <- files %>%
-    map(read_csv, col_types = cols(.default = "c"), skip = 1)  %>%
-    bind_rows() %>%
-    filter(!TIMESTAMP == "TS") %>%
-    mutate(TIMESTAMP = as_datetime(TIMESTAMP)) %>%
-    filter(!is.na(TIMESTAMP)) %>%
-    distinct() 
   
   #Account for different formatting among files
   if("LGR_Time" %in% colnames(data_raw)){
@@ -60,6 +48,7 @@ plot_raw_data <- function(filename){
            MIU_VALVE = factor(MIU_VALVE,
                               levels = 1:12,
                               labels = chamber_levels)) %>%
+    filter(!is.na(MIU_VALVE)) %>%
     ggplot(aes(x = index, y = CH4d_ppm, group = start, color = Date)) +
     geom_line()+
     scale_color_viridis_d()+
