@@ -13,7 +13,7 @@ load_hist_weather <- function(){
   past <- forecasts %>%
     map(read_csv, show_col_types = F) %>%
     bind_rows() %>%
-    filter(horizon == 0) %>%
+    filter(horizon == 1) %>%
     group_by(datetime, variable, site_id, model_id) %>%
     summarize(prediction = mean(prediction, na.rm = T), .groups = "drop")
   

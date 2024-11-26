@@ -34,7 +34,7 @@ load_and_save_gefs <- function(date){
     pivot_longer(cols = c("AirTemp_C_mean", "RH_percent_mean", "Rain_mm_sum", "ShortwaveRadiation_Wm2", "WindSpeed_ms_mean"),
                  names_to = "variable",
                  values_to = "prediction") %>%
-    mutate(datetime = as.Date(datetime),
+    mutate(datetime = as.Date(datetime, tz = "America/New_York"),
            horizon = as.numeric(difftime(datetime,
                                          reference_datetime, 
                                          units = "days"))) %>%
@@ -43,7 +43,8 @@ load_and_save_gefs <- function(date){
               prediction = mean(prediction, na.rm = T),
               .groups = "drop") %>%
     mutate(prediction = ifelse(variable == "Rain_mm_sum", sum_pred, prediction)) %>%
-    select(-sum_pred)
+    select(-sum_pred) %>%
+    filter(horizon > 0) #don't have forecasts for all of the first day
   
   for(date_i in unique(date)){
     date_i <- as.Date(date_i)
