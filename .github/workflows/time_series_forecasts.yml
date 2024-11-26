@@ -38,6 +38,10 @@ jobs:
     - name: Run cwae
       run: |
         Rscript ./models/cwae/run_forecast.R
+
+    - name: Run rEDM
+      run: |
+        Rscript ./models/rEDM/run_forecast.R
     
     - name: Commit and push
       run: |

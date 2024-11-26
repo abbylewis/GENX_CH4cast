@@ -51,42 +51,38 @@ forecast_model <- function(site,
   
   # Fit rEDM model
   site_target = site_target_raw |>
-    complete(datetime = full_seq(datetime, 1), site_id)
+    complete(datetime = full_seq(datetime, 1), site_id) %>%
+    #filter(!(datetime > "2022-10-13" & datetime <= "2023-06-27")) %>%
+    arrange(datetime)
   
-  h = as.numeric(forecast_date - max(site_target$datetime)+horiz)
-  n <- nrow(site_target_raw)
+  n <- nrow(site_target)
+  h <- (forecast_date-max(site_target$datetime))+horiz
   lib <- c(1, n) # use all data for training (why not)
   
-  dims <- EmbedDimension(dataFrame = data.frame(site_target %>% select(-site_id)),  # input data (for data.frames, uses 2nd column)
+  dims <- EmbedDimension(dataFrame = data.frame(site_target %>% select(-site_id)),
                          columns = "CH4_slope_umol_per_day", target = "CH4_slope_umol_per_day", 
                          lib = lib, pred = lib,  # which portions of the data to train and predict
                          maxE = 5)
   opt_dim <- which.max(dims$rho)
   
-  fits <- rEDM::Simplex(dataFrame = data.frame(site_target %>% select(-site_id)),  # input data (for data.frames, uses 2nd column)
+  fits <- rEDM::SMap(dataFrame = data.frame(site_target %>% select(-site_id)),
+                       columns = "CH4_slope_umol_per_day", target = "CH4_slope_umol_per_day", 
+                       lib = lib, pred = lib, # which portions of the data to train and predict
+                       E = opt_dim)$predictions
+  
+  fits %>%
+    ggplot(aes(x = datetime)) +
+    geom_point(aes(y = Observations), color = "blue") +
+    geom_line(aes(y = Predictions), color = "red")
+  
+  output <- rEDM::SMap(dataFrame = data.frame(site_target %>% select(-site_id)),
                           columns = "CH4_slope_umol_per_day", target = "CH4_slope_umol_per_day", 
                           lib = lib, pred = lib, # which portions of the data to train and predict
-                          E = opt_dim, showPlot = T)
+                          E = opt_dim, generateSteps = h)$predictions
   
-  proc_error <- sd(fits$Observations - fits$Predictions, na.rm = T)
-  
-  output <- rEDM::Simplex(dataFrame = data.frame(site_target %>% select(-site_id)),  # input data (for data.frames, uses 2nd column)
-                          columns = "CH4_slope_umol_per_day", target = "CH4_slope_umol_per_day", 
-                          lib = lib, pred = lib, # which portions of the data to train and predict
-                          E = opt_dim, generateSteps = h)
   #generateSteps will override prediction interval
   #See more here: https://sugiharalab.github.io/EDM_Documentation/simplex_/
-  
-  output %>%
-    mutate(error = sqrt(proc_error^2 + Pred_Variance)) %>%
-    #full_join(site_target_raw) %>%
-    ggplot(aes(x = datetime))+
-    geom_point(aes(y = Observations))+
-    geom_line(aes(y = Predictions), color = "red")+
-    geom_ribbon(aes(ymin = Predictions - error, 
-                    ymax = Predictions + error), 
-                alpha = 0.5)
-  
+
   forecast = data.frame(project_id = "gcrew",
                         model_id = model_id,
                         datetime = output$datetime,
@@ -96,7 +92,7 @@ forecast_model <- function(site,
                         family = "normal",
                         variable = var,
                         mu = output$Predictions,
-                        sigma = sqrt(proc_error^2 + output$Pred_Variance)
+                        sigma = sqrt(output$Pred_Variance)
                         )%>%
     pivot_longer(cols = c(mu,sigma), names_to = "parameter",values_to = "prediction")%>%
     select(project_id, model_id, datetime, reference_datetime, duration,
