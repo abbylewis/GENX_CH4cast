@@ -6,8 +6,6 @@
 library(tidyverse)
 source(here::here("R","generate_target.R"))
 library(rEDM)
-library(rjags)
-library(coda)
 
 #### Step 1: Set model specifications
 model_id <- "rEDM"
