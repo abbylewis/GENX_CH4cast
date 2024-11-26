@@ -12,10 +12,15 @@ generate_tg_forecast <- function(forecast_date,
                                  sites = sites, #Sites to forecast
                                  noaa = T,
                                  save = T,
-                                 plot = F) {
+                                 plot = F,
+                                 use_ref_year = T) {
   
   ### Step 1: Download latest target data
   target <- generate_target()
+  if(!use_ref_year){
+    target <- target %>%
+      filter(year(datetime) != 2021)
+  }
   
   ### Step 2: Set forecast specifications
   if(sites == "all"){
