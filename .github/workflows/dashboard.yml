@@ -15,6 +15,6 @@ jobs:
       
     - name: run_dashboard
       run: |
-        install.packages(c("shiny", "rsconnect"), type = "binary")
+        install.packages(c("shiny", "rsconnect"), type = "binary"))
         Rscript -e "rsconnect::setAccountInfo(name='aslewis', token=${{secrets.TOKEN}}, secret=${{secrets.SECRET}})"
         Rscript ./dashboard lightweight/run_dashboard.R
