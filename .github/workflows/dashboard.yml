@@ -15,10 +15,7 @@ jobs:
     - name: Checkout repo
       uses: actions/checkout@v4
       
-    - name: Build image
-      run: docker build -t main . 
-
-    - name: execute
+    - name: run_dashboard
       run: |
         Rscript ./dashboard lightweight/run_dashboard.R
         -e TOKEN=${{secrets.TOKEN}} 
