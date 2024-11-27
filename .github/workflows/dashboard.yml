@@ -8,8 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: rocker/tidyverse:4.2
-    permissions:
-      contents: write
       
     steps:
     - name: Checkout repo
