@@ -45,5 +45,5 @@ jobs:
         git config --global user.email 'aslewis@vt.edu'
         git add .
         git commit -m "Automated ML forecasts" || echo "No changes to commit"
-        git pull
+        git pull --ff-only
         git push

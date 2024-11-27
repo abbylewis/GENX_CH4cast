@@ -1,0 +1,51 @@
+---
+title: "GENX CH4cast Dashboard"
+title-block-banner: true
+format: 
+  html
+server: shiny
+---
+
+```{r, message=FALSE, warning=FALSE}
+#| context: setup
+
+library(tidyverse)
+library(plotly)
+#Optional: download new data
+source("plot_todays_forecasts.R")
+#target <- generate_target()
+
+models <- list.files("./data")[
+  grepl("daily", list.files("./data"))]
+models <- sub(".*[0-9]*-", "", models)
+models <- sub(".csv.gz", "", models)
+
+chamber_levels = c("c_1_amb", "c_2_amb", "c_3_e0.75", "c_4_e1.5", "c_5_e2.25",
+                     "c_6_e2.25", "c_7_e3.0", "c_8_e3.75", "c_9_e3.75", "c_10_e4.5",
+                     "c_11_e5.25", "c_12_e6.0")
+```
+
+::: {.panel-tabset}
+
+## Forecast
+
+```{r}
+#| panel: sidebar
+selectInput('model', 'Forecast model', models, selected = models[[1]])
+sliderInput('hist_data', 'Days of historical data to plot', 0,1000, value = 35)
+```
+
+```{r}
+#| panel: fill
+plotOutput('plot1')
+```
+
+:::
+
+```{r}
+#| context: server
+#Code for plots
+output$plot1 <- renderPlot({
+  plot_todays_forecast(Sys.Date(), input$model, input$hist_data)
+  })
+```
