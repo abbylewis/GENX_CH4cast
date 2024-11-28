@@ -5,7 +5,6 @@
 #### Step 0: load packages
 
 library(tidyverse)
-source(here::here("R","generate_target.R"))
 library(forecast)
 #remotes::install_github('facebook/prophet@*release', subdir = 'R')
 library(prophet)

@@ -1,7 +1,6 @@
 source(here::here("R","run_all_sites.R"))
 source(here::here("R","load_hist_weather.R"))
 source(here::here("R","load_and_save_gefs.R"))
-source(here::here("R","generate_target.R"))
 library(tidyverse)
 
 generate_tg_forecast <- function(forecast_date,
@@ -16,7 +15,7 @@ generate_tg_forecast <- function(forecast_date,
                                  use_ref_year = T) {
   
   ### Step 1: Download latest target data
-  target <- generate_target()
+  target <- read_csv(here::here("L1_target.csv"))
   if(!use_ref_year){
     target <- target %>%
       filter(year(datetime) != 2021)

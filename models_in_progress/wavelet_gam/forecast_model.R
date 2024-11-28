@@ -5,7 +5,6 @@
 #### Step 0: load packages
 
 library(tidyverse)
-source("./R/generate_target.R")
 source("./models/wavelet_ARIMA/analyze_wavelets.R")
 library(forecast)
 

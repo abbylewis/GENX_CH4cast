@@ -5,7 +5,6 @@
 #### Step 0: load packages
 library(tidyverse)
 library(randomForest)
-source(here::here("R","generate_target.R"))
 
 #### Step 1: Set model specifications
 model_id <- "randomForest"

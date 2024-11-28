@@ -6,7 +6,6 @@
 library(tidyverse)
 library(keras)
 library(tensorflow)
-source(here::here("R","generate_target.R"))
 source(here::here("R","load_met.R"))
 
 #### Step 1: Set model specifications

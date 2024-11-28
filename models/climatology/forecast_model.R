@@ -5,7 +5,6 @@
 #### Step 0: load packages
 
 library(tidyverse)
-source(here::here("R","generate_target.R"))
 library(forecast)
 
 #### Step 1: Set model specifications

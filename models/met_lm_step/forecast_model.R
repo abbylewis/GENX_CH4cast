@@ -4,7 +4,6 @@
 
 #### Step 0: load packages
 library(tidyverse)
-source(here::here("R","generate_target.R"))
 
 #### Step 1: Set model specifications
 model_id <- "met_lm_step"
