@@ -8,15 +8,19 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: rocker/tidyverse:4.2
-    permissions:
-      contents: write
       
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
+
+    - name: load packages
+      run: install.packages(c("shiny", "rsconnect"))
+      shell: Rscript {0}
       
-    - name: run_dashboard
+    - name: set auth
       run: |
-        install.packages(c("shiny", "rsconnect"), type = "binary")
         Rscript -e "rsconnect::setAccountInfo(name='aslewis', token=${{secrets.TOKEN}}, secret=${{secrets.SECRET}})"
+
+    - name: run dashboard
+      run: |
         Rscript ./dashboard lightweight/run_dashboard.R
