@@ -7,13 +7,11 @@ source(here::here("R", "gefs-methods.R"))
 #remember you need to deal with time zones
 
 load_and_save_gefs <- function(date){
-  message("About to use sf package")
   sites <- sf::st_as_sf(read.csv(here::here("Raw_data","site_gefs.csv")),
                                 coords=c("longitude", "latitude"),
                                 crs = 4326) |>
     tibble::rowid_to_column("FID") |>
     sf::st_transform(crs = sf::st_crs(grib_wkt()))
-  message("Used sf successfully")
   
   raw <- megacube_extract(dates = date,
                         ensemble = gefs_ensemble(),

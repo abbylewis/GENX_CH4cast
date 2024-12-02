@@ -38,7 +38,6 @@ megacube_extract <- function(dates = Sys.Date() - 1L,
   time <- cycle <- reference_datetime <- NULL # DUMMY
   
   # gdalcubes processing
-  tictoc::tic()
   df <-
     gdalcubes::stack_cube(gribs$url,
                           datetime_values = gribs$time,
@@ -46,7 +45,6 @@ megacube_extract <- function(dates = Sys.Date() - 1L,
     gdalcubes::select_bands(bands) |>
     gdalcubes::extract_geom(sites) |>
     tibble::as_tibble()
-  tictoc::toc()
   
   # reshape
   out <- df |>
