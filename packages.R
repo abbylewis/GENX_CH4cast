@@ -8,6 +8,5 @@ install.packages("fabletools")
 install.packages("fable")
 install.packages("slider")
 install.packages("rEDM")
-install.packages("units")
-install.packages("sf")
-message(.libPaths())
+sf <- "https://cran.r-project.org/src/contrib/Archive/sf/sf_0.9-0.tar.gz"
+install.packages(sf, repos=NULL, type = "source")
