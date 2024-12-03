@@ -37,7 +37,7 @@ generate_tg_forecast <- function(forecast_date,
     
     #Identify available files
     saved_met <- list.files(here::here("met_downloads"))
-    if(length(saved_met[grepl(forecast_date, saved_met)]) == 0){
+    if(sum(grepl(forecast_date, saved_met)) == 0){
       #This function loads meteorology and harmonizes past/future predictions
       met <- load_and_save_gefs(date = forecast_date) 
       past <- load_hist_weather() #refresh historical data

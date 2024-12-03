@@ -7,7 +7,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: rocker/geospatial
+      image: rocker/tidyverse:4.4.1
       
     steps:
     - name: Checkout repo
