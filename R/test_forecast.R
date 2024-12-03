@@ -1,7 +1,6 @@
 
 #Load new target data (optional)
 source(here::here("R","generate_target.R"))
-#generate_target()
 
 #Change file path here to try a different model
 source(here::here("models","rEDM","forecast_model.R"))

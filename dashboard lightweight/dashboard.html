@@ -73,15 +73,14 @@ ul.task-list li input[type="checkbox"] {
 <div class="form-group shiny-input-container">
 <label class="control-label" id="model-label" for="model">Forecast model</label>
 <div>
-<select id="model" class="shiny-input-select"><option value="auto.arima" selected="">auto.arima</option>
-<option value="climate_window_no2021">climate_window_no2021</option>
-<option value="climate_window">climate_window</option>
-<option value="climatology_no2021">climatology_no2021</option>
-<option value="climatology">climatology</option>
-<option value="persistence_no2021">persistence_no2021</option>
-<option value="persistence">persistence</option>
-<option value="RW_no2021">RW_no2021</option>
-<option value="RW">RW</option></select>
+<select id="model" class="shiny-input-select"><option value="lasso_no2021" selected="">lasso_no2021</option>
+<option value="lasso">lasso</option>
+<option value="met_lm_step_no2021">met_lm_step_no2021</option>
+<option value="met_lm_step">met_lm_step</option>
+<option value="randomForest_no2021">randomForest_no2021</option>
+<option value="randomForest">randomForest</option>
+<option value="ridge_no2021">ridge_no2021</option>
+<option value="ridge">ridge</option></select>
 <script type="application/json" data-for="model" data-nonempty="">{"plugins":["selectize-plugin-a11y"]}</script>
 </div>
 </div>
