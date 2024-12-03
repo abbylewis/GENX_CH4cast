@@ -10,7 +10,6 @@ server: shiny
 #| context: setup
 
 library(tidyverse)
-library(plotly)
 #Optional: download new data
 source("plot_todays_forecasts.R")
 #target <- generate_target()
