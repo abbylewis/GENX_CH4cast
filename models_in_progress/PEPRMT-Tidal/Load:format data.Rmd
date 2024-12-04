@@ -19,15 +19,16 @@ library(lubridate)
 ```
 
 ```{r}
-source("../../R/qaqc.R")
-target_raw <- read_csv("../../L1.csv", show_col_types = FALSE)
+target_raw <- read_csv(here::here("L1_target.csv"), show_col_types = FALSE)
 
 #Load PAR and EVI
-met <- read_csv("../../processed_data/met_output.csv", show_col_types = FALSE)
-par <- read_csv("../../processed_data/PAR_output.csv", show_col_types = FALSE)
-evi <- read_csv("../../processed_data/modeled_EVI.csv", show_col_types = FALSE) 
+met <- read_csv(here::here("met_downloads","past_daily_current.csv"), show_col_types = FALSE) %>%
+  pivot_wider(names_from = variable, values_from = prediction) %>%
+  select(-site_id)
+par <- read_csv(here::here("met_downloads","past_daily_par.csv"), show_col_types = FALSE)
+evi <- read_csv(here::here("processed_data","modeled_EVI.csv"), show_col_types = FALSE) 
 
-#Need EVI/LUE/SOM that we don't currently have
+#Need LUE/SOM that we don't currently have
 All_sites_master <- read.csv("All_sites_master.csv", header=TRUE) %>% 
  dplyr::select(1:24) %>%
   filter(site_char == "US_STJ")
@@ -36,12 +37,12 @@ example_data <- All_sites_master %>%
   filter(site_char == "US_STJ") %>%
   group_by(DOY_disc) %>%
   summarize(LUE = mean(LUE, na.rm = TRUE),
-            #EVI = mean(EVI, na.rm = T),
             SOM_MEM_gC_m3 = 
               mean(All_sites_master$SOM_MEM_gC_m3[All_sites_master$SOM_MEM_gC_m3 > 0], 
                    na.rm = TRUE))
 
 target <- target_raw %>%
+  full_join(met) %>%
   mutate(site = as.numeric(as.factor(site_id)),
          Date = as.Date(datetime),
          DOY_disc = yday(Date)) %>%
@@ -49,10 +50,10 @@ target <- target_raw %>%
   mutate(DOY = yday(first(Date)) + 
            as.numeric(difftime(Date, first(Date), units = "days")),
          Year = year(Date),
-         TA_C = temp,
-         WTD_cm = corrected_depth,
+         TA_C = AirTemp_C_mean,
+         #WTD_cm = corrected_depth,
          Wetland_age_years = 4000,
-         Salinity_daily_ave_ppt = salinity,
+         #Salinity_daily_ave_ppt = salinity,
          NO3_mg_L = 0,
          LAI = NA_real_,
          FPAR = 0) %>%
@@ -63,11 +64,15 @@ target <- target_raw %>%
   left_join(evi, by = "Date") %>%
   left_join(example_data, by = "DOY_disc") %>%
   ungroup() %>%
-  select(DOY, DOY_disc, Year, TA_C, WTD_cm, PAR_umol_m2_day, LAI, EVI, FPAR, LUE,
-         Wetland_age_years, Salinity_daily_ave_ppt, NO3_mg_L, SOM_MEM_gC_m3,
+  select(DOY, DOY_disc, Year, TA_C, 
+         #WTD_cm, 
+         PAR_umol_m2_day, LAI, EVI, FPAR, LUE,
+         Wetland_age_years, 
+         #Salinity_daily_ave_ppt, 
+         NO3_mg_L, SOM_MEM_gC_m3,
          site) %>%
   filter(!is.na(TA_C),
-         !is.na(WTD_cm),
+         #!is.na(WTD_cm),
          !is.na(PAR_umol_m2_day),
          !is.na(EVI)) %>%
   as.data.frame()

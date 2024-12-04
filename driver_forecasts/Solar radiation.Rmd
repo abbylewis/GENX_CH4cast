@@ -8,19 +8,15 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
-remotes::install_github("FLARE-forecast/ropenmeteo")
-source("../R/load_met.R")
-source("../R/convert_to_vera_met_P1D.R")
+#remotes::install_github("FLARE-forecast/ropenmeteo")
 ```
 
 ```{r}
-met <- read_csv("../processed_data/met_output.csv")
-today <- Sys.Date()
-load_met(today)
+met_obs <- read_csv("../processed_data/met_output.csv")
+hist_met <- read_csv("../met_downloads/past_daily_current.csv") %>%
+  pivot_wider(names_from = variable, values_from = prediction)
 
-hist_met <- read_csv(paste0("../met_downloads/past_daily_", today, ".csv"))
-
-all_met <- met %>%
+all_met <- met_obs %>%
   left_join(hist_met, by = c("Date" = "datetime"))
 
 all_met %>%
@@ -31,7 +27,7 @@ all_met %>%
 all_met_fit <- all_met %>%
   filter(PAR_Den_C_Avg > 1)
 mod <- lm(PAR_Den_C_Avg ~ ShortwaveRadiation_Wm2 + 0, data = all_met_fit)
-summary(mod) #R2 = 0.97
+summary(mod) #R2 = 0.94
 
 predictions <- data.frame(datetime = all_met_fit$Date, 
                           #site_id = unique(all_met_fit$site_id),

@@ -28,6 +28,7 @@ model
     alpha1 = 3e3 #g C m-2 d-1
     ea1 = 18.41329*1000 #J mol-1
     km1 = 1487.65701 # g C m-3
+    C2_init = 0 #initialize labile C pool-set to 0 g C m-3 initially
     
     #LABILE
     alpha2 = 3e3 #g C m-2 d-1 --SET AS CONSTANT
@@ -79,7 +80,6 @@ model
     for (site in 1:n_sites){
     
       ### Initial values
-      C2_init[ind[site]] = 0 #initialize labile C pool-set to 0 g C m-3 initially
       WTD_cm_adj_raw[ind[site]] = WTD_cm[ind[site]]/100 + bottom_bound_m #convert to m and adjust because we are modeling from 1m below the sediment to the atmosphere
       WTD_cm_adj[ind[site]] = ifelse(WTD_cm_adj_raw[ind[site]] <= 0, 
                                      0.000001, 
@@ -88,8 +88,6 @@ model
       mu[ind[site]] ~ dnorm(0, 0.001) #Starting mu
       SOM_total[ind[site]] = C1_init[ind[site]] #substrate avail NOT affected by water avail-- SOM pool
       SOM_labile[ind[site]] = C2_init + C2in[ind[site]]  # Ps C pool-- some initial Ps C lingering in soil + day 1 GPPavail
-      S1sol[ind[site]] = C1_init[ind[site]] - (R1[ind[site]])
-      S2sol[ind[site]] = C2_init[ind[site]] + C2in[ind[site]] - (R2[ind[site]])
     
       for (t in (ind[site] + 1):(ind[site+1]-1)) {
       
