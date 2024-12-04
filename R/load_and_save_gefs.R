@@ -46,10 +46,10 @@ load_and_save_gefs <- function(date){
     filter(horizon > 0) #don't have forecasts for all of the first day
   
   for(date_i in unique(date)){
-    date_i <- as.Date(date_i)
+    date_i <- as.Date(date_i) - days(1)
     this_day <- formatted %>%
       filter(reference_datetime == date_i)
-    date_formatted <- format(date_i, format = "%Y-%m-%d")
+    date_formatted <- format(date_i + days(1), format = "%Y-%m-%d")
     write_csv(this_day, here::here("met_downloads", 
                                    paste0("future_daily_", date_formatted, ".csv")))
   }

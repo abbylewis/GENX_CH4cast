@@ -8,7 +8,8 @@ load_hist_weather <- function(){
   target <- read_csv(here::here("L1_target.csv"), show_col_types = F)
   date <- seq(min(target$datetime), Sys.Date(), by = "1 day")
   
-  forecasts <- list.files(here::here("met_downloads"), full.names = T)
+  files <- list.files(here::here("met_downloads"), full.names = T)
+  forecasts <- files[grepl("future_daily", files)]
   
   past <- forecasts %>%
     map(read_csv, show_col_types = F) %>%
