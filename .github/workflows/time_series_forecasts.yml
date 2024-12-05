@@ -49,5 +49,5 @@ jobs:
         git config --global user.email 'aslewis@vt.edu'
         git add .
         git commit -m "Automated time series forecasts" || echo "No changes to commit"
-        git pull --ff-only
+        git pull --rebase
         git push
