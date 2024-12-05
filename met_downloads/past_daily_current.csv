@@ -6629,3 +6629,8 @@ datetime,variable,site_id,model_id,prediction
 2024-12-04,Rain_mm_sum,gcrew,noaa_gefs,0
 2024-12-04,ShortwaveRadiation_Wm2,gcrew,noaa_gefs,107.5
 2024-12-04,WindSpeed_ms_mean,gcrew,noaa_gefs,7.917160760658772
+2024-12-05,AirTemp_C_mean,gcrew,noaa_gefs,3.0351348876953352
+2024-12-05,RH_percent_mean,gcrew,noaa_gefs,52.418978691101074
+2024-12-05,Rain_mm_sum,gcrew,noaa_gefs,1.1100000236183405
+2024-12-05,ShortwaveRadiation_Wm2,gcrew,noaa_gefs,118.75
+2024-12-05,WindSpeed_ms_mean,gcrew,noaa_gefs,10.609096792542772
