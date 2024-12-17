@@ -145,7 +145,7 @@ generate_tg_forecast <- function(forecast_date,
                    aes(x = datetime, y = observation, alpha = datetime >= forecast_date)) +
         scale_alpha_manual(values = c(1, .5)) +
         theme(legend.position = "none") +
-        ylab("Flux (µmol/day)")
+        ylab("Flux (µmol/m2/day)")
       if(length(model_variables) == 1) {
         p1 <- p1 +
           facet_wrap(~site_id)

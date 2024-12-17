@@ -3,7 +3,7 @@
 source(here::here("R","generate_target.R"))
 
 #Change file path here to try a different model
-source(here::here("models","rEDM","forecast_model.R"))
+source(here::here("models","randomForest","forecast_model.R"))
 
 #Run remaining code and visualize forecasts
 source(here::here("R","generate_tg_forecast.R"))

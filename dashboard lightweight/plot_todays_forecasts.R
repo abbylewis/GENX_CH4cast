@@ -46,7 +46,7 @@ plot_todays_forecast <- function(forecast_date,
       scale_alpha_manual(values = c(1, .2)) +
       theme(legend.position = "none",
             axis.title.x = element_blank()) +
-      ylab("Flux (µmol/day)") +
+      ylab("Flux (µmol/m2/day)") +
       facet_wrap(~site_id) +
       ggtitle(paste0("Forecasts for ", forecast_date),
               paste0("Model: ", model_id))

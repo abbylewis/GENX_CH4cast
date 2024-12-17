@@ -20,11 +20,12 @@ generate_target <- function(){
     mutate(time2 = with_tz(TIMESTAMP, tzone = "America/New_York"),
            project_id = "gcrew",
            duration = "P1D",
-           time2 = as.Date(time2)) %>%
+           time2 = as.Date(time2),
+           CH4_slope_umol_m2_day = CH4_slope_umol_per_day/0.196) %>%
     rename(site_id = chamber_treatment,
            datetime = time2) %>%
-    select(project_id, site_id, datetime, duration, CH4_slope_umol_per_day) %>%
-    pivot_longer(cols = CH4_slope_umol_per_day, 
+    select(project_id, site_id, datetime, duration, CH4_slope_umol_m2_day) %>%
+    pivot_longer(cols = CH4_slope_umol_m2_day, 
                  names_to = "variable", values_to = "observation") %>%
     mutate(datetime = as.Date(datetime)) %>%
     group_by(project_id, site_id, datetime, duration, variable) %>%
