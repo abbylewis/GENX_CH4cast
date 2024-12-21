@@ -27,16 +27,24 @@ load_and_save_gefs <- function(date){
     rename(AirTemp_C_mean = TMP,
            RH_percent_mean = RH, 
            Rain_mm_sum = APCP, 
-           ShortwaveRadiation_Wm2 = DSWRF) %>%
+           ShortwaveRadiation_Wm2 = DSWRF,
+           Pressure_Pa = PRES
+           ) %>%
     mutate(WindSpeed_ms_mean = sqrt(UGRD^2+VGRD^2)) %>%
     select(-UGRD, -VGRD, -horizon) |>
-    pivot_longer(cols = c("AirTemp_C_mean", "RH_percent_mean", "Rain_mm_sum", "ShortwaveRadiation_Wm2", "WindSpeed_ms_mean"),
+    pivot_longer(cols = c("AirTemp_C_mean", 
+                          "RH_percent_mean", 
+                          "Rain_mm_sum", 
+                          "ShortwaveRadiation_Wm2", 
+                          "WindSpeed_ms_mean",
+                          "Pressure_Pa"),
                  names_to = "variable",
                  values_to = "prediction") %>%
     mutate(datetime = as.Date(datetime, tz = "America/New_York"),
            horizon = as.numeric(difftime(datetime,
                                          reference_datetime, 
                                          units = "days"))) %>%
+    filter(!prediction == 9999) %>%
     group_by_at(colnames(.)[colnames(.) != "prediction"]) %>%
     summarise(sum_pred = sum(prediction),
               prediction = mean(prediction, na.rm = T),
@@ -61,6 +69,6 @@ load_and_save_gefs <- function(date){
 #date <- date[!date %in% processed]
 ##Process all, breaking into chucks to account for system limitations
 #comb <- date %>%
-#  split(cut(date, 1, labels = FALSE)) %>%
+#  split(cut(date, 135, labels = FALSE)) %>% #10 at a time
 #  map(load_and_save_gefs) %>%
 #  bind_rows()

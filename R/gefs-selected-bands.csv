@@ -1,7 +1,8 @@
 Number,Level/Layer,Parameter,Forecast Valid,Description,horiz0_number,v11_number,v11_horiz0
-63,2 m above ground,TMP,3 hour fcst,Temperature [K] ENS=low-res ctl,64,61,62
+63,2 m above ground,TMP,3 hour fcst,Temperature [C] ENS=low-res ctl,64,61,62
 64,2 m above ground,RH,3 hour fcst,Relative Humidity [%] ENS=low-res ctl,65,62,63
 67,10 m above ground,UGRD,3 hour fcst,U-Component of Wind [m/s] ENS=low-res ctl,66,65,64
 68,10 m above ground,VGRD,3 hour fcst,V-Component of Wind [m/s] ENS=low-res ctl,67,66,65
 69,surface,APCP,0-3 (or 0-6) hour acc,Total Precipitation [kg/m^2] ENS=low-res ctl,NA,67,NA
 78,surface,DSWRF,0-3 hour ave,Downward Short-Wave Radiation Flux [W/m^2] ENS=low-res ctl,NA,76,NA
+57,surface,PRES,3 hour fcst,Pressure [Pa] ENS=low-res ctl,57,56,56
