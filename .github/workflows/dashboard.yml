@@ -23,4 +23,5 @@ jobs:
 
     - name: run dashboard
       run: |
+        Rscript "./R/generate_target.R"
         Rscript "./dashboard lightweight/run_dashboard.R"
