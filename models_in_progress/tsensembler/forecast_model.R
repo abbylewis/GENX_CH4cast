@@ -49,14 +49,14 @@ forecast_model <- function(site,
 
   site_target = site_target_raw |>
     complete(datetime = full_seq(datetime, 1), site_id) %>%
-    filter(!is.na(CH4_slope_umol_per_day))
+    filter(!is.na(CH4_slope_umol_m2_day))
   
   # NEED TO FIGURE OUT WHAT TO DO ABOUT NAs
 
   h = as.numeric(forecast_date - max(site_target$datetime)+horiz)
 
   # Embed time series
-  dataset <- embed_timeseries(site_target$CH4_slope_umol_per_day, 5)
+  dataset <- embed_timeseries(site_target$CH4_slope_umol_m2_day, 5)
   
   # splitting data into train/test
   train <- dataset[1:150,]

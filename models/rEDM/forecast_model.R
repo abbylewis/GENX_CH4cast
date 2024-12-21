@@ -57,13 +57,13 @@ forecast_model <- function(site,
   lib <- c(1, n) # use all data for training (why not)
   
   dims <- EmbedDimension(dataFrame = data.frame(site_target %>% select(-site_id)),
-                         columns = "CH4_slope_umol_per_day", target = "CH4_slope_umol_per_day", 
+                         columns = "CH4_slope_umol_m2_day", target = "CH4_slope_umol_m2_day", 
                          lib = lib, pred = lib,  # which portions of the data to train and predict
                          maxE = 5)
   opt_dim <- which.max(dims$rho)
   
   fits <- rEDM::SMap(dataFrame = data.frame(site_target %>% select(-site_id)),
-                       columns = "CH4_slope_umol_per_day", target = "CH4_slope_umol_per_day", 
+                       columns = "CH4_slope_umol_m2_day", target = "CH4_slope_umol_m2_day", 
                        lib = lib, pred = lib, # which portions of the data to train and predict
                        E = opt_dim)$predictions
   
@@ -73,7 +73,7 @@ forecast_model <- function(site,
     geom_line(aes(y = Predictions), color = "red")
   
   output <- rEDM::SMap(dataFrame = data.frame(site_target %>% select(-site_id)),
-                          columns = "CH4_slope_umol_per_day", target = "CH4_slope_umol_per_day", 
+                          columns = "CH4_slope_umol_m2_day", target = "CH4_slope_umol_m2_day", 
                           lib = lib, pred = lib, # which portions of the data to train and predict
                           E = opt_dim, generateSteps = h)$predictions
   

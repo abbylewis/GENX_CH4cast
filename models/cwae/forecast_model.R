@@ -114,7 +114,7 @@ forecast_model <- function(site,
   #Now, use arima model on the residuals
   resids <- combined %>%
     left_join(site_target, by = c("datetime", "site_id")) %>%
-    mutate(resid = CH4_slope_umol_per_day - mu)
+    mutate(resid = CH4_slope_umol_m2_day - mu)
   fit = auto.arima(resids$resid)
   forecast_raw <- as.data.frame(forecast(fit, h = h, level=0.68)) %>% #One SD
     mutate(sigma = `Hi 68`-`Point Forecast`)  
