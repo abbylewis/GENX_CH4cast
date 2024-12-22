@@ -51,6 +51,7 @@ forecast_model <- function(site,
                 !is.na(site_target$RH_percent_mean) &
                 !is.na(site_target$WindSpeed_ms_mean) &
                 !is.na(site_target$Rain_mm_sum) &
+                !is.na(site_target$Pressure_Pa) &
                 !is.na(site_target[var]))<10){
     message(paste0("Insufficient met data that corresponds with target observations at site ",site,". Skipping forecasts at this site."))
     return()
@@ -61,13 +62,14 @@ forecast_model <- function(site,
                                         AirTemp_C_mean * 
                                         RH_percent_mean * 
                                         Rain_mm_sum *
-                                        WindSpeed_ms_mean, 
+                                        WindSpeed_ms_mean *
+                                        Pressure_Pa, 
                                       data = site_target,
                                       importance=TRUE)
     
     #  Get 30-day predicted temp ensemble at the site
     new_data <- noaa_future_daily |>
-      select(AirTemp_C_mean, RH_percent_mean, Rain_mm_sum, WindSpeed_ms_mean)
+      select(AirTemp_C_mean, RH_percent_mean, Rain_mm_sum, WindSpeed_ms_mean, Pressure_Pa)
     
     preds <- predict(fit, new_data) #THIS IS THE FORECAST STEP
     
