@@ -56,7 +56,7 @@ forecast_model <- function(site,
   # Fit prophet model
   df <- site_target %>%
     select(ds = datetime, y = !!sym(var))
-  fit <- prophet(df, interval.width = 0.68)
+  fit <- prophet(df, interval.width = 0.68, weekly.seasonality = F)
   future <- make_future_dataframe(fit, periods = h, include_history = F)
   
   # use the model to forecast target variable
