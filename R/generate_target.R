@@ -30,7 +30,10 @@ generate_target <- function(){
                  names_to = "variable", values_to = "observation") %>%
     mutate(datetime = as.Date(datetime)) %>%
     group_by(project_id, site_id, datetime, duration, variable) %>%
-    summarise(observation = mean(observation, na.rm = TRUE), .groups = "drop")
+    summarise(observation = median(observation, na.rm = TRUE), 
+              n = n(),
+              .groups = "drop") %>%
+    filter(n >= 3)
   
   write.csv(target, here::here("L1_target.csv"), row.names = FALSE)
   return(target)

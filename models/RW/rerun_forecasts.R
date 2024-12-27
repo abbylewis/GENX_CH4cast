@@ -2,7 +2,7 @@ source(here::here("models","RW","forecast_model.R"))
 source(here::here("R","rerun_forecasts.R"))
 source(here::here("R","generate_tg_forecast.R"))
 
-END <- as_date('2024-08-30') # Don't re-run if forecasts have been submitted after this date
+END <- as_date('2024-12-27') # Don't re-run if forecasts have been submitted after this date
 
 rerun_forecasts(forecast_model = forecast_model,
                 model_variables = model_variables,
@@ -12,5 +12,16 @@ rerun_forecasts(forecast_model = forecast_model,
                 noaa = noaa,
                 END = END,
                 start_date = '2021-05-01',
-                end_date = "2023-12-31")
+                end_date = "2024-12-27")
+
+rerun_forecasts(forecast_model = forecast_model,
+                model_variables = model_variables,
+                model_id = paste0(model_id,"_no2021"),
+                all_sites = all_sites,
+                sites = sites,
+                noaa = noaa,
+                END = END,
+                start_date = '2021-05-01',
+                end_date = "2024-12-27",
+                use_ref_year = F)
 

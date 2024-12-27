@@ -8,7 +8,8 @@ rerun_forecasts <- function(forecast_model = forecast_model,
                             noaa = noaa,
                             END, 
                             start_date = '2021-01-01',
-                            end_date = "2023-12-31"
+                            end_date = "2023-12-31",
+                            use_ref_year = T
                             ) {
   ### Some code to fill in missing forecasts
   # Dates of forecasts 
@@ -55,7 +56,8 @@ rerun_forecasts <- function(forecast_model = forecast_model,
                            model_id = model_id,
                            all_sites = all_sites,
                            sites = sites,
-                           noaa = noaa)
+                           noaa = noaa,
+                           use_ref_year = use_ref_year)
     }, error=function(e){cat("ERROR with forecast generation:\n",conditionMessage(e), "\n")})
   }
 }
