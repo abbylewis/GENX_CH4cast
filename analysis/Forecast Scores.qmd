@@ -16,8 +16,18 @@ source("../R/score_all_forecasts.R")
 #Forecasts
 outputs <- list.files("../outputs", full.names = T)
 outputs <- outputs[file.info(outputs)$size > 29] #Filter out empty files
-forecasts <- read_csv(outputs, show_col_types = F)
-  
+#forecasts <- read_csv(outputs, show_col_types = F)
+#oops-- model name in file does not include 2021 distinction
+load_forecast <- function(name){
+  model_id_new <- sub(".*-", "", sub(".csv.gz", "", name))
+  forecast <- read_csv(name, 
+                       col_types = "ccDDcccccn") %>%
+    mutate(model_id = model_id_new)
+}
+forecasts <- outputs %>%
+  map(load_forecast) %>%
+  bind_rows()
+
 #L1
 observations <- read_csv("../L1_target.csv", show_col_types = F)
 ```
@@ -26,7 +36,7 @@ observations <- read_csv("../L1_target.csv", show_col_types = F)
 
 ```{r}
 #Re-score if needed, otherwise load saved scores
-#scores <- score_all_forecasts(forecasts, observations)
+scores <- score_all_forecasts(forecasts, observations)
 scores <- read_csv("scores.csv", show_col_types = F)
 
 scores_format <- scores %>%
@@ -93,6 +103,84 @@ scores_format %>%
   facet_grid(cols = vars(model_id), rows = vars(year))+
   scale_color_viridis_c()
 
+scores_format %>%
+  mutate(month = month(reference_datetime)) %>%
+  filter(year %in% c(2024),
+         !observation > 4000,
+         horizon == 30) %>%
+  group_by(horizon, site_id, model_id, temp, year, month) %>%
+  summarize(rmse = Metrics::rmse(observation, mean),
+            n = n()) %>%
+  filter(n > 20) %>%
+  ggplot(aes(x = temp, 
+             y = rmse)) +
+  geom_point(aes(color = model_id), size = 0.3) +
+  #geom_line(aes(color = model_id)) +
+  geom_smooth(se = F, color = "black") +
+  facet_grid(cols = vars(month))+
+  xlab("Soil temperature (ºC above ambient)")+
+  scale_color_viridis_d()+
+  theme_bw()
+
+scores_format %>%
+  mutate(month = month(reference_datetime),
+         ref_year = ifelse(grepl("2021", model_id), "No 2021", "With 2021"),
+         model_id = sub("_no2021", "", model_id)) %>%
+  filter(year %in% c(2024),
+         horizon == 30
+         ) %>%
+  group_by(horizon, site_id, model_id, temp, year, month, ref_year) %>%
+  summarize(rmse = Metrics::rmse(observation, mean),
+            n = n()) %>%
+  filter(n > 25) %>%
+  group_by(horizon, model_id, year, month, ref_year) %>%
+  filter(length(unique(rmse[site_id == "c_1_amb"]))>0) %>%
+  mutate(rmse_amb = unique(rmse[site_id == "c_1_amb"]),
+         rmse_std = rmse - rmse_amb,
+         month = factor(month, 
+                        levels = unique(month), 
+                        labels = month.abb[unique(month)])) %>%
+  ungroup() %>%
+  ggplot(aes(x = temp, 
+             y = rmse_std)) +
+  geom_hline(yintercept = 0) +
+  geom_point(aes(color = model_id, shape = ref_year), size = 0.5) +
+  geom_smooth(se = F, color = "black", method = 'gam', formula = y ~ s(x, k = 2)) +
+  facet_grid(cols = vars(month))+
+  xlab("Soil temperature (ºC above ambient)")+
+  ylab("Forecast RMSE relative to ambient\n(µmol CH4/m2/d; lower is better)")+
+  scale_color_viridis_d()+
+  theme_bw()
+
+scores_format %>%
+  mutate(month = month(reference_datetime),
+         ref_year = ifelse(grepl("2021", model_id), "No 2021", "With 2021"),
+         model_id = sub("_no2021", "", model_id)) %>%
+  filter(year %in% c(2024),
+         horizon == 30
+         ) %>%
+  group_by(horizon, site_id, model_id, temp, year, month, ref_year) %>%
+  summarize(rmse = Metrics::rmse(observation, mean),
+            n = n()) %>%
+  filter(n > 25) %>%
+  group_by(horizon, site_id, model_id, year, month, temp) %>%
+  filter(length(unique(rmse[ref_year == "With 2021"]))>0) %>%
+  mutate(rmse_2021 = unique(rmse[ref_year == "With 2021"]),
+         rmse_std = rmse - rmse_2021,
+         month = factor(month, 
+                        levels = unique(month), 
+                        labels = month.abb[unique(month)])) %>%
+  filter(!ref_year == "With_2021") %>%
+  ggplot(aes(x = temp, 
+             y = rmse_std)) +
+  geom_hline(yintercept = 0) +
+  geom_point(aes(color = model_id), size = 0.5) +
+  geom_smooth(se = F, color = "black") +
+  facet_grid(cols = vars(month))+
+  xlab("Soil temperature (ºC above ambient)")+
+  ylab("Forecast RMSE with 2021 minus without 2021\n(µmol CH4/m2/d; lower is better)")+
+  scale_color_viridis_d()+
+  theme_bw()
 ```
 
 ### Horizon only
