@@ -30,13 +30,62 @@ forecasts <- outputs %>%
 
 #L1
 observations <- read_csv("../L1_target.csv", show_col_types = F)
+
+observations %>%
+  mutate(temp = sub(".+_e*", "", site_id),
+         temp = ifelse(temp == "amb", 0, temp),
+         temp = as.numeric(temp),
+         year = year(datetime),
+         doy = yday(datetime)) %>%
+  ggplot(aes(x = doy, y = observation, color = as.factor(temp), group = site_id))+
+  #geom_point()+
+  geom_smooth()+
+  facet_wrap(~year)
+
+observations %>%
+  mutate(temp = sub(".+_e*", "", site_id),
+         temp = ifelse(temp == "amb", 0, temp),
+         temp = as.numeric(temp),
+         month = month(datetime),
+         year = year(datetime),
+         doy = yday(datetime)) %>%
+  group_by(month, site_id) %>%
+  filter(n()>25) %>%
+  group_by(month, year) %>%
+  mutate(slope = lm(observation~temp)$coefficients[2],
+         p = summary(lm(observation~temp))$coefficients[2,4]) %>%
+  ggplot(aes(x = temp, y = observation, color = as.factor(month)))+
+  geom_point()+
+  geom_smooth(method = 'gam', formula = y ~ s(x, k = 3), 
+              #aes(lty = p < 0.05), 
+              se = F)+
+  scale_linetype_manual(values = c("dotted", "solid")) +
+  facet_wrap(~year)
+
+observations %>%
+  mutate(temp = sub(".+_e*", "", site_id),
+         temp = ifelse(temp == "amb", 0, temp),
+         temp = as.numeric(temp),
+         month = month(datetime),
+         year = year(datetime),
+         doy = yday(datetime)) %>%
+  group_by(temp, year, month, site_id) %>%
+  summarize(sd = sd(observation),
+            n = n()) %>%
+  filter(n>25,
+         year == 2024) %>%
+  ggplot(aes(x = temp, y = sd))+
+  geom_point()+
+  geom_smooth(method = 'gam', formula = y ~ s(x, k = 3), se = F)+
+  #scale_linetype_manual(values = c("dotted", "solid")) +
+  facet_grid(~month)
 ```
 
 ## Score forecasts
 
 ```{r}
 #Re-score if needed, otherwise load saved scores
-scores <- score_all_forecasts(forecasts, observations)
+#scores <- score_all_forecasts(forecasts, observations)
 scores <- read_csv("scores.csv", show_col_types = F)
 
 scores_format <- scores %>%
@@ -46,7 +95,8 @@ scores_format <- scores %>%
          temp = ifelse(temp == "amb", 0, temp),
          temp = as.numeric(temp),
          year = year(datetime)) %>%
-  filter(year %in% c(2023,2024))
+  filter(year %in% c(2023,2024),
+         !model_id %in% c("RW", "climatology", "RW_no2021", "climatology_no2021"))
 ```
 
 ## Generate plots
@@ -121,18 +171,39 @@ scores_format %>%
   xlab("Soil temperature (ºC above ambient)")+
   scale_color_viridis_d()+
   theme_bw()
+```
 
-scores_format %>%
-  mutate(month = month(reference_datetime),
+Relative plots
+
+```{r}
+scores_for_relative <- scores_format %>%
+  mutate(month = month(datetime),
          ref_year = ifelse(grepl("2021", model_id), "No 2021", "With 2021"),
-         model_id = sub("_no2021", "", model_id)) %>%
+         model_id = sub("_no2021", "", model_id),
+         model_id = factor(model_id,
+                           levels = c("persistence", "auto.arima", "ets", "prophet", "rEDM", 
+                                      "climate_window", "cwae", 
+                                      "lasso", "met_lm_step", "randomForest", "ridge")),
+         model_type = ifelse(model_id %in% c("persistence", "auto.arima", 
+                                             "ets", "prophet", "rEDM"),
+                             "time series",
+                             NA),
+         model_type = ifelse(model_id %in% c("climate_window", "cwae"),
+                             "climatology",
+                             model_type),
+         model_type = ifelse(model_id %in% c("lasso", "met_lm_step", "randomForest", "ridge"),
+                             "machine learning",
+                             model_type))
+
+jpeg("../figures/RMSE by site.jpg", width = 6, height = 3, units = "in", res = 300)
+scores_for_relative  %>%
   filter(year %in% c(2024),
-         horizon == 30
-         ) %>%
+         horizon == 30) %>%
   group_by(horizon, site_id, model_id, temp, year, month, ref_year) %>%
   summarize(rmse = Metrics::rmse(observation, mean),
             n = n()) %>%
-  filter(n > 25) %>%
+  filter(n > 25,
+         ref_year == "No 2021") %>%
   group_by(horizon, model_id, year, month, ref_year) %>%
   filter(length(unique(rmse[site_id == "c_1_amb"]))>0) %>%
   mutate(rmse_amb = unique(rmse[site_id == "c_1_amb"]),
@@ -144,18 +215,75 @@ scores_format %>%
   ggplot(aes(x = temp, 
              y = rmse_std)) +
   geom_hline(yintercept = 0) +
-  geom_point(aes(color = model_id, shape = ref_year), size = 0.5) +
-  geom_smooth(se = F, color = "black", method = 'gam', formula = y ~ s(x, k = 2)) +
+  geom_point(aes(color = model_id), size = 0.5) +
+  geom_smooth(se = F, aes(color = model_id), method = 'gam', formula = y ~ s(x, k = 3), size = 0.2)+
+  geom_smooth(se = F, color = "black", method = 'gam', formula = y ~ s(x, k = 3)) +
   facet_grid(cols = vars(month))+
   xlab("Soil temperature (ºC above ambient)")+
   ylab("Forecast RMSE relative to ambient\n(µmol CH4/m2/d; lower is better)")+
   scale_color_viridis_d()+
   theme_bw()
+dev.off()
 
-scores_format %>%
-  mutate(month = month(reference_datetime),
-         ref_year = ifelse(grepl("2021", model_id), "No 2021", "With 2021"),
-         model_id = sub("_no2021", "", model_id)) %>%
+
+jpeg("../figures/RMSE by site and type.jpg", width = 6, height = 3, units = "in", res = 300)
+scores_for_relative  %>%
+  filter(year %in% c(2024),
+         horizon == 30) %>%
+  group_by(horizon, site_id, model_id, temp, year, month, ref_year, model_type) %>%
+  summarize(rmse = Metrics::rmse(observation, mean),
+            n = n()) %>%
+  filter(n > 25,
+         ref_year == "No 2021") %>%
+  group_by(horizon, model_id, year, month, ref_year, model_type) %>%
+  filter(length(unique(rmse[site_id == "c_1_amb"]))>0) %>%
+  mutate(rmse_amb = unique(rmse[site_id == "c_1_amb"]),
+         rmse_std = rmse - rmse_amb,
+         month = factor(month, 
+                        levels = unique(month), 
+                        labels = month.abb[unique(month)])) %>%
+  ungroup() %>%
+  ggplot(aes(x = temp, 
+             y = rmse_std)) +
+  geom_hline(yintercept = 0) +
+  geom_point(aes(color = model_id), size = 0.5) +
+  geom_smooth(se = F, color = "black", method = 'gam', formula = y ~ s(x, k = 3)) +
+  facet_grid(cols = vars(month), rows = vars(model_type))+
+  xlab("Soil temperature (ºC above ambient)")+
+  ylab("Forecast RMSE relative to ambient\n(µmol CH4/m2/d; lower is better)")+
+  scale_color_viridis_d()+
+  theme_bw()
+dev.off()
+
+jpeg("../figures/Bias by site and type.jpg", width = 6, height = 3, units = "in", res = 300)
+scores_for_relative  %>%
+  filter(year %in% c(2024),
+         horizon == 30) %>%
+  group_by(horizon, site_id, model_id, temp, year, month, ref_year, model_type) %>%
+  mutate(bias = mean - observation,
+         rmse = Metrics::rmse(observation, mean),
+         n = n()) %>%
+  filter(n > 25,
+         ref_year == "No 2021") %>%
+  group_by(horizon, model_id, year, month, ref_year, model_type) %>%
+  mutate(rmse_amb = unique(rmse[site_id == "c_1_amb"]),
+         month = factor(month, 
+                        levels = unique(month), 
+                        labels = month.abb[unique(month)])) %>%
+  ungroup() %>%
+  ggplot(aes(x = temp, 
+             y = rmse_std)) +
+  geom_hline(yintercept = 0) +
+  geom_point(aes(color = model_id), size = 0.5) +
+  geom_smooth(se = F, color = "black", method = 'gam', formula = y ~ s(x, k = 3)) +
+  facet_grid(cols = vars(month), rows = vars(model_type))+
+  xlab("Soil temperature (ºC above ambient)")+
+  ylab("Forecast RMSE relative to ambient\n(µmol CH4/m2/d; lower is better)")+
+  scale_color_viridis_d()+
+  theme_bw()
+dev.off()
+
+scores_for_relative %>%
   filter(year %in% c(2024),
          horizon == 30
          ) %>%
@@ -175,12 +303,188 @@ scores_format %>%
              y = rmse_std)) +
   geom_hline(yintercept = 0) +
   geom_point(aes(color = model_id), size = 0.5) +
-  geom_smooth(se = F, color = "black") +
+  geom_smooth(se = F, color = "black", method = 'gam', formula = y ~ s(x, k = 3)) +
   facet_grid(cols = vars(month))+
   xlab("Soil temperature (ºC above ambient)")+
-  ylab("Forecast RMSE with 2021 minus without 2021\n(µmol CH4/m2/d; lower is better)")+
+  ylab("Forecast RMSE without 2021 minus with 2021\n(µmol CH4/m2/d; lower is better)")+
   scale_color_viridis_d()+
   theme_bw()
+
+observations %>%
+  mutate(month = month(datetime),
+         year = year(datetime),
+         temp = sub(".+_e*", "", site_id),
+         temp = ifelse(temp == "amb", 0, temp),
+         temp = as.numeric(temp)) %>%
+  filter(year %in% c(2024)) %>%
+  group_by(year, month, site_id, temp) %>%
+  summarize(sd = sd(observation),
+            n = n()) %>%
+  filter(n>25) %>%
+  group_by(year, month) %>%
+  filter(length(unique(sd[site_id == "c_1_amb"]))>0) %>%
+  mutate(sd_amb = unique(sd[site_id == "c_1_amb"]),
+         sd_std = sd - sd_amb) %>%
+  mutate(month = factor(month, 
+                        levels = unique(month), 
+                        labels = month.abb[unique(month)])) %>%
+  ggplot(aes(x = temp, 
+             y = sd_std)) +
+  geom_hline(yintercept = 0) +
+  geom_point() +
+  geom_smooth(se = F, color = "grey50", method = 'gam', formula = y ~ s(x, k = 3)) +
+  facet_grid(cols = vars(month))+
+  xlab("Soil temperature (ºC above ambient)")+
+  ylab("Relative SD (compared to ambient)")+
+  scale_color_viridis_d()+
+  theme_bw()
+
+observations %>%
+  mutate(month = month(datetime),
+         year = year(datetime),
+         temp = sub(".+_e*", "", site_id),
+         temp = ifelse(temp == "amb", 0, temp),
+         temp = as.numeric(temp)) %>%
+  filter(year %in% c(2024)) %>%
+  group_by(year, month, site_id, temp) %>%
+  summarize(median = median(observation),
+            n = n()) %>%
+  filter(n>25) %>%
+  group_by(year, month) %>%
+  filter(length(unique(median[site_id == "c_1_amb"]))>0) %>%
+  mutate(median_amb = unique(median[site_id == "c_1_amb"]),
+         median_std = median - median_amb) %>%
+  mutate(month = factor(month, 
+                        levels = unique(month), 
+                        labels = month.abb[unique(month)])) %>%
+  ggplot(aes(x = temp, 
+             y = median_std)) +
+  geom_hline(yintercept = 0) +
+  geom_point() +
+  geom_smooth(se = F, color = "grey50", method = 'gam', formula = y ~ s(x, k = 3)) +
+  facet_grid(cols = vars(month))+
+  xlab("Soil temperature (ºC above ambient)")+
+  ylab("Relative median (compared to ambient)")+
+  scale_color_viridis_d()+
+  theme_bw()
+
+scores_for_relative %>%
+  filter(year %in% c(2024),
+         horizon == 30
+         ) %>%
+  group_by(horizon, site_id, model_id, temp, year, month, ref_year) %>%
+  mutate(n = n()) %>%
+  filter(n > 25) %>%
+  group_by(horizon, model_id, year, month, ref_year, datetime) %>%
+  filter(length(unique(crps[site_id == "c_1_amb"]))>0) %>%
+  mutate(crps_amb = unique(crps[site_id == "c_1_amb"]),
+         crps_std = crps - crps_amb,
+         month = factor(month, 
+                        levels = unique(month), 
+                        labels = month.abb[unique(month)])) %>%
+  ungroup() %>%
+  ggplot(aes(x = temp, 
+             y = crps_std,
+             color = model_id)) +
+  geom_hline(yintercept = 0) +
+  geom_point(aes(shape = ref_year), size = 0.5, alpha = 0.5) +
+  geom_smooth(se = F, method = 'gam', formula = y ~ s(x, k = 3)) +
+  facet_grid(cols = vars(month))+
+  xlab("Soil temperature (ºC above ambient)")+
+  ylab("Forecast CRPS relative to ambient\n(lower is better)")+
+  scale_color_viridis_d()+
+  theme_bw()
+
+scores_for_relative %>%
+  filter(year %in% c(2024),
+         horizon == 30
+         ) %>%
+  group_by(horizon, site_id, model_id, temp, year, month, ref_year) %>%
+  mutate(n = n()) %>%
+  filter(n > 25,
+         ref_year == "With 2021") %>%
+  group_by(horizon, year, month, ref_year, datetime, site_id, temp) %>%
+  filter(length(unique(crps[model_id == "persistence"]))>0) %>%
+  mutate(crps_persis = unique(crps[model_id == "persistence"]),
+         crps_std = crps - crps_persis,
+         month = factor(month, 
+                        levels = unique(month), 
+                        labels = month.abb[unique(month)])) %>%
+  ungroup() %>%
+  ggplot(aes(x = temp, 
+             y = crps_std,
+             color = model_id)) +
+  geom_hline(yintercept = 0) +
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_smooth(se = F, method = 'gam', formula = y ~ s(x, k = 3)) +
+  facet_grid(cols = vars(month))+
+  xlab("Soil temperature (ºC above ambient)")+
+  ylab("Forecast CRPS relative to persistence\n(lower is better)")+
+  scale_color_viridis_d()+
+  theme_bw()
+
+scores_for_relative  %>%
+  filter(year %in% c(2024),
+         horizon == 30) %>%
+  group_by(horizon, site_id, model_id, temp, year, month, ref_year) %>%
+  summarize(rmse = Metrics::rmse(observation, mean),
+            n = n()) %>%
+  filter(n > 25,
+         ref_year == "With 2021") %>%
+  group_by(horizon, year, month, ref_year, site_id, temp) %>%
+  filter(length(unique(rmse[model_id == "persistence"]))>0) %>%
+  mutate(rmse_amb = unique(rmse[model_id == "persistence"]),
+         rmse_std = rmse - rmse_amb,
+         month = factor(month, 
+                        levels = unique(month), 
+                        labels = month.abb[unique(month)])) %>%
+  ungroup() %>%
+  ggplot(aes(x = temp, 
+             y = rmse_std,
+             color = model_id)) +
+  geom_hline(yintercept = 0) +
+  geom_point(aes(shape = ref_year), size = 0.5) +
+  geom_smooth(se = F, method = 'gam', formula = y ~ s(x, k = 3)) +
+  facet_grid(cols = vars(month))+
+  xlab("Soil temperature (ºC above ambient)")+
+  ylab("Forecast RMSE relative to persistence in ambient\n(µmol CH4/m2/d; lower is better)")+
+  scale_color_viridis_d()+
+  theme_bw()
+
+scores_for_relative  %>%
+  filter(year %in% c(2024)) %>%
+  group_by(horizon, site_id, model_id, temp, year, month, ref_year) %>%
+  summarize(rmse = Metrics::rmse(observation, mean),
+            n = n()) %>%
+  filter(n > 25) %>%
+  group_by(year, month, ref_year, site_id, temp, horizon) %>%
+  filter(length(unique(rmse[model_id == "persistence"]))>0) %>%
+  mutate(rmse_amb = unique(rmse[model_id == "persistence"]),
+         rmse_std = rmse - rmse_amb,
+         month = factor(month, 
+                        levels = unique(month), 
+                        labels = month.abb[unique(month)])) %>%
+  ungroup() %>%
+  ggplot(aes(x = horizon, 
+             y = rmse_std,
+             color = model_id)) +
+  geom_hline(yintercept = 0) +
+  geom_point(aes(shape = ref_year), size = 0.5) +
+  geom_smooth(se = F, method = 'gam', formula = y ~ s(x, k = 3)) +
+  facet_grid(cols = vars(month), rows = vars(site_id))+
+  xlab("Forecast horizon (days)")+
+  ylab("Forecast RMSE relative to persistence\n(µmol CH4/m2/d; lower is better)")+
+  scale_color_viridis_d()+
+  theme_bw()
+
+scores_for_relative  %>%
+  filter(year %in% c(2024),
+         horizon == 30) %>%
+  group_by(horizon, site_id, model_id, temp, year, month, ref_year) %>%
+  summarize(rmse = Metrics::rmse(observation, mean),
+            n = n()) %>%
+  filter(n > 25,
+         ref_year == "No 2021")
 ```
 
 ### Horizon only
@@ -204,6 +508,109 @@ scores_format %>%
   xlab("Forecast horizon (days)")+
   scale_color_viridis_d()+
   facet_wrap(~year)
+
+scores_format %>%
+  filter(year == 2024,
+         !grepl("no2021", model_id)) %>%
+  ggplot(aes(x = horizon, 
+             y = crps, color = model_id)) +
+  geom_smooth(se = F) +
+  xlab("Forecast horizon (days)")+
+  scale_color_viridis_d()+
+  facet_wrap(~year)
+```
+
+Climatology analysis
+
+```{r}
+jpeg("../figures/nulls rmse.jpg", width = 4, height = 6, units = "in", res = 300)
+scores_for_relative  %>%
+  filter(year %in% c(2024),
+         !ref_year == "No 2021",
+         horizon == 30) %>%
+  arrange(temp, month, datetime) %>%
+  filter(model_id %in% c("climate_window", "persistence")) %>%
+  group_by(horizon, site_id, model_id, temp, year, ref_year, month) %>%
+  summarize(rmse = Metrics::rmse(observation, mean),
+            n = n())%>%
+  filter(n > 25) %>%
+  ggplot(aes(x = temp, 
+             y = rmse,
+             color = model_id)) +
+  geom_point() +
+  geom_smooth(method = 'gam', formula = y ~ s(x, k = 3)) +
+  facet_wrap(~month)+
+  xlab("Warming")+
+  ylab("RMSE (µmol CH4/m2/d; lower is better)")+
+  scale_color_viridis_d()+
+  theme_bw()
+dev.off()
+
+jpeg("../figures/nulls bias.jpg", width = 4, height = 6, units = "in", res = 300)
+scores_for_relative  %>%
+  filter(year %in% c(2024),
+         !ref_year == "No 2021",
+         horizon == 30) %>%
+  arrange(temp, month, datetime) %>%
+  filter(model_id %in% c("climate_window", "persistence")) %>%
+  group_by(horizon, site_id, model_id, temp, year, ref_year, month) %>%
+  mutate(bias = mean - observation,
+         n = n())%>%
+  filter(n > 25) %>%
+  ggplot(aes(x = temp, 
+             y = bias,
+             color = model_id)) +
+  geom_hline(yintercept = 0)+
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = 'gam', formula = y ~ s(x, k = 3)) +
+  facet_wrap(~month)+
+  xlab("Warming")+
+  ylab("forecast - observation (µmol CH4/m2/d)")+
+  scale_color_viridis_d()+
+  theme_bw()
+dev.off()
+
+jpeg("../figures/nulls rmse and bias.jpg", width = 6, height = 4, units = "in", res = 300)
+scores_for_relative  %>%
+  filter(year %in% c(2024),
+         !ref_year == "No 2021",
+         horizon == 30) %>%
+  arrange(temp, month, datetime) %>%
+  filter(model_id %in% c("climate_window", "persistence")) %>%
+  group_by(horizon, site_id, model_id, temp, year, ref_year, month) %>%
+  mutate(bias = mean - observation,
+         rmse = Metrics::rmse(observation, mean),
+         n = n())%>%
+  filter(n > 25) %>%
+  pivot_longer(rmse:bias) %>%
+  ggplot(aes(x = temp, 
+             y = value,
+             color = model_id)) +
+  geom_hline(yintercept = 0)+
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = 'gam', formula = y ~ s(x, k = 3)) +
+  facet_grid(name~month)+
+  xlab("Warming")+
+  ylab("forecast - observation (µmol CH4/m2/d)")+
+  scale_color_manual(values = c("orange","navy"))
+  theme_bw()
+dev.off()
+
+observations %>%
+  mutate(temp = sub(".+_e*", "", site_id),
+         temp = ifelse(temp == "amb", 0, temp),
+         temp = as.numeric(temp))  %>%
+  filter(year(datetime) %in% c(2024),
+         month(datetime)%in%c(9,10,11)) %>%
+  ggplot(aes(x = datetime,
+             y = observation, 
+             color = as.factor(temp),
+             group = site_id)) +
+  geom_point() +
+  geom_smooth(method = 'gam', formula = y ~ s(x, k = 3)) +
+  xlab("Warming")+
+  scale_color_viridis_d()+
+  theme_bw()
 ```
 
 Freya's rank plot

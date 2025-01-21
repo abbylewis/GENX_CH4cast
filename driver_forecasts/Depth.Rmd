@@ -15,7 +15,6 @@ source("../R/load_river_discharge.R")
 source("../R/fit_tides.R")
 source("../R/fit_discharge.R")
 source("../R/remove_tidal_signal.R")
-source("../R/convert_to_vera_met_P1D.R")
 ```
 
 Workflow:
@@ -56,6 +55,10 @@ tide_noaa %>%
   ggplot(aes(y = Prediction, x = Mod_fit, color = Type)) +
   geom_abline(aes(intercept = 0, slope = 1)) +
   geom_point()
+
+tide_noaa %>%
+  ggplot(aes(y = Prediction, x = `Date Time`, color = Type)) +
+  geom_point()
 ```
 
 Now we want to model depth independently of tides
@@ -66,7 +69,8 @@ depth_without_tides <- remove_tidal_signal(drivers, mod, end_date = as.Date(toda
 
 depth_without_tides %>%
   ggplot(aes(x = scaled_tide, y = corrected_depth)) +
-  geom_point(alpha = 0.1) +
+  geom_point(alpha = 0.01) +
+  geom_abline()+
   geom_smooth(method = "lm")
 ```
 

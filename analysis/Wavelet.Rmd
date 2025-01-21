@@ -119,6 +119,25 @@ dfs %>%
   theme_bw()+
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   facet_wrap(~var_name)
+
+dfs %>%
+  filter(var_name == "CH4_slope_umol_m2_day") %>%
+  mutate(temp = sub(".+_e*", "", site_id),
+         temp = ifelse(temp == "amb", 0, temp),
+         temp = as.numeric(temp),
+         year = year(datetime)) %>%
+  group_by(name, site_id, var_name, temp) %>%
+  summarize(var = var(value)) %>%
+  group_by(site_id, var_name) %>%
+  mutate(tot_var = sum(var))%>%
+  mutate(site_id = factor(site_id, levels = chamber_levels)) %>%
+  ggplot(aes(x = site_id, y = var/tot_var * 100, fill = name)) +
+  geom_col(data = . %>% filter(!site_id %in% c("mean", "median"))) +
+  labs(x = "Site",
+       y = "Percentage of total variance") +
+  scale_fill_viridis_d(name = "Site") +
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
 Mutual Information

@@ -31,7 +31,7 @@ chamber_levels = c("c_1_amb", "c_2_amb", "c_3_e0.75", "c_4_e1.5", "c_5_e2.25",
 ```{r}
 #| panel: sidebar
 selectInput('model', 'Forecast model', models, selected = models[[1]])
-sliderInput('hist_data', 'Days of historical data to plot', 0,1000, value = 35)
+sliderInput('hist_data', 'Days of historical data to plot', 0,2000, value = 35)
 ```
 
 ```{r}

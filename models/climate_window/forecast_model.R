@@ -35,7 +35,7 @@ forecast_model <- function(site,
     dplyr::select(datetime, site_id, variable, observation) |>
     dplyr::filter(variable == var, 
                   site_id == site,
-                  datetime < forecast_date) 
+                  datetime < forecast_date - days(window)) 
   
   # Format
   site_target_raw <- site_target_raw |>
