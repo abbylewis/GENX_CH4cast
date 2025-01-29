@@ -1,0 +1,25 @@
+---
+title: "SmartX comparison"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+files <- list.files(here::here("Raw_data/smartx_comparison"), full.names = T)
+
+data1 <- read_csv(files[1:10])
+data2 <- read_csv(files[11:20])
+
+data <- data1 %>%
+  filter(!is.na(Date)) %>%
+  full_join(data2) %>%
+  filter(!is.na(Date)) %>%
+  mutate(flux.CH4 = as.numeric(flux.CH4))
+
+data %>%
+  #filter(flux.CH4<5000) %>%
+  ggplot(aes(x = Date, y = flux.CH4)) +
+  geom_point()
+```
+

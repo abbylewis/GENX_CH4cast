@@ -17,6 +17,9 @@ library(rtide)
 drivers <- read_csv("../Raw_data/GENX_SD_Export_Waterlevel_2021-05-06_to_2022-12-30_derived_clean_btemps.csv", 
                     show_col_types = F)
 met <- read_csv("../processed_data/met_output.csv")
+
+met %>%
+  ggplot (aes )
 ```
 
 How do we relate sensor height to tide height?
