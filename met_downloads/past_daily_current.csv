@@ -8342,3 +8342,9 @@ datetime,variable,site_id,model_id,prediction
 2025-01-29,Rain_mm_sum,gcrew,noaa_gefs,0
 2025-01-29,ShortwaveRadiation_Wm2,gcrew,noaa_gefs,148.5
 2025-01-29,WindSpeed_ms_mean,gcrew,noaa_gefs,6.374271335217905
+2025-01-30,AirTemp_C_mean,gcrew,noaa_gefs,3.144410705566429
+2025-01-30,Pressure_Pa,gcrew,noaa_gefs,101952.20703125
+2025-01-30,RH_percent_mean,gcrew,noaa_gefs,64.79925060272217
+2025-01-30,Rain_mm_sum,gcrew,noaa_gefs,0
+2025-01-30,ShortwaveRadiation_Wm2,gcrew,noaa_gefs,129.25
+2025-01-30,WindSpeed_ms_mean,gcrew,noaa_gefs,4.330978931925928
