@@ -18,8 +18,7 @@ data <- data1 %>%
   mutate(flux.CH4 = as.numeric(flux.CH4))
 
 data %>%
-  #filter(flux.CH4<5000) %>%
+  filter(flux.CH4<5000) %>%
   ggplot(aes(x = Date, y = flux.CH4)) +
   geom_point()
 ```
-

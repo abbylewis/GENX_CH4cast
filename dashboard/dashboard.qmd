@@ -10,10 +10,12 @@ server: shiny
 #| context: setup
 
 library(tidyverse)
-library(shiny)
 library(plotly)
 #Optional: download new data
-source(here::here("R","generate_target.R"))
+#source(here::here("R","generate_target.R"))
+source(here::here("R", "generate_tg_forecast.R"))
+source(here::here("R", "plot_shiny_forecast.R"))
+source(here::here("R", "plot_raw_data.R"))
 #target <- generate_target()
 
 models <- list.files(here::here("models"))
@@ -24,10 +26,6 @@ options_ordered <- file_options %>%
          Date_date = as.Date(Date_num, format = "%Y%m%d"),
          Date_date = ifelse(is.na(Date_date), Sys.Date(), Date_date)) %>%
   arrange(desc(Date_date))
-
-source(here::here("R", "generate_tg_forecast.R"))
-source(here::here("R", "plot_shiny_forecast.R"))
-source(here::here("R", "plot_raw_data.R"))
 
 scores <- read_csv(here::here("analysis","scores.csv"), show_col_types = F)
 chamber_levels = c("c_1_amb", "c_2_amb", "c_3_e0.75", "c_4_e1.5", "c_5_e2.25",
@@ -100,7 +98,19 @@ output$plot1 <- renderPlot({
   plot_shiny_forecast(input$forecast_date, input$model, input$hist_data)
   })
 output$plot2 <- renderPlot({
-  plot_raw_data(input$raw_data_file)
+  plot_raw_data(
+    filename = input$raw_data_file,
+    data_raw = here::here("Raw_data",
+                          "dropbox_downloads",
+                          input$raw_data_file) %>%
+      map(read_csv, col_types = cols(.default = "c"), skip = 1)  %>%
+      bind_rows() %>%
+      filter(!TIMESTAMP == "TS") %>%
+      mutate(TIMESTAMP = as_datetime(TIMESTAMP)) %>%
+      filter(!is.na(TIMESTAMP),
+             !is.na(MIU_VALVE)) %>%
+      distinct()
+  )
   })
 output$plot3 <- renderPlotly({
   if(input$skill_metric == "CRPS"){
