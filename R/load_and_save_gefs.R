@@ -63,12 +63,12 @@ load_and_save_gefs <- function(date){
   }
 }
 
-target <- read_csv(here::here("L1_target.csv"), show_col_types = F)
-date <- seq(min(target$datetime), Sys.Date() - 1L, by = "1 day")
-processed <- as.Date(str_extract(list.files(here::here("met_downloads")), "[0-9].*[0-9]"))
-date <- date[!date %in% processed]
-#Process all, breaking into chucks to account for system limitations
-comb <- date %>%
-  split(cut(date, 135, labels = FALSE)) %>% #10 at a time
-  map(load_and_save_gefs) %>%
-  bind_rows()
+#target <- read_csv(here::here("L1_target.csv"), show_col_types = F)
+#date <- seq(min(target$datetime), Sys.Date() - 1L, by = "1 day")
+#processed <- as.Date(str_extract(list.files(here::here("met_downloads")), "[0-9].*[0-9]"))
+#date <- date[!date %in% processed]
+##Process all, breaking into chucks to account for system limitations
+#comb <- date %>%
+#  split(cut(date, 2, labels = FALSE)) %>% #10 at a time
+#  map(load_and_save_gefs) %>%
+#  bind_rows()

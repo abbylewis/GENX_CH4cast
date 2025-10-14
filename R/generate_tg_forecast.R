@@ -25,11 +25,9 @@ generate_tg_forecast <- function(forecast_date,
   if(sites == "all"){
     sites <- unique(target$site_id)
   }
-  horiz = 35
+  horiz = 8
   step = 1
-  chamber_levels = c("c_1_amb", "c_2_amb", "c_3_e0.75", "c_4_e1.5", "c_5_e2.25",
-                     "c_6_e2.25", "c_7_e3.0", "c_8_e3.75", "c_9_e3.75", "c_10_e4.5",
-                     "c_11_e5.25", "c_12_e6.0")
+  chamber_levels = as.character(1:12)
   
   ### Step 3: Get NOAA driver data (if needed)
   if(noaa){ #Some forecasts do not use any noaa driver data --> in that case skip download
@@ -42,19 +40,42 @@ generate_tg_forecast <- function(forecast_date,
       met <- load_and_save_gefs(date = forecast_date) 
       past <- load_hist_weather() #refresh historical data
     }
-
+    
+    saved_wl <- list.files(here::here("wl_forecasts"))
+    date_wl <- format(forecast_date, "%Y%m%d")
+    if(sum(grepl(date_wl, saved_wl)) == 0){
+      wl <- load_and_save_etss(date = forecast_date) 
+      past_wl <- load_hist_etss()
+    }
+    
     #Load forecasts
+    future_wl <- read_csv(here::here("wl_forecasts",
+                                     paste0("etss_future_daily_",date_wl,".csv")),
+                          show_col_types = F)
+    
     noaa_future_daily <- read_csv(here::here("met_downloads",
                                              paste0("future_daily_",forecast_date,".csv")),
                                   show_col_types = F) %>%
-      pivot_wider(names_from = "variable", values_from = "prediction")
+      pivot_wider(names_from = "variable", values_from = "prediction") %>%
+      left_join(future_wl %>% 
+                  rename(WaterLevel = prediction) %>%
+                  select(datetime, WaterLevel))
     
     # Load historical data
+    past_wl <- read_csv(here::here("wl_forecasts",
+                                   "past_daily_current.csv"),
+                        show_col_types = F) %>%
+      filter(datetime < forecast_date)
+    
     noaa_past_mean <- read_csv(here::here("met_downloads",
-                                         "past_daily_current.csv"),
+                                          "past_daily_current.csv"),
                                show_col_types = F) %>%
       filter(datetime <= forecast_date) %>%
-      pivot_wider(names_from = "variable", values_from = "prediction")
+      pivot_wider(names_from = "variable", values_from = "prediction") %>%
+      left_join(past_wl %>% 
+                  rename(WaterLevel = prediction) %>%
+                  select(datetime, WaterLevel),
+                by = "datetime")
     
   } else {
     forecast_date <- as.Date(forecast_date)

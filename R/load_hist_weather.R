@@ -1,7 +1,7 @@
 
 library(tidyverse)
-source(here::here("R", "megacube_extract.R"))
-source(here::here("R", "gefs-methods.R"))
+#source(here::here("R", "megacube_extract.R"))
+#source(here::here("R", "gefs-methods.R"))
 
 #remember you need to deal with time zones
 load_hist_weather <- function(){
@@ -20,5 +20,25 @@ load_hist_weather <- function(){
   
   write_csv(past, here::here("met_downloads", 
                                  paste0("past_daily_current.csv")))
+  return(past)
+}
+
+load_hist_etss <- function(){
+  target <- read_csv(here::here("L1_target.csv"), show_col_types = F)
+  date <- seq(min(target$datetime), Sys.Date(), by = "1 day")
+  
+  files <- list.files(here::here("wl_forecasts"), full.names = T)
+  forecasts <- files[grepl("future_daily", files)]
+  
+  past <- forecasts %>%
+    map(read_csv, show_col_types = F) %>%
+    bind_rows() %>%
+    filter(horizon == 0) %>%
+    group_by(datetime, variable, model_id) %>%
+    summarize(prediction = mean(prediction, na.rm = T), .groups = "drop") %>%
+    mutate(site_id = "gcrew")
+  
+  write_csv(past, here::here("wl_forecasts", 
+                             paste0("past_daily_current.csv")))
   return(past)
 }
