@@ -1,0 +1,37 @@
+on:
+  workflow_dispatch:
+  schedule:
+  - cron: "0 10 * * *"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: rocker/geospatial
+    permissions:
+      contents: write
+      
+    steps:
+    - run: git config --system --add safe.directory '*'
+    
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Load packages
+      run: |
+        Rscript ./packages.R
+
+    - name: Run slosh
+      run: |
+        Rscript ./models/slosh/run_forecast.R
+  
+    - name: Commit and push
+      run: |
+        git config --global user.name 'abbylewis'
+        git config --global user.email 'aslewis@vt.edu'
+        git add .
+        git commit -m "Automated ML forecasts" || echo "No changes to commit"
+        git pull --ff-only
+        git push
