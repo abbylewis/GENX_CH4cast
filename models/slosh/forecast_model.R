@@ -4,6 +4,7 @@
 
 #### Step 0: load packages
 library(tidyverse)
+library(randomForest)
 
 #### Step 1: Set model specifications
 model_id <- "slosh"
@@ -48,7 +49,8 @@ forecast_model <- function(site,
   
   site_target_met <- site_target |>
     dplyr::left_join(noaa_past_mean %>%
-                       select(-site_id)) %>%
+                       select(-site_id),
+                     by = c("datetime")) %>%
     arrange(datetime) %>%
     mutate(WL_firstdif = WaterLevel - lag(WaterLevel),
            roll_temp = zoo::rollmean(AirTemp_C_mean, 5, align = "right", fill = NA),
@@ -90,7 +92,9 @@ forecast_model <- function(site,
            WL_lag1 = lag(WaterLevel),
            roll_WL = zoo::rollmean(WaterLevel, 3, align = "right", fill = NA)) %>%
     filter(!is.na(WaterLevel)) %>%
-    left_join(site_target_rf %>% select(datetime, CH4_slope_umol_m2_day))
+    left_join(site_target_rf %>% 
+                select(datetime, CH4_slope_umol_m2_day),
+              by = c("datetime"))
   
   #THIS IS THE FORECAST STEP
   start <- max(as.Date(new_data$datetime)[!is.na(new_data$CH4_slope_umol_m2_day)], na.rm=T) + days(1)

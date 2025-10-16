@@ -2,7 +2,7 @@ source("./models/slosh/forecast_model.R")
 source("./R/rerun_forecasts.R")
 source("./R/generate_tg_forecast.R")
 
-END <- as_date('2024-12-27') # Don't re-run if forecasts have been submitted after this date
+END <- as_date('2025-10-15') # Don't re-run if forecasts have been submitted after this date
 
 rerun_forecasts(forecast_model = forecast_model,
                 model_variables = model_variables,
