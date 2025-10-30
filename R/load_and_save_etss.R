@@ -36,10 +36,10 @@ load_and_save_etss <- function(dates){
   }
 }
 
-target <- read_csv(here::here("L1_target.csv"), show_col_types = F)
-dates <- seq(min(target$datetime), Sys.Date() - 1L, by = "1 day")
-processed <- as.Date(str_extract(list.files(here::here("wl_forecasts")), "[0-9]+"),
-                     format = "%Y%m%d")
-dates <- dates[!dates %in% processed]
+#target <- read_csv(here::here("L1_target.csv"), show_col_types = F)
+#dates <- seq(min(target$datetime), Sys.Date() - 1L, by = "1 day")
+#processed <- as.Date(str_extract(list.files(here::here("wl_forecasts")), "[0-9]+"),
+#                     format = "%Y%m%d")
+#dates <- dates[!dates %in% processed]
 #Process all
-comb <- load_and_save_etss(dates)
+#comb <- load_and_save_etss(dates)

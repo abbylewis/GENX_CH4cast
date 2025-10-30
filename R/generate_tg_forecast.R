@@ -1,6 +1,7 @@
 source(here::here("R","run_all_sites.R"))
 source(here::here("R","load_hist_weather.R"))
 source(here::here("R","load_and_save_gefs.R"))
+source(here::here("R","load_and_save_etss.R"))
 library(tidyverse)
 
 generate_tg_forecast <- function(forecast_date,

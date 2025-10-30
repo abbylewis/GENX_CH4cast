@@ -33,7 +33,7 @@ generate_target <- function(){
     summarise(observation = median(observation, na.rm = TRUE), 
               n = n(),
               .groups = "drop") %>%
-    filter(n >= 3)
+    filter(n >= 4)
   
   write.csv(target, here::here("L1_target.csv"), row.names = FALSE)
   return(target)
