@@ -227,3 +227,4 @@ datetime,variable,model_id,prediction,site_id
 2025-10-29,cwl,noaa_gestofs,0.5323764791666667,gcrew
 2025-10-30,cwl,noaa_gestofs,0.8761180291666667,gcrew
 2025-10-31,cwl,noaa_gestofs,0.38302756541666666,gcrew
+2025-11-05,cwl,noaa_gestofs,0.11417436715833332,gcrew
