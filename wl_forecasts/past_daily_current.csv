@@ -345,3 +345,4 @@ datetime,variable,model_id,prediction,site_id
 2026-02-28,cwl,noaa_gestofs,0.15283283981666668,gcrew
 2026-03-01,cwl,noaa_gestofs,0.04848420983333333,gcrew
 2026-03-02,cwl,noaa_gestofs,0.11410464919166668,gcrew
+2026-03-03,cwl,noaa_gestofs,0.10513925295833332,gcrew
