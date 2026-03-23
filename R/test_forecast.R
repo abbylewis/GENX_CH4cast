@@ -15,4 +15,4 @@ generate_tg_forecast(forecast_date = Sys.Date(),
                      sites = sites,
                      noaa = noaa, 
                      plot = T,
-                     save = F)
+                     save = T)
