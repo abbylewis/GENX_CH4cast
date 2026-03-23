@@ -53,21 +53,29 @@ forecast_model <- function(site,
                      by = c("datetime")) %>%
     arrange(datetime) %>%
     mutate(WL_firstdif = WaterLevel - lag(WaterLevel),
-           roll_temp = zoo::rollmean(AirTemp_C_mean, 5, align = "right", fill = NA),
+           roll_temp = zoo::rollmean(AirTemp_C_mean, 30, align = "right", fill = "extend"),
+           roll_temp5 = zoo::rollmean(AirTemp_C_mean, 5, align = "right", fill = "extend"),
+           roll_pa = zoo::rollmean(Pressure_Pa, 5, align = "right", fill = "extend"),
+           roll_sr = zoo::rollmean(Pressure_Pa, 5, align = "right", fill = "extend"),
+           roll_rh = zoo::rollmean(RH_percent_mean, 5, align = "right", fill = "extend"),
+           roll_ws = zoo::rollmean(WindSpeed_ms_mean, 10, align = "right", fill = "extend"),
            ch4_lag1 = lag(CH4_slope_umol_m2_day),
+           lag_ws = lag(WindSpeed_ms_mean),
            WL_lag1 = lag(WaterLevel),
-           roll_WL = zoo::rollmean(WaterLevel, 3, align = "right", fill = NA))
+           roll_WL = zoo::rollmean(WaterLevel, 10, align = "right", fill = "extend"),
+           WL_minus_roll = WaterLevel - roll_WL)
   
   site_target_rf <- site_target_met %>%
     filter(!is.na(WL_firstdif),
+           !is.na(roll_WL),
            !is.na(roll_temp),
-           !is.na(ch4_lag1),
-           !is.na(WaterLevel),
-           !is.na(WindSpeed_ms_mean),
-           !is.na(CH4_slope_umol_m2_day))
+           !is.na(CH4_slope_umol_m2_day),
+           !is.na(ch4_lag1))
   
-  rf <- randomForest(CH4_slope_umol_m2_day ~ ch4_lag1 + WL_firstdif + roll_temp + 
-                       WaterLevel + WindSpeed_ms_mean + WL_lag1, 
+  rf <- randomForest(CH4_slope_umol_m2_day ~ 
+                       roll_temp + AirTemp_C_mean +
+                       ShortwaveRadiation_Wm2 + roll_ws + 
+                       WaterLevel + roll_WL, 
                      data = site_target_rf)
   site_target_rf$rf_pred <- predict(rf, newdata = site_target_rf)
   importance(rf)
@@ -88,9 +96,16 @@ forecast_model <- function(site,
     group_by(parameter) %>%
     arrange(datetime) %>%
     mutate(WL_firstdif = WaterLevel - lag(WaterLevel),
-           roll_temp = zoo::rollmean(AirTemp_C_mean, 5, align = "right", fill = NA),
-           WL_lag1 = lag(WaterLevel),
-           roll_WL = zoo::rollmean(WaterLevel, 3, align = "right", fill = NA)) %>%
+         roll_temp = zoo::rollmean(AirTemp_C_mean, 30, align = "right", fill = "extend"),
+         roll_temp5 = zoo::rollmean(AirTemp_C_mean, 5, align = "right", fill = "extend"),
+         roll_pa = zoo::rollmean(Pressure_Pa, 5, align = "right", fill = "extend"),
+         roll_sr = zoo::rollmean(Pressure_Pa, 5, align = "right", fill = "extend"),
+         roll_rh = zoo::rollmean(RH_percent_mean, 5, align = "right", fill = "extend"),
+         roll_ws = zoo::rollmean(WindSpeed_ms_mean, 10, align = "right", fill = "extend"),
+         lag_ws = lag(WindSpeed_ms_mean),
+         WL_lag1 = lag(WaterLevel),
+         roll_WL = zoo::rollmean(WaterLevel, 10, align = "right", fill = "extend"),
+         WL_minus_roll = WaterLevel - roll_WL) %>%
     filter(!is.na(WaterLevel)) %>%
     left_join(site_target_rf %>% 
                 select(datetime, CH4_slope_umol_m2_day),
