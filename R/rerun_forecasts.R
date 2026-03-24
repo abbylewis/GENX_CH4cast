@@ -43,6 +43,11 @@ rerun_forecasts <- function(forecast_model = forecast_model,
   missed_dates <- required_forecasts %>%
     filter(!daily)
   
+  if(nrow(missed_dates) == 0){
+    message("No missing forecasts")
+    return(T)
+  }
+  
   for (i in 1:nrow(missed_dates)) {
     
     forecast_date <- as.Date(missed_dates$date[[i]])
