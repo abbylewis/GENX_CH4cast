@@ -1,0 +1,9 @@
+datetime,model_id,variable,horizon,prediction
+2026-05-10,noaa_gestofs,cwl,0,0.20784334625
+2026-05-11,noaa_gestofs,cwl,1,0.16144755666666666
+2026-05-12,noaa_gestofs,cwl,2,0.147002300125
+2026-05-13,noaa_gestofs,cwl,3,0.29929065
+2026-05-14,noaa_gestofs,cwl,4,0.15541757791666666
+2026-05-15,noaa_gestofs,cwl,5,0.15062409384583333
+2026-05-16,noaa_gestofs,cwl,6,0.16750488858333334
+2026-05-17,noaa_gestofs,cwl,7,0.29461007185185184
