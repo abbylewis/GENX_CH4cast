@@ -11324,3 +11324,9 @@ datetime,variable,site_id,model_id,prediction
 2026-06-12,Rain_mm_sum,gcrew,noaa_gefs,13.100000150501728
 2026-06-12,ShortwaveRadiation_Wm2,gcrew,noaa_gefs,225
 2026-06-12,WindSpeed_ms_mean,gcrew,noaa_gefs,2.5172049267649035
+2026-06-13,AirTemp_C_mean,gcrew,noaa_gefs,21.908681488037132
+2026-06-13,Pressure_Pa,gcrew,noaa_gefs,101136.7421875
+2026-06-13,RH_percent_mean,gcrew,noaa_gefs,70.5587158203125
+2026-06-13,Rain_mm_sum,gcrew,noaa_gefs,45.29999923706055
+2026-06-13,ShortwaveRadiation_Wm2,gcrew,noaa_gefs,362.75
+2026-06-13,WindSpeed_ms_mean,gcrew,noaa_gefs,2.9919490060458735
