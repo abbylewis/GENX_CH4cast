@@ -529,7 +529,7 @@
 "gcrew",1,2026-08-28,"P1D","CH4_slope_umol_m2_day",0.00551105602230727,11
 "gcrew",1,2026-08-29,"P1D","CH4_slope_umol_m2_day",0.00407904878973497,11
 "gcrew",1,2026-08-30,"P1D","CH4_slope_umol_m2_day",0.00508589438322748,11
-"gcrew",1,2026-08-31,"P1D","CH4_slope_umol_m2_day",NA,6
+"gcrew",1,2026-08-31,"P1D","CH4_slope_umol_m2_day",NA,7
 "gcrew",2,2025-03-19,"P1D","CH4_slope_umol_m2_day",0.000525477743805525,11
 "gcrew",2,2025-03-20,"P1D","CH4_slope_umol_m2_day",0.000243723625132545,11
 "gcrew",2,2025-03-21,"P1D","CH4_slope_umol_m2_day",0.000372226476566329,11
@@ -1060,7 +1060,7 @@
 "gcrew",2,2026-08-28,"P1D","CH4_slope_umol_m2_day",0.00253561690854965,11
 "gcrew",2,2026-08-29,"P1D","CH4_slope_umol_m2_day",0.00236041715888485,11
 "gcrew",2,2026-08-30,"P1D","CH4_slope_umol_m2_day",0.00419945119721627,11
-"gcrew",2,2026-08-31,"P1D","CH4_slope_umol_m2_day",NA,6
+"gcrew",2,2026-08-31,"P1D","CH4_slope_umol_m2_day",0.00173389790459735,7
 "gcrew",3,2025-03-19,"P1D","CH4_slope_umol_m2_day",0.000397097307981324,11
 "gcrew",3,2025-03-20,"P1D","CH4_slope_umol_m2_day",0.00045103784924143,11
 "gcrew",3,2025-03-21,"P1D","CH4_slope_umol_m2_day",0.000570535799628547,11
@@ -2122,7 +2122,7 @@
 "gcrew",4,2026-08-28,"P1D","CH4_slope_umol_m2_day",0.00417502211138904,12
 "gcrew",4,2026-08-29,"P1D","CH4_slope_umol_m2_day",0.00334215214744924,11
 "gcrew",4,2026-08-30,"P1D","CH4_slope_umol_m2_day",0.00437929698885023,11
-"gcrew",4,2026-08-31,"P1D","CH4_slope_umol_m2_day",NA,6
+"gcrew",4,2026-08-31,"P1D","CH4_slope_umol_m2_day",0.00405555781075314,7
 "gcrew",5,2025-03-19,"P1D","CH4_slope_umol_m2_day",0.000834747446169304,11
 "gcrew",5,2025-03-20,"P1D","CH4_slope_umol_m2_day",0.000778467062515259,11
 "gcrew",5,2025-03-21,"P1D","CH4_slope_umol_m2_day",0.000888895563394599,11
@@ -2653,7 +2653,7 @@
 "gcrew",5,2026-08-28,"P1D","CH4_slope_umol_m2_day",0.00450000159186738,11
 "gcrew",5,2026-08-29,"P1D","CH4_slope_umol_m2_day",0.00461403440994373,11
 "gcrew",5,2026-08-30,"P1D","CH4_slope_umol_m2_day",0.00577247120001444,12
-"gcrew",5,2026-08-31,"P1D","CH4_slope_umol_m2_day",NA,6
+"gcrew",5,2026-08-31,"P1D","CH4_slope_umol_m2_day",0.00371024763483756,7
 "gcrew",6,2025-03-19,"P1D","CH4_slope_umol_m2_day",0.000556758310683988,12
 "gcrew",6,2025-03-20,"P1D","CH4_slope_umol_m2_day",0.000533367597000619,11
 "gcrew",6,2025-03-21,"P1D","CH4_slope_umol_m2_day",0.000633837327524099,11
@@ -3184,7 +3184,7 @@
 "gcrew",6,2026-08-28,"P1D","CH4_slope_umol_m2_day",0.00382834691682945,11
 "gcrew",6,2026-08-29,"P1D","CH4_slope_umol_m2_day",0.00315328938264844,11
 "gcrew",6,2026-08-30,"P1D","CH4_slope_umol_m2_day",0.00420865924413536,11
-"gcrew",6,2026-08-31,"P1D","CH4_slope_umol_m2_day",NA,6
+"gcrew",6,2026-08-31,"P1D","CH4_slope_umol_m2_day",NA,7
 "gcrew",7,2025-03-19,"P1D","CH4_slope_umol_m2_day",0.000670825204188694,11
 "gcrew",7,2025-03-20,"P1D","CH4_slope_umol_m2_day",0.000692098850302438,11
 "gcrew",7,2025-03-21,"P1D","CH4_slope_umol_m2_day",0.000783068204645256,11
@@ -3715,7 +3715,7 @@
 "gcrew",7,2026-08-28,"P1D","CH4_slope_umol_m2_day",0.00906905707779804,11
 "gcrew",7,2026-08-29,"P1D","CH4_slope_umol_m2_day",0.00652996940871887,11
 "gcrew",7,2026-08-30,"P1D","CH4_slope_umol_m2_day",0.00829374268251643,11
-"gcrew",7,2026-08-31,"P1D","CH4_slope_umol_m2_day",NA,6
+"gcrew",7,2026-08-31,"P1D","CH4_slope_umol_m2_day",NA,7
 "gcrew",8,2025-03-19,"P1D","CH4_slope_umol_m2_day",0.000665881328779845,11
 "gcrew",8,2025-03-20,"P1D","CH4_slope_umol_m2_day",0.000660562909523148,11
 "gcrew",8,2025-03-21,"P1D","CH4_slope_umol_m2_day",0.00067477755737321,11
@@ -4246,7 +4246,7 @@
 "gcrew",8,2026-08-28,"P1D","CH4_slope_umol_m2_day",0.00748842796181689,11
 "gcrew",8,2026-08-29,"P1D","CH4_slope_umol_m2_day",0.0123795763593391,12
 "gcrew",8,2026-08-30,"P1D","CH4_slope_umol_m2_day",0.00911227782540656,11
-"gcrew",8,2026-08-31,"P1D","CH4_slope_umol_m2_day",NA,6
+"gcrew",8,2026-08-31,"P1D","CH4_slope_umol_m2_day",0.00661966954255177,7
 "gcrew",9,2025-03-19,"P1D","CH4_slope_umol_m2_day",0.000836354196191331,11
 "gcrew",9,2025-03-20,"P1D","CH4_slope_umol_m2_day",0.000786219266096115,11
 "gcrew",9,2025-03-21,"P1D","CH4_slope_umol_m2_day",0.000734989015173103,11
@@ -4777,7 +4777,7 @@
 "gcrew",9,2026-08-28,"P1D","CH4_slope_umol_m2_day",0.00688870843146824,11
 "gcrew",9,2026-08-29,"P1D","CH4_slope_umol_m2_day",0.00364654796299706,11
 "gcrew",9,2026-08-30,"P1D","CH4_slope_umol_m2_day",0.00546903944091583,11
-"gcrew",9,2026-08-31,"P1D","CH4_slope_umol_m2_day",NA,7
+"gcrew",9,2026-08-31,"P1D","CH4_slope_umol_m2_day",0.00363410774492097,8
 "gcrew",10,2025-03-19,"P1D","CH4_slope_umol_m2_day",0.000763306286790654,11
 "gcrew",10,2025-03-20,"P1D","CH4_slope_umol_m2_day",0.000611703162215647,11
 "gcrew",10,2025-03-21,"P1D","CH4_slope_umol_m2_day",0.000787520719210666,11
@@ -5308,7 +5308,7 @@
 "gcrew",10,2026-08-28,"P1D","CH4_slope_umol_m2_day",0.00823257742853438,11
 "gcrew",10,2026-08-29,"P1D","CH4_slope_umol_m2_day",0.00716349869542358,11
 "gcrew",10,2026-08-30,"P1D","CH4_slope_umol_m2_day",0.00831838222574582,11
-"gcrew",10,2026-08-31,"P1D","CH4_slope_umol_m2_day",NA,6
+"gcrew",10,2026-08-31,"P1D","CH4_slope_umol_m2_day",NA,7
 "gcrew",11,2025-03-19,"P1D","CH4_slope_umol_m2_day",0.00109390901003114,11
 "gcrew",11,2025-03-20,"P1D","CH4_slope_umol_m2_day",0.000937908593647962,11
 "gcrew",11,2025-03-21,"P1D","CH4_slope_umol_m2_day",0.000963408429366702,11
@@ -5839,7 +5839,7 @@
 "gcrew",11,2026-08-28,"P1D","CH4_slope_umol_m2_day",0.00773230565299496,11
 "gcrew",11,2026-08-29,"P1D","CH4_slope_umol_m2_day",0.00818142378616409,11
 "gcrew",11,2026-08-30,"P1D","CH4_slope_umol_m2_day",0.00918807648841605,11
-"gcrew",11,2026-08-31,"P1D","CH4_slope_umol_m2_day",NA,6
+"gcrew",11,2026-08-31,"P1D","CH4_slope_umol_m2_day",0.00560578008986349,7
 "gcrew",12,2025-03-19,"P1D","CH4_slope_umol_m2_day",0.000926807538094097,11
 "gcrew",12,2025-03-20,"P1D","CH4_slope_umol_m2_day",0.000918666160608342,11
 "gcrew",12,2025-03-21,"P1D","CH4_slope_umol_m2_day",0.00100484541175635,11
