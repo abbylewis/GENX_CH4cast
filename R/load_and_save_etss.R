@@ -13,9 +13,11 @@ load_and_save_etss <- function(dates){
     destfile <- tempfile()
     download.file(url, destfile, mode = "wb")
     nc <- nc_open(destfile)
+    time_units <- ncatt_get(nc, "time")$base_date
+    time_units_parsed <- str_extract(time_units, "[0-9]+-[0-9]+-[0-9]+ [0-9]+:[0-9]+:[0-9]+")
     station_id <- which(grepl("Annapolis", ncvar_get(nc, "station_name")))
     zetas <- ncvar_get(nc,"zeta", start = c(station_id, 1), count = c(1,-1))
-    times <- as_datetime("2024-04-04 12:00:00")+ seconds(ncvar_get(nc,"time"))
+    times <- as_datetime(time_units_parsed)+ seconds(ncvar_get(nc,"time"))
     data <- data.frame(datetime = times,
                        prediction = zetas)
     formatted <- data %>%
@@ -41,5 +43,5 @@ load_and_save_etss <- function(dates){
 #processed <- as.Date(str_extract(list.files(here::here("wl_forecasts")), "[0-9]+"),
 #                     format = "%Y%m%d")
 #dates <- dates[!dates %in% processed]
-#Process all
+##Process all
 #comb <- load_and_save_etss(dates)

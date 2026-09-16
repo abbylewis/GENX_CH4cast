@@ -167,7 +167,6 @@ Relative plots
 scores_for_relative <- scores_format %>%
   mutate(month = month(datetime))
 
-jpeg("../figures/RMSE by site.jpg", width = 6, height = 3, units = "in", res = 300)
 scores_for_relative  %>%
   filter(horizon == 7,
          !is.na(observation),
@@ -195,7 +194,6 @@ scores_for_relative  %>%
   ylab("Forecast RMSE relative to ambient\n(µmol CH4/m2/d; lower is better)")+
   scale_color_viridis_d()+
   theme_bw()
-dev.off()
 
 
 jpeg("../figures/RMSE by site and type.jpg", width = 6, height = 3, units = "in", res = 300)
@@ -726,20 +724,5 @@ seven <- scores_format %>%
 seven
 dev.off()
 
-jpeg("../figures/30-day forecasts.png", res = 300, width = 8, height = 5, units = "in")
-thirty <- scores_format %>%
-  filter(horizon == 30) %>%
-  ggplot(aes(x = datetime, 
-             y = mean)) +
-  geom_point(aes(x = datetime, y = observation), data = observations, color = "black")+
-  geom_ribbon(aes(ymin = quantile90, ymax = quantile10, fill = model_id), alpha = 0.4) +
-  geom_line(aes(color = model_id)) +
-  facet_wrap(~site_id) +
-  xlab("Forecast date")+
-  coord_cartesian(ylim=c(min(observations$observation), max(observations$observation)))
-thirty
-dev.off()
-
 seven
-thirty
 ```
