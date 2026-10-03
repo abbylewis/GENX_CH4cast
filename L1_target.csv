@@ -561,7 +561,7 @@
 "gcrew",1,2026-09-29,"P1D","CH4_slope_umol_m2_day",NA,11
 "gcrew",1,2026-09-30,"P1D","CH4_slope_umol_m2_day",NA,12
 "gcrew",1,2026-10-01,"P1D","CH4_slope_umol_m2_day",NA,11
-"gcrew",1,2026-10-02,"P1D","CH4_slope_umol_m2_day",NA,5
+"gcrew",1,2026-10-02,"P1D","CH4_slope_umol_m2_day",NA,7
 "gcrew",2,2025-03-19,"P1D","CH4_slope_umol_m2_day",0.000525477743805525,11
 "gcrew",2,2025-03-20,"P1D","CH4_slope_umol_m2_day",0.000243723625132545,11
 "gcrew",2,2025-03-21,"P1D","CH4_slope_umol_m2_day",0.000372226476566329,11
@@ -2813,7 +2813,7 @@
 "gcrew",5,2026-09-29,"P1D","CH4_slope_umol_m2_day",NA,11
 "gcrew",5,2026-09-30,"P1D","CH4_slope_umol_m2_day",NA,11
 "gcrew",5,2026-10-01,"P1D","CH4_slope_umol_m2_day",NA,11
-"gcrew",5,2026-10-02,"P1D","CH4_slope_umol_m2_day",NA,5
+"gcrew",5,2026-10-02,"P1D","CH4_slope_umol_m2_day",NA,6
 "gcrew",6,2025-03-19,"P1D","CH4_slope_umol_m2_day",0.000556758310683988,12
 "gcrew",6,2025-03-20,"P1D","CH4_slope_umol_m2_day",0.000533367597000619,11
 "gcrew",6,2025-03-21,"P1D","CH4_slope_umol_m2_day",0.000633837327524099,11
@@ -3376,7 +3376,7 @@
 "gcrew",6,2026-09-29,"P1D","CH4_slope_umol_m2_day",NA,12
 "gcrew",6,2026-09-30,"P1D","CH4_slope_umol_m2_day",NA,11
 "gcrew",6,2026-10-01,"P1D","CH4_slope_umol_m2_day",NA,11
-"gcrew",6,2026-10-02,"P1D","CH4_slope_umol_m2_day",NA,5
+"gcrew",6,2026-10-02,"P1D","CH4_slope_umol_m2_day",NA,7
 "gcrew",7,2025-03-19,"P1D","CH4_slope_umol_m2_day",0.000670825204188694,11
 "gcrew",7,2025-03-20,"P1D","CH4_slope_umol_m2_day",0.000692098850302438,11
 "gcrew",7,2025-03-21,"P1D","CH4_slope_umol_m2_day",0.000783068204645256,11
@@ -5065,7 +5065,7 @@
 "gcrew",9,2026-09-29,"P1D","CH4_slope_umol_m2_day",NA,11
 "gcrew",9,2026-09-30,"P1D","CH4_slope_umol_m2_day",NA,11
 "gcrew",9,2026-10-01,"P1D","CH4_slope_umol_m2_day",NA,11
-"gcrew",9,2026-10-02,"P1D","CH4_slope_umol_m2_day",NA,5
+"gcrew",9,2026-10-02,"P1D","CH4_slope_umol_m2_day",NA,6
 "gcrew",10,2025-03-19,"P1D","CH4_slope_umol_m2_day",0.000763306286790654,11
 "gcrew",10,2025-03-20,"P1D","CH4_slope_umol_m2_day",0.000611703162215647,11
 "gcrew",10,2025-03-21,"P1D","CH4_slope_umol_m2_day",0.000787520719210666,11
@@ -6754,4 +6754,4 @@
 "gcrew",12,2026-09-29,"P1D","CH4_slope_umol_m2_day",0.0119588722026669,11
 "gcrew",12,2026-09-30,"P1D","CH4_slope_umol_m2_day",0.0121824507523441,11
 "gcrew",12,2026-10-01,"P1D","CH4_slope_umol_m2_day",0.0116224085318276,11
-"gcrew",12,2026-10-02,"P1D","CH4_slope_umol_m2_day",0.0171721119494029,5
+"gcrew",12,2026-10-02,"P1D","CH4_slope_umol_m2_day",0.0167788234129612,6
